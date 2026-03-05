@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 type PeriodFilter = "today" | "week" | "month" | "year";
 
@@ -84,20 +84,20 @@ export default function FinancesPage() {
     toast.success("Transação removida!");
   };
 
-  const periodLabels: Record<PeriodFilter, string> = { today: "Hoje", week: "Esta Semana", month: "Este Mês", year: "Este Ano" };
+  const periodLabels: Record<PeriodFilter, string> = { today: "Hoje", week: "Semana", month: "Mês", year: "Ano" };
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-4 md:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
-              <DollarSign className="w-8 h-8 text-primary" />Finanças
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold text-foreground flex items-center gap-3">
+              <DollarSign className="w-6 h-6 md:w-8 md:h-8 text-primary" />Finanças
             </h1>
-            <p className="text-muted-foreground mt-1">Controle financeiro.</p>
+            <p className="text-muted-foreground mt-1 text-sm">Controle financeiro.</p>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button className="gap-2"><Plus className="w-4 h-4" />Nova Transação</Button></DialogTrigger>
+            <DialogTrigger asChild><Button size="sm" className="gap-2 self-start"><Plus className="w-4 h-4" />Nova Transação</Button></DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Nova Transação</DialogTitle></DialogHeader>
               <div className="space-y-4">
@@ -118,7 +118,7 @@ export default function FinancesPage() {
         </div>
 
         {/* Period filter */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {(Object.keys(periodLabels) as PeriodFilter[]).map(p => (
             <Button key={p} variant={period === p ? "default" : "outline"} size="sm" onClick={() => setPeriod(p)}>
               {periodLabels[p]}
@@ -126,31 +126,31 @@ export default function FinancesPage() {
           ))}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
           <StatCard icon={<TrendingUp className="w-5 h-5" />} label="Receita" value={`R$ ${income.toLocaleString("pt-BR")}`} positive />
           <StatCard icon={<TrendingDown className="w-5 h-5" />} label="Gastos" value={`R$ ${expenses.toLocaleString("pt-BR")}`} />
           <StatCard icon={<DollarSign className="w-5 h-5" />} label="Saldo" value={`R$ ${balance.toLocaleString("pt-BR")}`} positive={balance >= 0} />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           {/* Transactions table */}
           <div className="lg:col-span-2 bg-card rounded-xl border border-border overflow-hidden">
-            <div className="px-5 py-4 border-b border-border">
-              <h2 className="font-display font-semibold text-foreground">Transações Recentes</h2>
+            <div className="px-4 md:px-5 py-3 md:py-4 border-b border-border">
+              <h2 className="font-display font-semibold text-foreground text-sm md:text-base">Transações Recentes</h2>
             </div>
-            <div className="divide-y divide-border">
+            <div className="divide-y divide-border overflow-x-auto">
               {filtered.map((tx, i) => (
-                <div key={tx.id} className="flex items-center justify-between px-5 py-4 hover:bg-secondary/30 transition-colors animate-slide-up" style={{ animationDelay: `${i * 50}ms` }}>
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${tx.type === "receita" ? "bg-success/20" : "bg-destructive/20"}`}>
+                <div key={tx.id} className="flex items-center justify-between px-4 md:px-5 py-3 md:py-4 hover:bg-secondary/30 transition-colors animate-slide-up min-w-[300px]" style={{ animationDelay: `${i * 50}ms` }}>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${tx.type === "receita" ? "bg-success/20" : "bg-destructive/20"}`}>
                       {tx.type === "receita" ? <ArrowUpRight className="w-4 h-4 text-success" /> : <ArrowDownRight className="w-4 h-4 text-destructive" />}
                     </div>
-                    <div>
-                      <p className="text-sm text-foreground">{tx.description}</p>
+                    <div className="min-w-0">
+                      <p className="text-sm text-foreground truncate">{tx.description}</p>
                       <p className="text-xs text-muted-foreground">{tx.category || "Sem categoria"}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <div className="text-right">
                       <p className={`text-sm font-medium ${tx.type === "receita" ? "text-success" : "text-destructive"}`}>
                         {tx.type === "receita" ? "+" : "-"}R$ {Math.abs(Number(tx.amount)).toLocaleString("pt-BR")}
@@ -168,12 +168,12 @@ export default function FinancesPage() {
           </div>
 
           {/* Pie chart */}
-          <div className="bg-card rounded-xl border border-border p-5">
-            <h2 className="font-display font-semibold text-foreground mb-4">Gastos por Categoria</h2>
+          <div className="bg-card rounded-xl border border-border p-4 md:p-5">
+            <h2 className="font-display font-semibold text-foreground mb-4 text-sm md:text-base">Gastos por Categoria</h2>
             {pieData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
-                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
                     {pieData.map((_, idx) => (
                       <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
                     ))}

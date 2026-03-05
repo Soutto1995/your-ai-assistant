@@ -28,7 +28,7 @@ const navItems = [
   { icon: CreditCard, label: "Planos", path: "/planos" },
 ];
 
-export default function AppSidebar() {
+export default function AppSidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const { profile, signOut } = useAuth();
@@ -67,6 +67,7 @@ export default function AppSidebar() {
             <Link
               key={item.path}
               to={item.path}
+              onClick={onNavigate}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 isActive
                   ? "bg-gold-muted text-primary"

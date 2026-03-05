@@ -5,16 +5,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  CheckSquare,
-  DollarSign,
-  TrendingUp,
-  MessageCircle,
-  Clock,
-  AlertTriangle,
-  Link as LinkIcon,
-  ArrowRight,
-  Crown,
-  LogOut,
+  CheckSquare, DollarSign, TrendingUp, MessageCircle,
+  Clock, AlertTriangle, Link as LinkIcon, ArrowRight, Crown, LogOut,
 } from "lucide-react";
 
 const priorityColor: Record<string, string> = {
@@ -87,53 +79,53 @@ export default function Dashboard() {
 
   return (
     <AppLayout>
-      <div className="space-y-8">
+      <div className="space-y-6 md:space-y-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col gap-3">
           <div>
-            <h1 className="text-3xl font-display font-bold text-foreground">
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold text-foreground">
               Bom dia, <span className="gold-text">{userName}</span> 👋
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-muted-foreground mt-1 text-sm">
               {whatsappConnected
                 ? "Aqui está o resumo do seu dia."
                 : "Conecte seu WhatsApp para o Você Aí organizar tudo automaticamente."}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {!whatsappConnected ? (
-              <Button className="gap-2"><LinkIcon className="w-4 h-4" />Conectar WhatsApp</Button>
+              <Button size="sm" className="gap-2"><LinkIcon className="w-4 h-4" />Conectar WhatsApp</Button>
             ) : (
-              <Button variant="outline" className="gap-2">Enviar comando teste <ArrowRight className="w-4 h-4" /></Button>
+              <Button variant="outline" size="sm" className="gap-2">Comando teste <ArrowRight className="w-4 h-4" /></Button>
             )}
-            <Button variant="outline" className="gap-2" onClick={signOut}><LogOut className="w-4 h-4" />Sair</Button>
+            <Button variant="outline" size="sm" className="gap-2" onClick={signOut}><LogOut className="w-4 h-4" />Sair</Button>
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           <StatCard icon={<CheckSquare className="w-5 h-5" />} label="Tarefas Pendentes" value={String(pendingTasksCount)} />
           <StatCard icon={<DollarSign className="w-5 h-5" />} label="Gastos do Mês" value={`R$ ${monthExpenses.toLocaleString("pt-BR")}`} />
           <StatCard icon={<TrendingUp className="w-5 h-5" />} label="Receita do Mês" value={`R$ ${monthIncome.toLocaleString("pt-BR")}`} />
 
-          <div className="bg-card rounded-xl p-5 border border-border card-glow animate-fade-in">
+          <div className="bg-card rounded-xl p-4 md:p-5 border border-border card-glow animate-fade-in">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-muted-foreground text-sm flex items-center gap-1.5">
-                <MessageCircle className="w-4 h-4" />Mensagens Processadas
+              <span className="text-muted-foreground text-xs sm:text-sm flex items-center gap-1.5">
+                <MessageCircle className="w-4 h-4" />Mensagens
               </span>
               <span className="text-xs font-medium text-primary">{planName}</span>
             </div>
             <div className="space-y-2">
               <div className="flex items-baseline gap-1">
-                <span className="text-2xl font-display font-bold text-foreground">{messagesCount}</span>
-                <span className="text-xs text-muted-foreground">de {messagesLimit} no plano {planName}</span>
+                <span className="text-xl md:text-2xl font-display font-bold text-foreground">{messagesCount}</span>
+                <span className="text-xs text-muted-foreground">/ {messagesLimit}</span>
               </div>
               <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
                 <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${usagePct}%` }} />
               </div>
               {showUpgradeHint && (
                 <div className="flex items-center justify-between gap-2 mt-1">
-                  <p className="text-xs text-warning">Você está perto do limite do FREE.</p>
+                  <p className="text-xs text-warning">Perto do limite.</p>
                   <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1"><Crown className="w-3 h-3" />Upgrade</Button>
                 </div>
               )}
@@ -141,21 +133,21 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
           {/* Recent Activity */}
-          <div className="bg-card rounded-xl border border-border p-6 card-glow">
-            <h2 className="font-display font-semibold text-lg text-foreground mb-4 flex items-center gap-2">
+          <div className="bg-card rounded-xl border border-border p-4 md:p-6 card-glow">
+            <h2 className="font-display font-semibold text-base md:text-lg text-foreground mb-4 flex items-center gap-2">
               <Clock className="w-5 h-5 text-primary" />Atividade Recente
             </h2>
             {recentActivity.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">Nada por aqui ainda. Envie algo no WhatsApp para começar.</p>
+              <p className="text-sm text-muted-foreground text-center py-6">Nada por aqui ainda.</p>
             ) : (
               <div className="space-y-3">
                 {recentActivity.map((item, i) => (
                   <div key={item.id} className="flex items-start gap-3 py-2 border-b border-border last:border-0 animate-slide-up" style={{ animationDelay: `${i * 80}ms` }}>
                     <span className="text-lg">{typeEmoji[item.type] || "📩"}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-foreground">{item.message}</p>
+                      <p className="text-sm text-foreground truncate">{item.message}</p>
                       <p className="text-xs text-muted-foreground">{new Date(item.created_at).toLocaleString("pt-BR")}</p>
                     </div>
                   </div>
@@ -165,8 +157,8 @@ export default function Dashboard() {
           </div>
 
           {/* Pending Tasks */}
-          <div className="bg-card rounded-xl border border-border p-6 card-glow">
-            <h2 className="font-display font-semibold text-lg text-foreground mb-4 flex items-center gap-2">
+          <div className="bg-card rounded-xl border border-border p-4 md:p-6 card-glow">
+            <h2 className="font-display font-semibold text-base md:text-lg text-foreground mb-4 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-primary" />Tarefas Pendentes
             </h2>
             {pendingTasks.length === 0 ? (
@@ -175,13 +167,13 @@ export default function Dashboard() {
               <div className="space-y-3">
                 {pendingTasks.map((task, i) => (
                   <div key={task.id} className="flex items-center justify-between py-2 border-b border-border last:border-0 animate-slide-up" style={{ animationDelay: `${i * 80}ms` }}>
-                    <div className="flex items-center gap-3">
-                      <div className="w-2 h-2 rounded-full bg-primary" />
-                      <span className="text-sm text-foreground">{task.title}</span>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+                      <span className="text-sm text-foreground truncate">{task.title}</span>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <span className={`text-xs font-medium ${priorityColor[task.priority] || ""}`}>{task.priority}</span>
-                      {task.due_date && <span className="text-xs text-muted-foreground">{new Date(task.due_date).toLocaleDateString("pt-BR")}</span>}
+                      {task.due_date && <span className="text-xs text-muted-foreground hidden sm:inline">{new Date(task.due_date).toLocaleDateString("pt-BR")}</span>}
                     </div>
                   </div>
                 ))}
