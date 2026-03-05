@@ -114,12 +114,15 @@ serve(async (req) => {
     const userName = profiles[0].full_name || "amigo(a)";
     const userPlan = (profiles[0].plan || "FREE").toUpperCase();
 
-    // 6. Check message limits
-    const limitExceeded = await checkMessageLimit(supabase, userId, userPlan);
-    if (limitExceeded) {
-      const limitMsg = PLAN_LIMITS[userPlan]?.message || PLAN_LIMITS.FREE.message;
-      await sendWhatsAppMessage(remoteJid, limitMsg);
-      return new Response(JSON.stringify({ status: "limit_exceeded", plan: userPlan }), { headers: corsHeaders });
+    // 6. Check message limits (bypass for admin)
+    const ADMIN_PHONE = "554899844528";
+    if (remoteJid !== ADMIN_PHONE) {
+      const limitExceeded = await checkMessageLimit(supabase, userId, userPlan);
+      if (limitExceeded) {
+        const limitMsg = PLAN_LIMITS[userPlan]?.message || PLAN_LIMITS.FREE.message;
+        await sendWhatsAppMessage(remoteJid, limitMsg);
+        return new Response(JSON.stringify({ status: "limit_exceeded", plan: userPlan }), { headers: corsHeaders });
+      }
     }
 
     // 7. Interpret with OpenAI (gpt-4.1-nano)

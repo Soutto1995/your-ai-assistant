@@ -15,6 +15,7 @@ import MemoryPage from "./pages/MemoryPage";
 import PlansPage from "./pages/PlansPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
+import PricingPage from "./pages/PricingPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
             <Route path="/projetos" element={<ProtectedRoute><ProjectsPage /></ProtectedRoute>} />
             <Route path="/memoria" element={<ProtectedRoute><MemoryPage /></ProtectedRoute>} />
             <Route path="/planos" element={<ProtectedRoute><PlansPage /></ProtectedRoute>} />
+            <Route path="/pricing" element={<PricingPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
