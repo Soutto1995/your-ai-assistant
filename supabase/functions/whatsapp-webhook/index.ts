@@ -24,20 +24,35 @@ serve(async (req) => {
     const key = data.key;
     const message = data.message;
 
-    // Ignore messages from bot itself
-    if (key?.fromMe === true) {
-      return new Response(JSON.stringify({ status: "ignored_own" }), { headers: corsHeaders });
+    // ONLY process messages sent by ME (fromMe === true)
+    if (key?.fromMe !== true) {
+      return new Response(JSON.stringify({ status: "ignored_not_from_me" }), { headers: corsHeaders });
     }
 
     // Only process text messages
-    const text = message?.conversation || message?.extendedTextMessage?.text;
+    let text = message?.conversation || message?.extendedTextMessage?.text;
     if (!text) {
       return new Response(JSON.stringify({ status: "ignored_non_text" }), { headers: corsHeaders });
     }
 
-    // Extract phone number (remove @s.whatsapp.net)
-    const rawPhone = key?.remoteJid?.replace("@s.whatsapp.net", "") || "";
-    console.log("Message from:", rawPhone, "Text:", text);
+    // Extract phone numbers
+    const remoteJid = key?.remoteJid?.replace("@s.whatsapp.net", "") || "";
+    // Get the instance owner phone from pushName or use remoteJid for self-chat
+    const isSelfChat = true; // Messages to myself: remoteJid is my own number
+    const hasAiPrefix = text.trim().toLowerCase().startsWith("/ai ");
+
+    // Only process: self-chat messages OR messages with /ai prefix
+    if (!isSelfChat && !hasAiPrefix) {
+      return new Response(JSON.stringify({ status: "ignored_no_prefix" }), { headers: corsHeaders });
+    }
+
+    // Strip /ai prefix if present
+    if (hasAiPrefix) {
+      text = text.trim().substring(4).trim();
+    }
+
+    const rawPhone = remoteJid;
+    console.log("Processing self-message from:", rawPhone, "Text:", text);
 
     // Init Supabase with service role (bypass RLS)
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
