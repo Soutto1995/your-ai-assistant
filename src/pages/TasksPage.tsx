@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -8,6 +8,18 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+
+type PeriodFilter = "all" | "today" | "week" | "month";
+
+function getPeriodStart(period: PeriodFilter): Date | null {
+  if (period === "all") return null;
+  const now = new Date();
+  switch (period) {
+    case "today": return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    case "week": { const d = new Date(now); d.setDate(d.getDate() - d.getDay()); d.setHours(0,0,0,0); return d; }
+    case "month": return new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+}
 
 const priorityBadge: Record<string, string> = {
   alta: "bg-destructive/20 text-destructive",
@@ -31,6 +43,7 @@ export default function TasksPage() {
   const [dueDate, setDueDate] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
 
   const fetchTasks = async () => {
     let query = supabase.from("tasks").select("*").order("created_at", { ascending: false });
@@ -45,6 +58,14 @@ export default function TasksPage() {
     const channel = supabase.channel("tasks-realtime").on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, fetchTasks).subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user, filterStatus, filterPriority]);
+
+  const filteredTasks = useMemo(() => {
+    const start = getPeriodStart(periodFilter);
+    if (!start) return tasks;
+    return tasks.filter(t => new Date(t.created_at) >= start);
+  }, [tasks, periodFilter]);
+
+  const periodLabels: Record<PeriodFilter, string> = { all: "Todos", today: "Hoje", week: "Esta Semana", month: "Este Mês" };
 
   const addTask = async () => {
     if (!title.trim() || !user) return;
@@ -121,6 +142,15 @@ export default function TasksPage() {
           </div>
         </div>
 
+        {/* Period filter */}
+        <div className="flex gap-2">
+          {(Object.keys(periodLabels) as PeriodFilter[]).map(p => (
+            <Button key={p} variant={periodFilter === p ? "default" : "outline"} size="sm" onClick={() => setPeriodFilter(p)}>
+              {periodLabels[p]}
+            </Button>
+          ))}
+        </div>
+
         <div className="bg-card rounded-xl border border-border overflow-hidden">
           <table className="w-full">
             <thead>
@@ -134,7 +164,7 @@ export default function TasksPage() {
               </tr>
             </thead>
             <tbody>
-              {tasks.map((task, i) => (
+              {filteredTasks.map((task, i) => (
                 <tr key={task.id} className="border-b border-border last:border-0 hover:bg-secondary/30 transition-colors animate-slide-up" style={{ animationDelay: `${i * 50}ms` }}>
                   <td className="px-5 py-4"><span className="text-sm text-foreground">{task.title}</span></td>
                   <td className="px-5 py-4"><span className="text-xs text-muted-foreground">{task.project || "—"}</span></td>
@@ -151,7 +181,7 @@ export default function TasksPage() {
                   </td>
                 </tr>
               ))}
-              {tasks.length === 0 && (
+              {filteredTasks.length === 0 && (
                 <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">Nenhuma tarefa encontrada.</td></tr>
               )}
             </tbody>
