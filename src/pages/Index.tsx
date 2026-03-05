@@ -1,6 +1,7 @@
 import AppLayout from "@/components/AppLayout";
 import StatCard from "@/components/StatCard";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   CheckSquare,
   DollarSign,
@@ -11,6 +12,7 @@ import {
   Link as LinkIcon,
   ArrowRight,
   Crown,
+  LogOut,
 } from "lucide-react";
 
 const recentActivity = [
@@ -39,8 +41,9 @@ function clamp(n: number, min: number, max: number) {
 }
 
 export default function Dashboard() {
-  const userName = "Bruno";
-  const planName = "FREE";
+  const { profile, signOut } = useAuth();
+  const userName = profile?.full_name || "Usuário";
+  const planName = profile?.plan || "FREE";
   const whatsappConnected = false;
 
   const messagesToday = 28;
@@ -65,16 +68,22 @@ export default function Dashboard() {
             </p>
           </div>
 
-          {!whatsappConnected ? (
-            <Button className="gap-2">
-              <LinkIcon className="w-4 h-4" />
-              Conectar WhatsApp
+          <div className="flex gap-2">
+            {!whatsappConnected ? (
+              <Button className="gap-2">
+                <LinkIcon className="w-4 h-4" />
+                Conectar WhatsApp
+              </Button>
+            ) : (
+              <Button variant="outline" className="gap-2">
+                Enviar comando teste <ArrowRight className="w-4 h-4" />
+              </Button>
+            )}
+            <Button variant="outline" className="gap-2" onClick={signOut}>
+              <LogOut className="w-4 h-4" />
+              Sair
             </Button>
-          ) : (
-            <Button variant="outline" className="gap-2">
-              Enviar comando teste <ArrowRight className="w-4 h-4" />
-            </Button>
-          )}
+          </div>
         </div>
 
         {/* Activation Steps */}

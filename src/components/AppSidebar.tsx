@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   LayoutDashboard,
   Inbox,
@@ -13,6 +14,7 @@ import {
   ChevronRight,
   MessageCircle,
   Search,
+  LogOut,
 } from "lucide-react";
 
 const navItems = [
@@ -29,6 +31,7 @@ const navItems = [
 export default function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const { profile, signOut } = useAuth();
 
   return (
     <aside
@@ -77,6 +80,26 @@ export default function AppSidebar() {
           );
         })}
       </nav>
+
+      {/* User info + Logout */}
+      <div className="border-t border-sidebar-border px-2 py-3 space-y-2">
+        {!collapsed && profile && (
+          <div className="px-3 py-2">
+            <p className="text-sm font-medium text-sidebar-foreground truncate">
+              {profile.full_name || "Usuário"}
+            </p>
+            <p className="text-xs text-muted-foreground">{profile.plan}</p>
+          </div>
+        )}
+        <button
+          onClick={signOut}
+          className="flex items-center gap-3 px-3 py-2 w-full rounded-lg text-sm text-muted-foreground hover:bg-sidebar-accent hover:text-destructive transition-colors"
+          title={collapsed ? "Sair" : undefined}
+        >
+          <LogOut className="w-4 h-4 flex-shrink-0" />
+          {!collapsed && <span>Sair</span>}
+        </button>
+      </div>
 
       {/* Collapse */}
       <button
