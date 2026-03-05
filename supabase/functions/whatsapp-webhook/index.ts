@@ -73,6 +73,12 @@ serve(async (req) => {
       return new Response(JSON.stringify({ status: "ignored_not_from_me" }), { headers: corsHeaders });
     }
 
+    // 2. Only process messages sent to MYSELF (self-chat)
+    const MY_OWN_WHATSAPP_NUMBER = "554899844528@s.whatsapp.net";
+    if (key?.remoteJid !== MY_OWN_WHATSAPP_NUMBER) {
+      return new Response(JSON.stringify({ status: "ignored_not_self_chat" }), { headers: corsHeaders });
+    }
+
     // 2. Only process text messages
     let text = message?.conversation || message?.extendedTextMessage?.text;
     if (!text) {

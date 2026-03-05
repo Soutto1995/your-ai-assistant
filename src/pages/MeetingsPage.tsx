@@ -14,7 +14,6 @@ const MONTHS = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","A
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
 }
-
 function getFirstDayOfWeek(year: number, month: number) {
   return new Date(year, month, 1).getDay();
 }
@@ -62,7 +61,6 @@ export default function MeetingsPage() {
     toast.success("Reunião removida!");
   };
 
-  // Group meetings by date string
   const meetingsByDate = useMemo(() => {
     const map: Record<string, any[]> = {};
     meetings.forEach(m => {
@@ -87,22 +85,20 @@ export default function MeetingsPage() {
     else setCurrentMonth(m => m + 1);
   };
 
-  const selectedMeetings = selectedDate
-    ? meetingsByDate[selectedDate] || []
-    : [];
+  const selectedMeetings = selectedDate ? meetingsByDate[selectedDate] || [] : [];
 
   return (
     <AppLayout>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-4 md:space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
-              <Users className="w-8 h-8 text-primary" />Reuniões
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold text-foreground flex items-center gap-3">
+              <Users className="w-6 h-6 md:w-8 md:h-8 text-primary" />Reuniões
             </h1>
-            <p className="text-muted-foreground mt-1">Gerencie suas reuniões.</p>
+            <p className="text-muted-foreground mt-1 text-sm">Gerencie suas reuniões.</p>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button className="gap-2"><Plus className="w-4 h-4" />Nova Reunião</Button></DialogTrigger>
+            <DialogTrigger asChild><Button size="sm" className="gap-2 self-start"><Plus className="w-4 h-4" />Nova Reunião</Button></DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Nova Reunião</DialogTitle></DialogHeader>
               <div className="space-y-4">
@@ -115,17 +111,17 @@ export default function MeetingsPage() {
           </Dialog>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">
           {/* Calendar */}
-          <div className="lg:col-span-2 bg-card rounded-xl border border-border p-5">
+          <div className="lg:col-span-2 bg-card rounded-xl border border-border p-3 md:p-5">
             <div className="flex items-center justify-between mb-4">
               <Button variant="ghost" size="icon" onClick={prevMonth}><ChevronLeft className="w-5 h-5" /></Button>
-              <h2 className="font-display font-semibold text-foreground">{MONTHS[currentMonth]} {currentYear}</h2>
+              <h2 className="font-display font-semibold text-foreground text-sm md:text-base">{MONTHS[currentMonth]} {currentYear}</h2>
               <Button variant="ghost" size="icon" onClick={nextMonth}><ChevronRight className="w-5 h-5" /></Button>
             </div>
             <div className="grid grid-cols-7 gap-1">
               {DAYS.map(d => (
-                <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">{d}</div>
+                <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1 md:py-2">{d}</div>
               ))}
               {Array.from({ length: firstDay }).map((_, i) => (
                 <div key={`empty-${i}`} />
@@ -140,13 +136,13 @@ export default function MeetingsPage() {
                   <button
                     key={day}
                     onClick={() => setSelectedDate(dateStr === selectedDate ? null : dateStr)}
-                    className={`relative h-10 rounded-lg text-sm transition-colors
+                    className={`relative h-8 md:h-10 rounded-lg text-xs md:text-sm transition-colors
                       ${isSelected ? "bg-primary text-primary-foreground" : isToday ? "bg-accent/20 text-accent-foreground" : "hover:bg-secondary text-foreground"}
                     `}
                   >
                     {day}
                     {hasMeetings && (
-                      <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-primary" />
+                      <span className="absolute bottom-0.5 md:bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-primary" />
                     )}
                   </button>
                 );
@@ -155,8 +151,8 @@ export default function MeetingsPage() {
           </div>
 
           {/* Side panel */}
-          <div className="bg-card rounded-xl border border-border p-5 space-y-4">
-            <h2 className="font-display font-semibold text-foreground">
+          <div className="bg-card rounded-xl border border-border p-4 md:p-5 space-y-4">
+            <h2 className="font-display font-semibold text-foreground text-sm md:text-base">
               {selectedDate ? new Date(selectedDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "long" }) : "Selecione uma data"}
             </h2>
             {selectedDate && selectedMeetings.length === 0 && (
