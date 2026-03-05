@@ -1,14 +1,8 @@
+import { useEffect, useState } from "react";
 import AppLayout from "@/components/AppLayout";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Inbox as InboxIcon, MessageCircle, CheckCircle, Clock } from "lucide-react";
-
-const inboxItems = [
-  { type: "tarefa", message: "Lembrar de pagar academia sexta", status: "processado", time: "2 min atrás", response: "✅ Tarefa criada: Pagar academia — Prazo: Sexta" },
-  { type: "finanças", message: "Gastei 320 no mercado", status: "processado", time: "15 min atrás", response: "💰 Gasto registrado: R$ 320 — Categoria: Alimentação" },
-  { type: "consulta", message: "Quanto eu gastei esse mês?", status: "processado", time: "1h atrás", response: "📊 Total de gastos no mês: R$ 4.320 em 23 transações" },
-  { type: "reunião", message: "Resumo da reunião com o João", status: "pendente", time: "2h atrás", response: null },
-  { type: "tarefa", message: "Cancelar tarefa academia", status: "processado", time: "3h atrás", response: "✅ Tarefa 'Academia' cancelada com sucesso" },
-  { type: "finanças", message: "Recebi 5.000 da consultoria", status: "processado", time: "5h atrás", response: "💰 Receita registrada: R$ 5.000 — Categoria: Consultoria" },
-];
 
 const typeColors: Record<string, string> = {
   tarefa: "bg-info/20 text-info",
@@ -18,36 +12,39 @@ const typeColors: Record<string, string> = {
 };
 
 export default function InboxPage() {
+  const { user } = useAuth();
+  const [items, setItems] = useState<any[]>([]);
+
+  const fetchItems = async () => {
+    const { data } = await supabase.from("inbox_messages").select("*").order("created_at", { ascending: false });
+    setItems(data || []);
+  };
+
+  useEffect(() => {
+    fetchItems();
+    const channel = supabase.channel("inbox-rt").on("postgres_changes", { event: "*", schema: "public", table: "inbox_messages" }, fetchItems).subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
   return (
     <AppLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-display font-bold text-foreground flex items-center gap-3">
-            <InboxIcon className="w-8 h-8 text-primary" />
-            Inbox
+            <InboxIcon className="w-8 h-8 text-primary" />Inbox
           </h1>
           <p className="text-muted-foreground mt-1">Todas as mensagens recebidas via WhatsApp.</p>
         </div>
 
         <div className="space-y-3">
-          {inboxItems.map((item, i) => (
-            <div
-              key={i}
-              className="bg-card rounded-xl border border-border p-5 card-glow animate-slide-up"
-              style={{ animationDelay: `${i * 60}ms` }}
-            >
+          {items.map((item, i) => (
+            <div key={item.id} className="bg-card rounded-xl border border-border p-5 card-glow animate-slide-up" style={{ animationDelay: `${i * 60}ms` }}>
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeColors[item.type]}`}>
-                      {item.type}
-                    </span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeColors[item.type] || "bg-muted text-muted-foreground"}`}>{item.type}</span>
                     <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                      {item.status === "processado" ? (
-                        <CheckCircle className="w-3 h-3 text-success" />
-                      ) : (
-                        <Clock className="w-3 h-3 text-warning" />
-                      )}
+                      {item.status === "processado" ? <CheckCircle className="w-3 h-3 text-success" /> : <Clock className="w-3 h-3 text-warning" />}
                       {item.status}
                     </span>
                   </div>
@@ -61,10 +58,11 @@ export default function InboxPage() {
                     </div>
                   )}
                 </div>
-                <span className="text-xs text-muted-foreground whitespace-nowrap">{item.time}</span>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">{new Date(item.created_at).toLocaleString("pt-BR")}</span>
               </div>
             </div>
           ))}
+          {items.length === 0 && <p className="text-center py-8 text-muted-foreground">Nenhuma mensagem encontrada.</p>}
         </div>
       </div>
     </AppLayout>
