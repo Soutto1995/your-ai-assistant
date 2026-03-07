@@ -1,4 +1,4 @@
-const CACHE_NAME = "voceai-v1";
+const CACHE_NAME = "tuddo-v1";
 const STATIC_ASSETS = ["/", "/index.html"];
 
 self.addEventListener("install", (event) => {

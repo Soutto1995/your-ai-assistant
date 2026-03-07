@@ -325,7 +325,7 @@ async function sendWhatsAppMessage(phone: string, text: string) {
   }
 
   try {
-    const res = await fetch(`${evolutionUrl}/message/sendText/voceai`, {
+    const res = await fetch(`${evolutionUrl}/message/sendText/tuddo`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: evolutionKey },
       body: JSON.stringify({ number: phone, text }),

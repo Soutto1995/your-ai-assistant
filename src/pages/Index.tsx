@@ -1,13 +1,23 @@
 import { useEffect, useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import StatCard from "@/components/StatCard";
+import OnboardingGuide from "@/components/OnboardingGuide";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import {
   CheckSquare, DollarSign, TrendingUp, MessageCircle,
-  Clock, AlertTriangle, Link as LinkIcon, ArrowRight, Crown, LogOut,
+  Clock, AlertTriangle, ArrowRight, Crown, LogOut,
 } from "lucide-react";
+
+const WHATSAPP_NUMBER = "5511999999999"; // TODO: substituir pelo número real
+const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}?text=Oi%20Tuddo!%20Quero%20come%C3%A7ar.`;
+
+const PLAN_DAILY_LIMITS: Record<string, number> = {
+  FREE: 5,
+  STARTER: 50,
+  PRO: 99999,
+};
 
 const priorityColor: Record<string, string> = {
   alta: "text-destructive",
@@ -22,8 +32,11 @@ function clamp(n: number, min: number, max: number) {
 export default function Dashboard() {
   const { profile, signOut, user } = useAuth();
   const userName = profile?.full_name || "Usuário";
-  const planName = profile?.plan || "FREE";
-  const whatsappConnected = false;
+  const planName = (profile?.plan || "FREE").toUpperCase();
+  const whatsappConnected = !!profile?.phone;
+
+  const messagesLimit = PLAN_DAILY_LIMITS[planName] || PLAN_DAILY_LIMITS.FREE;
+  const isPro = planName === "PRO";
 
   const [pendingTasksCount, setPendingTasksCount] = useState(0);
   const [monthExpenses, setMonthExpenses] = useState(0);
@@ -31,9 +44,9 @@ export default function Dashboard() {
   const [messagesCount, setMessagesCount] = useState(0);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [pendingTasks, setPendingTasks] = useState<any[]>([]);
+  const [isNewUser, setIsNewUser] = useState(false);
 
-  const messagesLimit = 30;
-  const usagePct = clamp(Math.round((messagesCount / messagesLimit) * 100), 0, 100);
+  const usagePct = isPro ? 0 : clamp(Math.round((messagesCount / messagesLimit) * 100), 0, 100);
   const showUpgradeHint = planName === "FREE" && usagePct >= 80;
 
   const fetchData = async () => {
@@ -43,10 +56,12 @@ export default function Dashboard() {
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
     const [tasksRes, txRes, inboxRes, recentInboxRes, pendingTasksRes] = await Promise.all([
       supabase.from("tasks").select("id", { count: "exact", head: true }).eq("status", "pendente"),
       supabase.from("transactions").select("amount, type").gte("transaction_date", startOfMonth.toISOString()),
-      supabase.from("inbox_messages").select("id", { count: "exact", head: true }).eq("status", "processado"),
+      supabase.from("inbox_messages").select("id", { count: "exact", head: true }).gte("created_at", twentyFourHoursAgo),
       supabase.from("inbox_messages").select("*").order("created_at", { ascending: false }).limit(5),
       supabase.from("tasks").select("*").eq("status", "pendente").order("created_at", { ascending: false }).limit(5),
     ]);
@@ -61,6 +76,10 @@ export default function Dashboard() {
 
     setRecentActivity(recentInboxRes.data || []);
     setPendingTasks(pendingTasksRes.data || []);
+
+    // Show onboarding if no activity at all
+    const totalActivity = (tasksRes.count || 0) + (txRes.data?.length || 0) + (recentInboxRes.data?.length || 0);
+    setIsNewUser(totalActivity === 0);
   };
 
   useEffect(() => {
@@ -89,18 +108,25 @@ export default function Dashboard() {
             <p className="text-muted-foreground mt-1 text-sm">
               {whatsappConnected
                 ? "Aqui está o resumo do seu dia."
-                : "Conecte seu WhatsApp para o Você Aí organizar tudo automaticamente."}
+                : "Para começar, clique no botão abaixo para enviar sua primeira mensagem no WhatsApp!"}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {!whatsappConnected ? (
-              <Button size="sm" className="gap-2"><LinkIcon className="w-4 h-4" />Conectar WhatsApp</Button>
-            ) : (
-              <Button variant="outline" size="sm" className="gap-2">Comando teste <ArrowRight className="w-4 h-4" /></Button>
+            {!whatsappConnected && (
+              <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">
+                <Button size="sm" className="gap-2">
+                  <MessageCircle className="w-4 h-4" />Conectar WhatsApp
+                </Button>
+              </a>
             )}
-            <Button variant="outline" size="sm" className="gap-2" onClick={signOut}><LogOut className="w-4 h-4" />Sair</Button>
+            <Button variant="outline" size="sm" className="gap-2" onClick={signOut}>
+              <LogOut className="w-4 h-4" />Sair
+            </Button>
           </div>
         </div>
+
+        {/* Onboarding Guide for new users */}
+        {isNewUser && <OnboardingGuide whatsappLink={WHATSAPP_LINK} />}
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
@@ -111,18 +137,21 @@ export default function Dashboard() {
           <div className="bg-card rounded-xl p-4 md:p-5 border border-border card-glow animate-fade-in">
             <div className="flex items-center justify-between mb-3">
               <span className="text-muted-foreground text-xs sm:text-sm flex items-center gap-1.5">
-                <MessageCircle className="w-4 h-4" />Mensagens
+                <MessageCircle className="w-4 h-4" />Mensagens (24h)
               </span>
               <span className="text-xs font-medium text-primary">{planName}</span>
             </div>
             <div className="space-y-2">
               <div className="flex items-baseline gap-1">
                 <span className="text-xl md:text-2xl font-display font-bold text-foreground">{messagesCount}</span>
-                <span className="text-xs text-muted-foreground">/ {messagesLimit}</span>
+                {!isPro && <span className="text-xs text-muted-foreground">/ {messagesLimit}</span>}
+                {isPro && <span className="text-xs text-muted-foreground">ilimitadas</span>}
               </div>
-              <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
-                <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${usagePct}%` }} />
-              </div>
+              {!isPro && (
+                <div className="w-full h-2 rounded-full bg-secondary overflow-hidden">
+                  <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${usagePct}%` }} />
+                </div>
+              )}
               {showUpgradeHint && (
                 <div className="flex items-center justify-between gap-2 mt-1">
                   <p className="text-xs text-warning">Perto do limite.</p>

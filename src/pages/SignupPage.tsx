@@ -7,6 +7,19 @@ import { Label } from "@/components/ui/label";
 import { MessageCircle, UserPlus, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+function formatPhone(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 2) return digits.length ? `(${digits}` : "";
+  if (digits.length <= 7) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+}
+
+function cleanPhone(formatted: string): string {
+  const digits = formatted.replace(/\D/g, "");
+  if (digits.length === 11) return `55${digits}`;
+  return digits;
+}
+
 export default function SignupPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -19,13 +32,25 @@ export default function SignupPage() {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const digits = phone.replace(/\D/g, "");
+    if (digits.length < 10 || digits.length > 11) {
+      toast({
+        title: "Telefone inválido",
+        description: "Informe um telefone com DDD válido, ex: (11) 99999-9999.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
+    const cleanedPhone = cleanPhone(phone);
 
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName, phone },
+        data: { full_name: fullName, phone: cleanedPhone },
         emailRedirectTo: window.location.origin,
       },
     });
@@ -88,7 +113,7 @@ export default function SignupPage() {
               type="tel"
               placeholder="(11) 99999-9999"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => setPhone(formatPhone(e.target.value))}
               required
             />
           </div>
