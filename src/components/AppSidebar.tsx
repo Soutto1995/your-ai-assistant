@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: Inbox, label: "Inbox", path: "/inbox" },
   { icon: CheckSquare, label: "Tarefas", path: "/tarefas" },
   { icon: DollarSign, label: "Finanças", path: "/financas" },
@@ -45,7 +45,7 @@ export default function AppSidebar({ onNavigate }: { onNavigate?: () => void } =
           <MessageCircle className="w-4 h-4 text-primary-foreground" />
         </div>
         {!collapsed && (
-          <span className="font-display font-bold text-lg gold-text">Você Aí</span>
+          <span className="font-display font-bold text-lg gold-text">Tuddo</span>
         )}
       </div>
 

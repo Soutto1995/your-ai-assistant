@@ -12,7 +12,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         <button onClick={() => setMobileOpen(true)} className="text-sidebar-foreground">
           <Menu className="w-6 h-6" />
         </button>
-        <span className="ml-3 font-display font-bold text-lg gold-text">Você Aí</span>
+        <span className="ml-3 font-display font-bold text-lg gold-text">Tuddo</span>
       </header>
 
       {/* Mobile overlay */}
