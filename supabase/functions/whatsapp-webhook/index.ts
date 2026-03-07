@@ -228,7 +228,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ status: "ok", intent }), { headers: corsHeaders });
   } catch (err) {
     console.error("Webhook error:", err);
-    return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: corsHeaders });
+    return new Response(JSON.stringify({ error: "internal_error" }), { status: 500, headers: corsHeaders });
   }
 });
 
