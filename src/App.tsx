@@ -16,6 +16,8 @@ import MemoryPage from "./pages/MemoryPage";
 import PlansPage from "./pages/PlansPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import PricingPage from "./pages/PricingPage";
 import NotFound from "./pages/NotFound";
 
