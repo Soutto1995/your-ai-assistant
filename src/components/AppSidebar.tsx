@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+  { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: Inbox, label: "Inbox", path: "/inbox" },
   { icon: CheckSquare, label: "Tarefas", path: "/tarefas" },
   { icon: DollarSign, label: "Finanças", path: "/financas" },
