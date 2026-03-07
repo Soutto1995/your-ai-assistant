@@ -45,7 +45,7 @@ export default function AppSidebar({ onNavigate }: { onNavigate?: () => void } =
           <MessageCircle className="w-4 h-4 text-primary-foreground" />
         </div>
         {!collapsed && (
-          <span className="font-display font-bold text-lg gold-text">Você Aí</span>
+          <span className="font-display font-bold text-lg gold-text">Tuddo</span>
         )}
       </div>
 

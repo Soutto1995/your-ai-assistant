@@ -46,7 +46,7 @@ export default function SignupPage() {
           <div className="w-14 h-14 rounded-xl gold-gradient flex items-center justify-center mx-auto">
             <MessageCircle className="w-7 h-7 text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-display font-bold gold-text">Você Aí</h1>
+          <h1 className="text-3xl font-display font-bold gold-text">Tuddo</h1>
           <p className="text-muted-foreground text-sm">Crie sua conta gratuitamente</p>
         </div>
 
