@@ -462,11 +462,23 @@ export default function HomePage() {
                     </li>
                   ))}
                 </ul>
-                <Link to="/signup">
-                  <Button className="w-full" variant={plan.highlight ? "default" : "outline"}>
-                    {plan.cta}
-                  </Button>
-                </Link>
+                {plan.monthly === 0 ? (
+                  <Link to="/signup">
+                    <Button className="w-full" variant="outline">
+                      {plan.cta}
+                    </Button>
+                  </Link>
+                ) : (
+                  <a
+                    href={annual ? plan.stripeYearly : plan.stripeMonthly}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button className="w-full" variant={plan.highlight ? "default" : "outline"}>
+                      {plan.cta}
+                    </Button>
+                  </a>
+                )}
               </div>
             ))}
           </div>

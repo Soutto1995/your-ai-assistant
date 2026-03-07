@@ -119,9 +119,23 @@ export default function PricingPage() {
                     </li>
                   ))}
                 </ul>
-                <Button className="w-full" variant={plan.highlight ? "default" : "outline"}>
-                  {plan.cta}
-                </Button>
+                {plan.monthly === 0 ? (
+                  <a href="/signup">
+                    <Button className="w-full" variant="outline">
+                      {plan.cta}
+                    </Button>
+                  </a>
+                ) : (
+                  <a
+                    href={annual ? plan.stripeYearly : plan.stripeMonthly}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button className="w-full" variant={plan.highlight ? "default" : "outline"}>
+                      {plan.cta}
+                    </Button>
+                  </a>
+                )}
               </CardContent>
             </Card>
           ))}
