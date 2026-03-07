@@ -5,6 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Check, Zap, Crown } from "lucide-react";
 
+const STRIPE_LINK_STARTER_MONTHLY = 'https://buy.stripe.com/test_3cIdRagEv05v34p82HbMQ00';
+const STRIPE_LINK_STARTER_YEARLY = 'https://buy.stripe.com/test_5kQ6oI3RJcSh6gB1EjbMQ01';
+const STRIPE_LINK_PRO_MONTHLY = 'https://buy.stripe.com/test_14AeVe87Z2dDcEZ0AfbMQ02';
+const STRIPE_LINK_PRO_YEARLY = 'https://buy.stripe.com/test_dRm8wQ0Fxg4t48t82HbMQ03';
+
 const plans = [
   {
     name: "GRÁTIS",
@@ -18,6 +23,8 @@ const plans = [
     features: ["5 mensagens por dia", "Tarefas básicas", "Registro de gastos", "Agenda de reuniões"],
     cta: "Começar agora",
     highlight: false,
+    stripeMonthly: "",
+    stripeYearly: "",
   },
   {
     name: "STARTER",
@@ -27,10 +34,12 @@ const plans = [
     monthlyLabel: "R$ 12,90/mês",
     annualLabel: "R$ 123,90/ano",
     annualMonthly: "R$ 10,33/mês",
-    limit: "30 mensagens/dia",
-    features: ["30 mensagens por dia", "Tudo do plano Grátis", "Prioridade no suporte", "Relatórios semanais"],
+    limit: "50 mensagens/dia",
+    features: ["50 mensagens por dia", "Tudo do plano Grátis", "Prioridade no suporte", "Relatórios semanais"],
     cta: "Assinar Starter",
     highlight: true,
+    stripeMonthly: STRIPE_LINK_STARTER_MONTHLY,
+    stripeYearly: STRIPE_LINK_STARTER_YEARLY,
   },
   {
     name: "PRO",
@@ -40,10 +49,12 @@ const plans = [
     monthlyLabel: "R$ 24,90/mês",
     annualLabel: "R$ 239,90/ano",
     annualMonthly: "R$ 19,99/mês",
-    limit: "50 mensagens/dia",
-    features: ["50 mensagens por dia", "Tudo do plano Starter", "IA avançada", "Integrações premium"],
+    limit: "Mensagens ilimitadas",
+    features: ["Mensagens ilimitadas", "Tudo do plano Starter", "IA avançada", "Integrações premium"],
     cta: "Assinar PRO",
     highlight: false,
+    stripeMonthly: STRIPE_LINK_PRO_MONTHLY,
+    stripeYearly: STRIPE_LINK_PRO_YEARLY,
   },
 ];
 
@@ -108,9 +119,23 @@ export default function PricingPage() {
                     </li>
                   ))}
                 </ul>
-                <Button className="w-full" variant={plan.highlight ? "default" : "outline"}>
-                  {plan.cta}
-                </Button>
+                {plan.monthly === 0 ? (
+                  <a href="/signup">
+                    <Button className="w-full" variant="outline">
+                      {plan.cta}
+                    </Button>
+                  </a>
+                ) : (
+                  <a
+                    href={annual ? plan.stripeYearly : plan.stripeMonthly}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button className="w-full" variant={plan.highlight ? "default" : "outline"}>
+                      {plan.cta}
+                    </Button>
+                  </a>
+                )}
               </CardContent>
             </Card>
           ))}

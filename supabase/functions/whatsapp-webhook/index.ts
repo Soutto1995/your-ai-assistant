@@ -9,15 +9,15 @@ const corsHeaders = {
 const PLAN_LIMITS: Record<string, { limit: number; message: string }> = {
   FREE: {
     limit: 5,
-    message: "Você atingiu o limite de 5 mensagens diárias do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por apenas R$ 12,90/mês e tenha 30 mensagens por dia! 🚀",
+    message: "Você atingiu o limite de 5 mensagens diárias do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por apenas R$ 12,90/mês e tenha 50 mensagens por dia! 🚀",
   },
   STARTER: {
-    limit: 30,
-    message: "Você atingiu o seu limite de 30 mensagens diárias. Para ter mais liberdade, faça o upgrade para o plano PRO com 50 mensagens por dia! 💎",
+    limit: 50,
+    message: "Você atingiu o seu limite de 50 mensagens diárias. Para ter mais liberdade, faça o upgrade para o plano PRO com mensagens ilimitadas! 💎",
   },
   PRO: {
-    limit: 50,
-    message: "Você atingiu o seu limite de 50 mensagens diárias. ⏳",
+    limit: Infinity,
+    message: "",
   },
 };
 
