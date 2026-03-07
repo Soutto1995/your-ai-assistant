@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MessageCircle, UserPlus } from "lucide-react";
+import { MessageCircle, UserPlus, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function SignupPage() {
@@ -12,6 +12,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -32,9 +33,13 @@ export default function SignupPage() {
 
     if (error) {
       console.error("Signup error:", error.message);
-      toast({ title: "Erro ao criar conta", description: "Não foi possível criar a conta. Verifique os dados e tente novamente.", variant: "destructive" });
+      toast({
+        title: "Erro ao criar conta",
+        description: "Não foi possível criar a conta. Verifique os dados e tente novamente.",
+        variant: "destructive",
+      });
     } else {
-      toast({ title: "Conta criada!", description: "Você já pode usar o Você Aí." });
+      toast({ title: "Conta criada!", description: "Você já pode usar o Tuddo." });
       navigate("/dashboard");
     }
   };
@@ -90,15 +95,26 @@ export default function SignupPage() {
 
           <div className="space-y-2">
             <Label htmlFor="password">Senha</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Mínimo 6 caracteres"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Mínimo 6 caracteres"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
 
           <Button type="submit" className="w-full gap-2" disabled={loading}>
