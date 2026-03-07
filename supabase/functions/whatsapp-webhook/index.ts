@@ -89,12 +89,14 @@ serve(async (req) => {
     // 1. Verify webhook signature (HMAC SHA-256)
     const signature = req.headers.get("x-hub-signature-256");
     const webhookSecret = Deno.env.get("EVOLUTION_API_WEBHOOK_SECRET");
-    if (webhookSecret) {
-      const isValid = await verifyWebhookSignature(rawBody, signature);
-      if (!isValid) {
-        console.warn("Invalid webhook signature - rejecting request");
-        return new Response(JSON.stringify({ error: "invalid_signature" }), { status: 401, headers: corsHeaders });
-      }
+    if (!webhookSecret) {
+      console.error("EVOLUTION_API_WEBHOOK_SECRET not configured - rejecting all requests");
+      return new Response(JSON.stringify({ error: "server_misconfiguration" }), { status: 500, headers: corsHeaders });
+    }
+    const isValid = await verifyWebhookSignature(rawBody, signature);
+    if (!isValid) {
+      console.warn("Invalid webhook signature - rejecting request");
+      return new Response(JSON.stringify({ error: "invalid_signature" }), { status: 401, headers: corsHeaders });
     }
 
     const body = JSON.parse(rawBody);
