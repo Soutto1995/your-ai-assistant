@@ -34,7 +34,7 @@ export default function SignupPage() {
       toast({ title: "Erro ao criar conta", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Conta criada!", description: "Você já pode usar o Você Aí." });
-      navigate("/");
+      navigate("/dashboard");
     }
   };
 
