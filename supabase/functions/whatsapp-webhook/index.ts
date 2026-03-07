@@ -21,7 +21,7 @@ const PLAN_LIMITS: Record<string, { limit: number; message: string }> = {
   },
 };
 
-const SYSTEM_PROMPT = `Você é o "Você Aí", um assistente pessoal direto e eficiente. Sua única função é analisar a mensagem do usuário e retornar APENAS um objeto JSON válido, sem markdown, crases, ou qualquer texto adicional. A estrutura do JSON deve ser: {"intent": "TIPO", "data": {DADOS}, "response": "RESPOSTA CURTA"}
+const SYSTEM_PROMPT = `Você é o "Tuddo", um assistente pessoal direto e eficiente. Sua única função é analisar a mensagem do usuário e retornar APENAS um objeto JSON válido, sem markdown, crases, ou qualquer texto adicional. A estrutura do JSON deve ser: {"intent": "TIPO", "data": {DADOS}, "response": "RESPOSTA CURTA"}
 Os tipos de "intent" possíveis são:
 1. \`create_task\`: para criar tarefas ou lembretes.
    - \`data\`: {"title": "texto da tarefa", "priority": "baixa"}
@@ -51,13 +51,53 @@ JSON: {"intent":"create_meeting","data":{"title":"Reunião com a equipe","meetin
 - Usuário: "bom dia"
 JSON: {"intent":"general_query","data":{},"response":"Bom dia! Como posso te ajudar hoje?"}`;
 
+async function verifyWebhookSignature(body: string, signatureHeader: string | null): Promise<boolean> {
+  const secret = Deno.env.get("EVOLUTION_API_WEBHOOK_SECRET");
+  if (!secret) {
+    console.error("EVOLUTION_API_WEBHOOK_SECRET not configured");
+    return false;
+  }
+  if (!signatureHeader) {
+    return false;
+  }
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(body));
+  const hashArray = Array.from(new Uint8Array(signature));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+  const expectedSignature = `sha256=${hashHex}`;
+
+  return signatureHeader === expectedSignature;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const body = await req.json();
+    // 0. Read body as text for HMAC verification
+    const rawBody = await req.text();
+
+    // 1. Verify webhook signature (HMAC SHA-256)
+    const signature = req.headers.get("x-hub-signature-256");
+    const webhookSecret = Deno.env.get("EVOLUTION_API_WEBHOOK_SECRET");
+    if (webhookSecret) {
+      const isValid = await verifyWebhookSignature(rawBody, signature);
+      if (!isValid) {
+        console.warn("Invalid webhook signature - rejecting request");
+        return new Response(JSON.stringify({ error: "invalid_signature" }), { status: 401, headers: corsHeaders });
+      }
+    }
+
+    const body = JSON.parse(rawBody);
     console.log("Webhook received:", JSON.stringify(body).slice(0, 500));
 
     const data = body.data;
@@ -68,18 +108,13 @@ serve(async (req) => {
     const key = data.key;
     const message = data.message;
 
-    // 1. Only process messages sent by ME
-    if (key?.fromMe !== true) {
-      return new Response(JSON.stringify({ status: "ignored_not_from_me" }), { headers: corsHeaders });
-    }
-
-    // 2. Only process messages sent to MYSELF (self-chat)
-    const MY_OWN_WHATSAPP_NUMBER = "554899844528@s.whatsapp.net";
-    if (key?.remoteJid !== MY_OWN_WHATSAPP_NUMBER) {
+    // 2. Only process messages sent by ME to MYSELF (self-chat)
+    const MY_OWN_WHATSAPP_NUMBER = Deno.env.get("WHATSAPP_SELF_JID") || "";
+    if (key?.fromMe !== true || key?.remoteJid !== MY_OWN_WHATSAPP_NUMBER) {
       return new Response(JSON.stringify({ status: "ignored_not_self_chat" }), { headers: corsHeaders });
     }
 
-    // 2. Only process text messages
+    // 3. Only process text messages
     let text = message?.conversation || message?.extendedTextMessage?.text;
     if (!text) {
       return new Response(JSON.stringify({ status: "ignored_non_text" }), { headers: corsHeaders });
@@ -90,20 +125,18 @@ serve(async (req) => {
       text = text.trim().substring(4).trim();
     }
 
-    // 3. Extract phone number
+    // 4. Extract phone number
     const remoteJid = key?.remoteJid?.replace("@s.whatsapp.net", "") || "";
     console.log("Processing message from:", remoteJid, "Text:", text);
 
-    // 4. Init Supabase
+    // 5. Init Supabase
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // 5. Find user by phone (flexible search: raw number or with extra 9 after DDD)
+    // 6. Find user by phone
     const phoneVariants = buildPhoneVariants(remoteJid);
-    console.log("Searching phone variants:", phoneVariants);
-
     const orFilter = phoneVariants.map((p) => `phone.eq.${p}`).join(",");
     const { data: profiles } = await supabase
       .from("profiles")
@@ -120,8 +153,8 @@ serve(async (req) => {
     const userName = profiles[0].full_name || "amigo(a)";
     const userPlan = (profiles[0].plan || "FREE").toUpperCase();
 
-    // 6. Check message limits (bypass for admin)
-    const ADMIN_PHONE = "554899844528";
+    // 7. Check message limits (bypass for admin)
+    const ADMIN_PHONE = Deno.env.get("ADMIN_PHONE") || "";
     if (remoteJid !== ADMIN_PHONE) {
       const limitExceeded = await checkMessageLimit(supabase, userId, userPlan);
       if (limitExceeded) {
@@ -131,7 +164,7 @@ serve(async (req) => {
       }
     }
 
-    // 7. Interpret with OpenAI (gpt-4.1-nano)
+    // 8. Interpret with OpenAI
     const aiResult = await interpretMessage(text);
     console.log("AI result:", JSON.stringify(aiResult));
 
@@ -139,7 +172,7 @@ serve(async (req) => {
     const entities = aiResult.data || {};
     let reply = aiResult.response || "Entendi! Mas não consegui processar. Tente novamente. 🤔";
 
-    // 8. Execute action based on intent
+    // 9. Execute action based on intent
     try {
       switch (intent) {
         case "create_task": {
@@ -179,7 +212,7 @@ serve(async (req) => {
       console.error("Action error:", actionError);
     }
 
-    // 9. Save to inbox_messages
+    // 10. Save to inbox_messages
     await supabase.from("inbox_messages").insert({
       user_id: userId,
       message: text,
@@ -189,7 +222,7 @@ serve(async (req) => {
       response: reply,
     });
 
-    // 10. Send reply
+    // 11. Send reply
     await sendWhatsAppMessage(remoteJid, reply);
 
     return new Response(JSON.stringify({ status: "ok", intent }), { headers: corsHeaders });
@@ -205,14 +238,11 @@ function buildPhoneVariants(rawPhone: string): string[] {
   variants.add(clean);
   variants.add(`+${clean}`);
 
-  // Brazilian phone: country code (55) + DDD (2 digits) + number (8 or 9 digits)
-  // If number has 12 digits (55 + DDD + 8-digit number), add variant with 9 inserted
   if (clean.length === 12 && clean.startsWith("55")) {
     const withNine = clean.slice(0, 4) + "9" + clean.slice(4);
     variants.add(withNine);
     variants.add(`+${withNine}`);
   }
-  // If number has 13 digits (55 + DDD + 9-digit number), add variant without the 9
   if (clean.length === 13 && clean.startsWith("55")) {
     const withoutNine = clean.slice(0, 4) + clean.slice(5);
     variants.add(withoutNine);
@@ -234,7 +264,7 @@ async function checkMessageLimit(supabase: any, userId: string, plan: string): P
 
   if (error) {
     console.error("Count error:", error);
-    return false; // allow on error
+    return false;
   }
 
   return (count || 0) >= planConfig.limit;
