@@ -51,6 +51,18 @@ JSON: {"intent":"create_meeting","data":{"title":"Reunião com a equipe","meetin
 - Usuário: "bom dia"
 JSON: {"intent":"general_query","data":{},"response":"Bom dia! Como posso te ajudar hoje?"}`;
 
+function timingSafeEqual(a: string, b: string): boolean {
+  const encoder = new TextEncoder();
+  const aBytes = encoder.encode(a);
+  const bBytes = encoder.encode(b);
+  if (aBytes.length !== bBytes.length) return false;
+  let diff = 0;
+  for (let i = 0; i < aBytes.length; i++) {
+    diff |= aBytes[i] ^ bBytes[i];
+  }
+  return diff === 0;
+}
+
 async function verifyWebhookSignature(body: string, signatureHeader: string | null): Promise<boolean> {
   const secret = Deno.env.get("EVOLUTION_API_WEBHOOK_SECRET");
   if (!secret) {
@@ -74,7 +86,7 @@ async function verifyWebhookSignature(body: string, signatureHeader: string | nu
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
   const expectedSignature = `sha256=${hashHex}`;
 
-  return signatureHeader === expectedSignature;
+  return timingSafeEqual(signatureHeader, expectedSignature);
 }
 
 serve(async (req) => {

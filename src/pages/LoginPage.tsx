@@ -21,7 +21,8 @@ export default function LoginPage() {
     setLoading(false);
 
     if (error) {
-      toast({ title: "Erro ao entrar", description: error.message, variant: "destructive" });
+      console.error("Login error:", error.message);
+      toast({ title: "Erro ao entrar", description: "E-mail ou senha inválidos. Tente novamente.", variant: "destructive" });
     } else {
       navigate("/dashboard");
     }
