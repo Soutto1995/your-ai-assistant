@@ -7,11 +7,19 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import {
   CheckSquare, DollarSign, TrendingUp, MessageCircle,
-  Clock, AlertTriangle, ArrowRight, Crown, LogOut,
+  Clock, AlertTriangle, Crown, LogOut,
 } from "lucide-react";
 
 const WHATSAPP_NUMBER = "554784566364";
-const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}?text=Oi%20Tuddo!`;
+const WHATSAPP_TEXT = encodeURIComponent("Oi Tuddo!");
+const WHATSAPP_WEB_LINK = `https://web.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${WHATSAPP_TEXT}`;
+const WHATSAPP_MOBILE_LINK = `https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_TEXT}`;
+
+function getWhatsAppLink() {
+  if (typeof navigator === "undefined") return WHATSAPP_WEB_LINK;
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  return isMobile ? WHATSAPP_MOBILE_LINK : WHATSAPP_WEB_LINK;
+}
 
 const PLAN_DAILY_LIMITS: Record<string, number> = {
   FREE: 5,
@@ -34,6 +42,7 @@ export default function Dashboard() {
   const userName = profile?.full_name || "Usuário";
   const planName = (profile?.plan || "FREE").toUpperCase();
   const whatsappConnected = !!profile?.phone;
+  const whatsappLink = getWhatsAppLink();
 
   const messagesLimit = PLAN_DAILY_LIMITS[planName] || PLAN_DAILY_LIMITS.FREE;
   const isPro = planName === "PRO";
@@ -77,7 +86,6 @@ export default function Dashboard() {
     setRecentActivity(recentInboxRes.data || []);
     setPendingTasks(pendingTasksRes.data || []);
 
-    // Show onboarding if no activity at all
     const totalActivity = (tasksRes.count || 0) + (txRes.data?.length || 0) + (recentInboxRes.data?.length || 0);
     setIsNewUser(totalActivity === 0);
   };
@@ -89,7 +97,9 @@ export default function Dashboard() {
       supabase.channel(`dashboard-${table}`).on("postgres_changes", { event: "*", schema: "public", table }, fetchData).subscribe()
     );
 
-    return () => { channels.forEach(c => supabase.removeChannel(c)); };
+    return () => {
+      channels.forEach(c => supabase.removeChannel(c));
+    };
   }, [user]);
 
   const typeEmoji: Record<string, string> = {
@@ -99,7 +109,6 @@ export default function Dashboard() {
   return (
     <AppLayout>
       <div className="space-y-6 md:space-y-8">
-        {/* Header */}
         <div className="flex flex-col gap-3">
           <div>
             <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold text-foreground">
@@ -113,11 +122,11 @@ export default function Dashboard() {
           </div>
           <div className="flex flex-wrap gap-2">
             {!whatsappConnected && (
-              <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">
-                <Button size="sm" className="gap-2">
+              <Button asChild size="sm" className="gap-2">
+                <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
                   <MessageCircle className="w-4 h-4" />Conectar WhatsApp
-                </Button>
-              </a>
+                </a>
+              </Button>
             )}
             <Button variant="outline" size="sm" className="gap-2" onClick={signOut}>
               <LogOut className="w-4 h-4" />Sair
@@ -125,10 +134,8 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Onboarding Guide for new users */}
-        {isNewUser && <OnboardingGuide whatsappLink={WHATSAPP_LINK} />}
+        {isNewUser && <OnboardingGuide whatsappLink={whatsappLink} />}
 
-        {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           <StatCard icon={<CheckSquare className="w-5 h-5" />} label="Tarefas Pendentes" value={String(pendingTasksCount)} />
           <StatCard icon={<DollarSign className="w-5 h-5" />} label="Gastos do Mês" value={`R$ ${monthExpenses.toLocaleString("pt-BR")}`} />
@@ -163,7 +170,6 @@ export default function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
-          {/* Recent Activity */}
           <div className="bg-card rounded-xl border border-border p-4 md:p-6 card-glow">
             <h2 className="font-display font-semibold text-base md:text-lg text-foreground mb-4 flex items-center gap-2">
               <Clock className="w-5 h-5 text-primary" />Atividade Recente
@@ -185,7 +191,6 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Pending Tasks */}
           <div className="bg-card rounded-xl border border-border p-4 md:p-6 card-glow">
             <h2 className="font-display font-semibold text-base md:text-lg text-foreground mb-4 flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-primary" />Tarefas Pendentes
