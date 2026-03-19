@@ -122,10 +122,9 @@ serve(async (req) => {
     const key = data.key;
     const message = data.message;
 
-    // 2. Only process messages sent by ME to MYSELF (self-chat)
-    const MY_OWN_WHATSAPP_NUMBER = Deno.env.get("WHATSAPP_SELF_JID") || "";
-    if (key?.fromMe !== true || key?.remoteJid !== MY_OWN_WHATSAPP_NUMBER) {
-      return new Response(JSON.stringify({ status: "ignored_not_self_chat" }), { headers: corsHeaders });
+    // 2. Ignore group messages
+    if (key?.remoteJid?.includes("@g.us")) {
+      return new Response(JSON.stringify({ status: "ignored_group_message" }), { headers: corsHeaders });
     }
 
     // 3. Only process text messages
