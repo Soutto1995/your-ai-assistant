@@ -42,6 +42,7 @@ export default function Dashboard() {
   const userName = profile?.full_name || "Usuário";
   const planName = (profile?.plan || "FREE").toUpperCase();
   const whatsappConnected = !!profile?.phone;
+  const whatsappLink = getWhatsAppLink();
 
   const messagesLimit = PLAN_DAILY_LIMITS[planName] || PLAN_DAILY_LIMITS.FREE;
   const isPro = planName === "PRO";
@@ -58,74 +59,14 @@ export default function Dashboard() {
   const showUpgradeHint = planName === "FREE" && usagePct >= 80;
 
   const fetchData = async () => {
-    if (!user) return;
-
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-
-    const [tasksRes, txRes, inboxRes, recentInboxRes, pendingTasksRes] = await Promise.all([
-      supabase.from("tasks").select("id", { count: "exact", head: true }).eq("status", "pendente"),
-      supabase.from("transactions").select("amount, type").gte("transaction_date", startOfMonth.toISOString()),
-      supabase.from("inbox_messages").select("id", { count: "exact", head: true }).gte("created_at", twentyFourHoursAgo),
-      supabase.from("inbox_messages").select("*").order("created_at", { ascending: false }).limit(5),
-      supabase.from("tasks").select("*").eq("status", "pendente").order("created_at", { ascending: false }).limit(5),
-    ]);
-
-    setPendingTasksCount(tasksRes.count || 0);
-    setMessagesCount(inboxRes.count || 0);
-
-    const income = (txRes.data || []).filter(t => t.type === "receita").reduce((s, t) => s + Number(t.amount), 0);
-    const expenses = (txRes.data || []).filter(t => t.type === "gasto").reduce((s, t) => s + Math.abs(Number(t.amount)), 0);
-    setMonthIncome(income);
-    setMonthExpenses(expenses);
-
-    setRecentActivity(recentInboxRes.data || []);
-    setPendingTasks(pendingTasksRes.data || []);
-
-    // Show onboarding if no activity at all
-    const totalActivity = (tasksRes.count || 0) + (txRes.data?.length || 0) + (recentInboxRes.data?.length || 0);
-    setIsNewUser(totalActivity === 0);
-  };
-
-  useEffect(() => {
-    fetchData();
-
-    const channels = ["tasks", "transactions", "inbox_messages"].map(table =>
-      supabase.channel(`dashboard-${table}`).on("postgres_changes", { event: "*", schema: "public", table }, fetchData).subscribe()
-    );
-
-    return () => { channels.forEach(c => supabase.removeChannel(c)); };
-  }, [user]);
-
-  const typeEmoji: Record<string, string> = {
-    tarefa: "✅", finanças: "💰", consulta: "📊", reunião: "📅",
-  };
-
-  return (
-    <AppLayout>
-      <div className="space-y-6 md:space-y-8">
-        {/* Header */}
-        <div className="flex flex-col gap-3">
-          <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold text-foreground">
-              Bom dia, <span className="gold-text">{userName}</span> 👋
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
-              {whatsappConnected
-                ? "Aqui está o resumo do seu dia."
-                : "Para começar, clique no botão abaixo para enviar sua primeira mensagem no WhatsApp!"}
-            </p>
-          </div>
+...
           <div className="flex flex-wrap gap-2">
             {!whatsappConnected && (
-              <a href={WHATSAPP_LINK} target="_blank" rel="noopener noreferrer">
-                <Button size="sm" className="gap-2">
+              <Button asChild size="sm" className="gap-2">
+                <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
                   <MessageCircle className="w-4 h-4" />Conectar WhatsApp
-                </Button>
-              </a>
+                </a>
+              </Button>
             )}
             <Button variant="outline" size="sm" className="gap-2" onClick={signOut}>
               <LogOut className="w-4 h-4" />Sair
@@ -134,7 +75,7 @@ export default function Dashboard() {
         </div>
 
         {/* Onboarding Guide for new users */}
-        {isNewUser && <OnboardingGuide whatsappLink={WHATSAPP_LINK} />}
+        {isNewUser && <OnboardingGuide whatsappLink={whatsappLink} />}
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
