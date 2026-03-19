@@ -56,22 +56,47 @@ function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-function verifyRequest(req: Request): boolean {
-  // Try apikey header first (Evolution API standard)
+async function verifyHmacSignature(body: string, signatureHeader: string): Promise<boolean> {
+  const secret = Deno.env.get("EVOLUTION_API_WEBHOOK_SECRET");
+  if (!secret) return false;
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(body));
+  const hashArray = Array.from(new Uint8Array(signature));
+  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  const expectedSignature = `sha256=${hashHex}`;
+
+  return timingSafeEqual(signatureHeader, expectedSignature);
+}
+
+async function verifyRequest(req: Request, rawBody: string): Promise<boolean> {
+  // 1) Prefer HMAC validation when header is present
+  const signatureHeader = req.headers.get("x-hub-signature-256");
+  if (signatureHeader) {
+    const hmacValid = await verifyHmacSignature(rawBody, signatureHeader);
+    if (hmacValid) return true;
+  }
+
+  // 2) Fallback to API key validation (Evolution webhook behavior)
   const receivedKey = req.headers.get("apikey");
-  const instanceToken = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN");
-  if (instanceToken && receivedKey && timingSafeEqual(receivedKey, instanceToken)) {
-    return true;
-  }
+  if (!receivedKey) return false;
 
-  // Fallback: accept any request if no token is configured (dev mode)
-  // In production, EVOLUTION_API_INSTANCE_TOKEN should always be set
-  if (!instanceToken) {
-    console.warn("EVOLUTION_API_INSTANCE_TOKEN not set - accepting request without auth");
-    return true;
-  }
+  const acceptedKeys = [
+    Deno.env.get("EVOLUTION_API_KEY"),
+    Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN"),
+  ].filter((value): value is string => Boolean(value));
 
-  return false;
+  if (acceptedKeys.length === 0) return false;
+
+  return acceptedKeys.some((key) => timingSafeEqual(receivedKey, key));
 }
 
 // --- Phone Utilities ---
