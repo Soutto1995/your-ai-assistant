@@ -77,18 +77,7 @@ async function verifyHmacSignature(body: string, signatureHeader: string): Promi
   return timingSafeEqual(signatureHeader, expectedSignature);
 }
 
-async function verifyRequest(req: Request, rawBody: string): Promise<boolean> {
-  // 1) Prefer HMAC validation when header is present
-  const signatureHeader = req.headers.get("x-hub-signature-256");
-  if (signatureHeader) {
-    const hmacValid = await verifyHmacSignature(rawBody, signatureHeader);
-    if (hmacValid) return true;
-  }
-
-  // 2) Fallback to API key validation (Evolution webhook behavior)
-  const receivedKey = req.headers.get("apikey");
-  if (!receivedKey) return false;
-
+async function verifyRequest(req: Request, rawBody: string, body: Record<string, unknown>): Promise<boolean> {
   const acceptedKeys = [
     Deno.env.get("EVOLUTION_API_KEY"),
     Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN"),
@@ -96,7 +85,34 @@ async function verifyRequest(req: Request, rawBody: string): Promise<boolean> {
 
   if (acceptedKeys.length === 0) return false;
 
-  return acceptedKeys.some((key) => timingSafeEqual(receivedKey, key));
+  // 1) Prefer HMAC validation when header is present
+  const signatureHeader = req.headers.get("x-hub-signature-256");
+  if (signatureHeader) {
+    const hmacValid = await verifyHmacSignature(rawBody, signatureHeader);
+    if (hmacValid) return true;
+  }
+
+  // 2) API key via header
+  const receivedHeaderKey = req.headers.get("apikey") || req.headers.get("x-api-key");
+  if (receivedHeaderKey && acceptedKeys.some((key) => timingSafeEqual(receivedHeaderKey, key))) {
+    return true;
+  }
+
+  // 3) API key via payload (common Evolution webhook setup)
+  const bodyCandidates = [
+    body.apikey,
+    body.apiKey,
+    body.token,
+    typeof body.instance === "object" && body.instance !== null
+      ? (body.instance as Record<string, unknown>).token
+      : undefined,
+  ].filter((value): value is string => typeof value === "string");
+
+  if (bodyCandidates.some((candidate) => acceptedKeys.some((key) => timingSafeEqual(candidate, key)))) {
+    return true;
+  }
+
+  return false;
 }
 
 // --- Phone Utilities ---
