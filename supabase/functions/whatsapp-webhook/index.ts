@@ -213,7 +213,8 @@ serve(async (req) => {
     const rawBody = await req.text();
 
     // 1. Authenticate request
-    if (!verifyRequest(req)) {
+    const isAuthorized = await verifyRequest(req, rawBody);
+    if (!isAuthorized) {
       console.warn("Unauthorized request - rejecting");
       return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: corsHeaders });
     }
