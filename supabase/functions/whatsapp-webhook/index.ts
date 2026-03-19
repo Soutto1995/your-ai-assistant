@@ -3,17 +3,20 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-api-key, x-hub-signature-256, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const PLAN_LIMITS: Record<string, { limit: number; message: string }> = {
   FREE: {
     limit: 5,
-    message: "Você atingiu o limite de 5 mensagens diárias do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por apenas R$ 12,90/mês e tenha 50 mensagens por dia! 🚀",
+    message:
+      "Você atingiu o limite de 5 mensagens diárias do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por apenas R$ 12,90/mês e tenha 50 mensagens por dia! 🚀",
   },
   STARTER: {
     limit: 50,
-    message: "Você atingiu o seu limite de 50 mensagens diárias. Para ter mais liberdade, faça o upgrade para o plano PRO com mensagens ilimitadas! 💎",
+    message:
+      "Você atingiu o seu limite de 50 mensagens diárias. Para ter mais liberdade, faça o upgrade para o plano PRO com mensagens ilimitadas! 💎",
   },
   PRO: {
     limit: Infinity,
@@ -42,21 +45,53 @@ REGRAS IMPORTANTES:
 - O amount da transação deve ser sempre um número positivo.
 - Retorne APENAS o JSON.`;
 
-// --- Authentication ---
+type JsonRecord = Record<string, unknown>;
+
+type AiResult = {
+  intent: "create_task" | "create_transaction" | "create_meeting" | "general_query";
+  data: JsonRecord;
+  response: string;
+};
+
+function isRecord(value: unknown): value is JsonRecord {
+  return typeof value === "object" && value !== null;
+}
+
+function normalizeToken(value: string): string {
+  return value.trim().replace(/^Bearer\s+/i, "");
+}
 
 function timingSafeEqual(a: string, b: string): boolean {
   const encoder = new TextEncoder();
   const aBytes = encoder.encode(a);
   const bBytes = encoder.encode(b);
+
   if (aBytes.length !== bBytes.length) return false;
+
   let diff = 0;
   for (let i = 0; i < aBytes.length; i++) {
     diff |= aBytes[i] ^ bBytes[i];
   }
+
   return diff === 0;
 }
 
-async function verifyHmacSignature(body: string, signatureHeader: string): Promise<boolean> {
+function tokenMatches(candidate: string, acceptedTokens: string[]): boolean {
+  const normalizedCandidate = normalizeToken(candidate);
+  const lowerCandidate = normalizedCandidate.toLowerCase();
+
+  return acceptedTokens.some((token) => {
+    const normalizedToken = normalizeToken(token);
+    const lowerToken = normalizedToken.toLowerCase();
+
+    return (
+      timingSafeEqual(normalizedCandidate, normalizedToken) ||
+      timingSafeEqual(lowerCandidate, lowerToken)
+    );
+  });
+}
+
+async function verifyHmacSignature(rawBody: string, signatureHeader: string): Promise<boolean> {
   const secret = Deno.env.get("EVOLUTION_API_WEBHOOK_SECRET");
   if (!secret) return false;
 
@@ -66,68 +101,112 @@ async function verifyHmacSignature(body: string, signatureHeader: string): Promi
     encoder.encode(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
-    ["sign"]
+    ["sign"],
   );
 
-  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(body));
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(rawBody));
   const hashArray = Array.from(new Uint8Array(signature));
-  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-  const expectedSignature = `sha256=${hashHex}`;
+  const hashHex = hashArray.map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  const expected = `sha256=${hashHex}`;
 
-  return timingSafeEqual(signatureHeader, expectedSignature);
+  const normalizedHeader = signatureHeader.trim();
+  return (
+    timingSafeEqual(normalizedHeader, expected) ||
+    timingSafeEqual(normalizedHeader.toLowerCase(), expected.toLowerCase())
+  );
 }
 
-async function verifyRequest(req: Request, rawBody: string, body: Record<string, unknown>): Promise<boolean> {
-  const acceptedKeys = [
+function extractTokensFromBody(body: JsonRecord): string[] {
+  const data = isRecord(body.data) ? body.data : {};
+  const instance = isRecord(body.instance) ? body.instance : {};
+  const auth = isRecord(body.auth) ? body.auth : {};
+
+  return [
+    body.apikey,
+    body.apiKey,
+    body.token,
+    body.instanceToken,
+    body.key,
+    data.apikey,
+    data.apiKey,
+    data.token,
+    instance.token,
+    instance.apikey,
+    instance.apiKey,
+    auth.token,
+    auth.apikey,
+  ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
+}
+
+async function verifyRequest(req: Request, rawBody: string, body: JsonRecord): Promise<boolean> {
+  const acceptedTokens = [
     Deno.env.get("EVOLUTION_API_KEY"),
     Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN"),
   ].filter((value): value is string => Boolean(value));
 
-  if (acceptedKeys.length === 0) return false;
-
-  // 1) Prefer HMAC validation when header is present
-  const signatureHeader = req.headers.get("x-hub-signature-256");
-  if (signatureHeader) {
-    const hmacValid = await verifyHmacSignature(rawBody, signatureHeader);
-    if (hmacValid) return true;
+  if (acceptedTokens.length === 0) {
+    console.error("Webhook auth misconfigured: no accepted tokens configured");
+    return false;
   }
 
-  // 2) API key via header
-  const receivedHeaderKey = req.headers.get("apikey") || req.headers.get("x-api-key");
-  if (receivedHeaderKey && acceptedKeys.some((key) => timingSafeEqual(receivedHeaderKey, key))) {
+  const signatureHeader = req.headers.get("x-hub-signature-256");
+  if (signatureHeader) {
+    const hmacIsValid = await verifyHmacSignature(rawBody, signatureHeader);
+    if (hmacIsValid) return true;
+  }
+
+  const headerCandidates = [
+    req.headers.get("apikey"),
+    req.headers.get("x-api-key"),
+    req.headers.get("authorization"),
+    req.headers.get("x-token"),
+    req.headers.get("x-webhook-token"),
+  ].filter((value): value is string => Boolean(value));
+
+  if (headerCandidates.some((candidate) => tokenMatches(candidate, acceptedTokens))) {
     return true;
   }
 
-  // 3) API key via payload (common Evolution webhook setup)
-  const bodyCandidates = [
-    body.apikey,
-    body.apiKey,
-    body.token,
-    typeof body.instance === "object" && body.instance !== null
-      ? (body.instance as Record<string, unknown>).token
-      : undefined,
-  ].filter((value): value is string => typeof value === "string");
+  const url = new URL(req.url);
+  const queryCandidates = [
+    url.searchParams.get("apikey"),
+    url.searchParams.get("token"),
+    url.searchParams.get("key"),
+  ].filter((value): value is string => Boolean(value));
 
-  if (bodyCandidates.some((candidate) => acceptedKeys.some((key) => timingSafeEqual(candidate, key)))) {
+  if (queryCandidates.some((candidate) => tokenMatches(candidate, acceptedTokens))) {
+    return true;
+  }
+
+  const payloadCandidates = extractTokensFromBody(body);
+  if (payloadCandidates.some((candidate) => tokenMatches(candidate, acceptedTokens))) {
     return true;
   }
 
   return false;
 }
 
-// --- Phone Utilities ---
-
 function buildPhoneVariants(rawPhone: string): string[] {
   const clean = rawPhone.replace(/\D/g, "");
   const variants = new Set<string>();
+
+  if (!clean) return [];
+
   variants.add(clean);
   variants.add(`+${clean}`);
+
+  if (clean.startsWith("55") && clean.length > 2) {
+    const local = clean.slice(2);
+    variants.add(local);
+    variants.add(`+${local}`);
+  }
 
   if (clean.length === 12 && clean.startsWith("55")) {
     const withNine = clean.slice(0, 4) + "9" + clean.slice(4);
     variants.add(withNine);
     variants.add(`+${withNine}`);
   }
+
   if (clean.length === 13 && clean.startsWith("55")) {
     const withoutNine = clean.slice(0, 4) + clean.slice(5);
     variants.add(withoutNine);
@@ -137,10 +216,64 @@ function buildPhoneVariants(rawPhone: string): string[] {
   return [...variants];
 }
 
-// --- Message Limit Check ---
+function extractPhoneFromKey(key: JsonRecord): string {
+  const participant = typeof key.participant === "string" ? key.participant : "";
+  const remoteJid = typeof key.remoteJid === "string" ? key.remoteJid : "";
+
+  const base = participant || remoteJid;
+  if (!base) return "";
+
+  return base
+    .replace(/:\d+/g, "")
+    .replace(/@s\.whatsapp\.net$/i, "")
+    .replace(/@g\.us$/i, "")
+    .trim();
+}
+
+function isGroupMessage(key: JsonRecord): boolean {
+  const remoteJid = typeof key.remoteJid === "string" ? key.remoteJid : "";
+  return remoteJid.includes("@g.us");
+}
+
+function extractTextMessage(message: JsonRecord): string {
+  const conversation = typeof message.conversation === "string" ? message.conversation : "";
+  const extendedText = isRecord(message.extendedTextMessage) && typeof message.extendedTextMessage.text === "string"
+    ? message.extendedTextMessage.text
+    : "";
+
+  if (conversation) return conversation;
+  if (extendedText) return extendedText;
+  return "";
+}
+
+function extractAiJson(content: string): AiResult | null {
+  try {
+    const parsed = JSON.parse(content);
+    if (!isRecord(parsed)) return null;
+    const intent = typeof parsed.intent === "string" ? parsed.intent : "general_query";
+    const response = typeof parsed.response === "string" ? parsed.response : "";
+    const data = isRecord(parsed.data) ? parsed.data : {};
+
+    return {
+      intent: ["create_task", "create_transaction", "create_meeting", "general_query"].includes(intent)
+        ? (intent as AiResult["intent"])
+        : "general_query",
+      data,
+      response,
+    };
+  } catch {
+    const match = content.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    try {
+      return extractAiJson(match[0]);
+    } catch {
+      return null;
+    }
+  }
+}
 
 async function checkMessageLimit(supabase: any, userId: string, plan: string): Promise<boolean> {
-  const planConfig = PLAN_LIMITS[plan] || PLAN_LIMITS.FREE;
+  const planConfig = PLAN_LIMITS[plan] ?? PLAN_LIMITS.FREE;
   if (planConfig.limit === Infinity) return false;
 
   const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -154,49 +287,83 @@ async function checkMessageLimit(supabase: any, userId: string, plan: string): P
     console.error("Count error:", error);
     return false;
   }
-  return (count || 0) >= planConfig.limit;
+
+  return (count ?? 0) >= planConfig.limit;
 }
 
-// --- OpenAI Integration ---
-
-async function interpretMessage(message: string) {
+async function interpretMessage(message: string): Promise<AiResult> {
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
   if (!openaiKey) {
     console.error("OPENAI_API_KEY not configured");
-    return { intent: "general_query", data: {}, response: "Estou com dificuldade para processar agora. Tente novamente! 🙏" };
+    return {
+      intent: "general_query",
+      data: {},
+      response: "Estou com dificuldade para processar agora. Tente novamente! 🙏",
+    };
   }
 
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${openaiKey}`, "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${openaiKey}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
         model: "gpt-4.1-nano",
+        temperature: 0.3,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: message },
         ],
-        temperature: 0.3,
       }),
     });
 
-    if (!res.ok) {
-      console.error("OpenAI error:", res.status, await res.text());
-      return { intent: "general_query", data: {}, response: "Recebi sua mensagem, mas estou com dificuldade para processar agora. Tente novamente! 🙏" };
+    if (!response.ok) {
+      console.error("OpenAI error:", response.status, await response.text());
+      return {
+        intent: "general_query",
+        data: {},
+        response: "Recebi sua mensagem, mas estou com dificuldade para processar agora. Tente novamente! 🙏",
+      };
     }
 
-    const json = await res.json();
-    const content = json.choices?.[0]?.message?.content || "";
-    return JSON.parse(content);
-  } catch (e) {
-    console.error("AI parse error:", e);
-    return { intent: "general_query", data: {}, response: "Desculpe, não entendi bem. Pode reformular? 🤔" };
+    const payload = await response.json();
+    const content = payload?.choices?.[0]?.message?.content;
+
+    if (typeof content !== "string" || content.trim().length === 0) {
+      return {
+        intent: "general_query",
+        data: {},
+        response: "Recebi sua mensagem! Pode me dar mais detalhes?",
+      };
+    }
+
+    const aiJson = extractAiJson(content);
+    if (!aiJson) {
+      return {
+        intent: "general_query",
+        data: {},
+        response: "Entendi! Mas não consegui interpretar com precisão. Pode reformular?",
+      };
+    }
+
+    return {
+      intent: aiJson.intent,
+      data: aiJson.data,
+      response: aiJson.response || "Perfeito! Anotado ✅",
+    };
+  } catch (error) {
+    console.error("AI parse error:", error);
+    return {
+      intent: "general_query",
+      data: {},
+      response: "Desculpe, não entendi bem. Pode reformular? 🤔",
+    };
   }
 }
 
-// --- WhatsApp Messaging ---
-
-async function sendWhatsAppMessage(phone: string, text: string) {
+async function sendWhatsAppMessage(phone: string, text: string): Promise<void> {
   const evolutionUrl = Deno.env.get("EVOLUTION_API_URL");
   const evolutionKey = Deno.env.get("EVOLUTION_API_KEY");
   const instanceName = Deno.env.get("EVOLUTION_API_INSTANCE_NAME") || "Tuddo";
@@ -207,155 +374,238 @@ async function sendWhatsAppMessage(phone: string, text: string) {
   }
 
   try {
-    const res = await fetch(`${evolutionUrl}/message/sendText/${instanceName}`, {
+    const response = await fetch(`${evolutionUrl}/message/sendText/${instanceName}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", apikey: evolutionKey },
+      headers: {
+        "Content-Type": "application/json",
+        apikey: evolutionKey,
+      },
       body: JSON.stringify({ number: phone, text }),
     });
-    console.log("Evolution send status:", res.status);
-  } catch (e) {
-    console.error("Evolution send error:", e);
+
+    if (!response.ok) {
+      console.error("Evolution send error:", response.status, await response.text());
+      return;
+    }
+
+    console.log("Evolution send status:", response.status);
+  } catch (error) {
+    console.error("Evolution send error:", error);
   }
 }
 
-// --- Main Handler ---
+async function executeIntentAction(supabase: any, userId: string, intent: AiResult["intent"], data: JsonRecord, fallbackText: string): Promise<string> {
+  let reply = "Entendi!";
+
+  switch (intent) {
+    case "create_task": {
+      const { error } = await supabase.from("tasks").insert({
+        user_id: userId,
+        title: typeof data.title === "string" && data.title.trim().length > 0 ? data.title : fallbackText,
+        priority: typeof data.priority === "string" && data.priority.trim().length > 0 ? data.priority : "baixa",
+        status: "pendente",
+        due_date: typeof data.due_date === "string" ? data.due_date : null,
+      });
+
+      if (error) {
+        console.error("Task insert error:", error);
+        return "Ops, não consegui criar a tarefa. Tente novamente! 😅";
+      }
+
+      reply = "Anotado! Tarefa criada com sucesso ✅";
+      break;
+    }
+
+    case "create_transaction": {
+      const amountValue = Math.abs(Number(data.amount) || 0);
+      const { error } = await supabase.from("transactions").insert({
+        user_id: userId,
+        description:
+          typeof data.description === "string" && data.description.trim().length > 0
+            ? data.description
+            : fallbackText,
+        amount: amountValue,
+        type: typeof data.type === "string" && data.type.trim().length > 0 ? data.type : "gasto",
+        category: typeof data.category === "string" && data.category.trim().length > 0 ? data.category : "Geral",
+      });
+
+      if (error) {
+        console.error("Transaction insert error:", error);
+        return "Ops, não consegui registrar essa transação. Tente novamente! 😅";
+      }
+
+      reply = "Registrado! Transação salva com sucesso ✅";
+      break;
+    }
+
+    case "create_meeting": {
+      const { error } = await supabase.from("meetings").insert({
+        user_id: userId,
+        title: typeof data.title === "string" && data.title.trim().length > 0 ? data.title : fallbackText,
+        meeting_date: typeof data.meeting_date === "string" ? data.meeting_date : null,
+        status: "agendada",
+      });
+
+      if (error) {
+        console.error("Meeting insert error:", error);
+        return "Ops, não consegui agendar esse compromisso. Tente novamente! 😅";
+      }
+
+      reply = "Agendado! Compromisso criado com sucesso ✅";
+      break;
+    }
+
+    case "general_query":
+    default:
+      break;
+  }
+
+  return reply;
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "method_not_allowed" }), {
+      status: 405,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const rawBody = await req.text();
+    let body: JsonRecord;
 
-    let body: any;
     try {
-      body = JSON.parse(rawBody);
+      const parsed = JSON.parse(rawBody);
+      if (!isRecord(parsed)) {
+        return new Response(JSON.stringify({ error: "invalid_json" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      body = parsed;
     } catch {
-      return new Response(JSON.stringify({ error: "invalid_json" }), { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "invalid_json" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // 1. Authenticate request
     const isAuthorized = await verifyRequest(req, rawBody, body);
     if (!isAuthorized) {
       console.warn("Unauthorized request - rejecting");
-      return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: "unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    console.log("Webhook received:", JSON.stringify(body).slice(0, 500));
-
-    const data = body.data;
+    const data = isRecord(body.data) ? body.data : null;
     if (!data) {
-      return new Response(JSON.stringify({ status: "no_data" }), { headers: corsHeaders });
+      return new Response(JSON.stringify({ status: "no_data" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const key = data.key;
-    const message = data.message;
-
-    // 2. Ignore group messages
-    if (key?.remoteJid?.includes("@g.us")) {
-      return new Response(JSON.stringify({ status: "ignored_group_message" }), { headers: corsHeaders });
+    const key = isRecord(data.key) ? data.key : {};
+    if (isGroupMessage(key)) {
+      return new Response(JSON.stringify({ status: "ignored_group_message" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // 3. Only process text messages
-    let text = message?.conversation || message?.extendedTextMessage?.text;
+    const message = isRecord(data.message) ? data.message : {};
+    let text = extractTextMessage(message).trim();
+
     if (!text) {
-      return new Response(JSON.stringify({ status: "ignored_non_text" }), { headers: corsHeaders });
+      return new Response(JSON.stringify({ status: "ignored_non_text" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    if (text.trim().toLowerCase().startsWith("/ai ")) {
-      text = text.trim().substring(4).trim();
+    if (text.toLowerCase().startsWith("/ai ")) {
+      text = text.slice(4).trim();
     }
 
-    // 4. Extract phone number
-    const remoteJid = key?.remoteJid?.replace("@s.whatsapp.net", "") || "";
-    console.log("Processing message from:", remoteJid, "Text:", text);
+    const remotePhone = extractPhoneFromKey(key);
+    if (!remotePhone) {
+      return new Response(JSON.stringify({ status: "missing_phone" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    // 5. Init Supabase
     const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    // 6. Find user by phone
-    const phoneVariants = buildPhoneVariants(remoteJid);
-    const orFilter = phoneVariants.map((p) => `phone.eq.${p}`).join(",");
-    const { data: profiles } = await supabase
+    const phoneVariants = buildPhoneVariants(remotePhone);
+    const orFilter = phoneVariants.map((phone) => `phone.eq.${phone}`).join(",");
+
+    const { data: profiles, error: profileError } = await supabase
       .from("profiles")
       .select("id, full_name, plan")
       .or(orFilter)
       .limit(1);
 
+    if (profileError) {
+      console.error("Profile query error:", profileError);
+      return new Response(JSON.stringify({ error: "profile_lookup_failed" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!profiles || profiles.length === 0) {
-      await sendWhatsAppMessage(remoteJid, "Desculpe, não encontrei seu cadastro. Por favor, registre-se na plataforma primeiro! 📱");
-      return new Response(JSON.stringify({ status: "user_not_found" }), { status: 404, headers: corsHeaders });
+      await sendWhatsAppMessage(
+        remotePhone,
+        "Desculpe, não encontrei seu cadastro. Por favor, registre-se na plataforma primeiro! 📱",
+      );
+
+      return new Response(JSON.stringify({ status: "user_not_found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const userId = profiles[0].id;
-    const userName = profiles[0].full_name || "amigo(a)";
-    const userPlan = (profiles[0].plan || "FREE").toUpperCase();
+    const userPlan = String(profiles[0].plan || "FREE").toUpperCase();
+    const adminPhone = Deno.env.get("ADMIN_PHONE") || "554784566364";
 
-    // 7. Check message limits (bypass for admin)
-    const ADMIN_PHONE = Deno.env.get("ADMIN_PHONE") || "";
-    if (remoteJid !== ADMIN_PHONE) {
+    if (remotePhone !== adminPhone) {
       const limitExceeded = await checkMessageLimit(supabase, userId, userPlan);
       if (limitExceeded) {
-        const limitMsg = PLAN_LIMITS[userPlan]?.message || PLAN_LIMITS.FREE.message;
-        await sendWhatsAppMessage(remoteJid, limitMsg);
-        return new Response(JSON.stringify({ status: "limit_exceeded", plan: userPlan }), { headers: corsHeaders });
+        const limitMessage = PLAN_LIMITS[userPlan]?.message || PLAN_LIMITS.FREE.message;
+        await sendWhatsAppMessage(remotePhone, limitMessage);
+
+        return new Response(JSON.stringify({ status: "limit_exceeded", plan: userPlan }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
     }
 
-    // 8. Interpret with AI
     const aiResult = await interpretMessage(text);
-    console.log("AI result:", JSON.stringify(aiResult));
-
     const intent = aiResult.intent || "general_query";
-    const entities = aiResult.data || {};
+    const entities = isRecord(aiResult.data) ? aiResult.data : {};
     let reply = aiResult.response || "Entendi! Mas não consegui processar. Tente novamente. 🤔";
 
-    // 9. Execute action based on intent
-    try {
-      switch (intent) {
-        case "create_task": {
-          const { error } = await supabase.from("tasks").insert({
-            user_id: userId,
-            title: entities.title || text,
-            priority: entities.priority || "baixa",
-            status: "pendente",
-            due_date: entities.due_date || null,
-          });
-          if (error) { console.error("Task insert error:", error); reply = "Ops, não consegui criar a tarefa. Tente novamente! 😅"; }
-          break;
-        }
-        case "create_transaction": {
-          const { error } = await supabase.from("transactions").insert({
-            user_id: userId,
-            description: entities.description || text,
-            amount: Math.abs(Number(entities.amount) || 0),
-            type: entities.type || "gasto",
-            category: entities.category || "Geral",
-          });
-          if (error) { console.error("Transaction insert error:", error); reply = "Ops, não consegui registrar. Tente novamente! 😅"; }
-          break;
-        }
-        case "create_meeting": {
-          const { error } = await supabase.from("meetings").insert({
-            user_id: userId,
-            title: entities.title || text,
-            meeting_date: entities.meeting_date || null,
-            status: "agendada",
-          });
-          if (error) { console.error("Meeting insert error:", error); reply = "Ops, não consegui agendar. Tente novamente! 😅"; }
-          break;
-        }
+    if (intent !== "general_query") {
+      reply = await executeIntentAction(supabase, userId, intent, entities, text);
+      if (aiResult.response && aiResult.response.trim().length > 0) {
+        reply = aiResult.response;
       }
-    } catch (actionError) {
-      console.error("Action error:", actionError);
     }
 
-    // 10. Save to inbox_messages
-    await supabase.from("inbox_messages").insert({
+    const { error: inboxError } = await supabase.from("inbox_messages").insert({
       user_id: userId,
       message: text,
       type: intent,
@@ -364,12 +614,21 @@ serve(async (req) => {
       response: reply,
     });
 
-    // 11. Send reply
-    await sendWhatsAppMessage(remoteJid, reply);
+    if (inboxError) {
+      console.error("Inbox insert error:", inboxError);
+    }
 
-    return new Response(JSON.stringify({ status: "ok", intent }), { headers: corsHeaders });
-  } catch (err) {
-    console.error("Webhook error:", err);
-    return new Response(JSON.stringify({ error: "internal_error" }), { status: 500, headers: corsHeaders });
+    await sendWhatsAppMessage(remotePhone, reply);
+
+    return new Response(JSON.stringify({ status: "ok", intent }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    console.error("Webhook error:", error);
+    return new Response(JSON.stringify({ error: "internal_error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
