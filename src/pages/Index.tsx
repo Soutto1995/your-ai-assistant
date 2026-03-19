@@ -10,7 +10,7 @@ import {
   Clock, AlertTriangle, ArrowRight, Crown, LogOut,
 } from "lucide-react";
 
-const WHATSAPP_NUMBER = "5511999999999"; // TODO: substituir pelo número real
+const WHATSAPP_NUMBER = "554784566364";
 const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}?text=Oi%20Tuddo!%20Quero%20come%C3%A7ar.`;
 
 const PLAN_DAILY_LIMITS: Record<string, number> = {
