@@ -53,12 +53,12 @@ export default function OnboardingGuide({ whatsappLink }: { whatsappLink: string
         ))}
       </div>
       <div className="text-center">
-        <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
-          <Button size="sm" className="gap-2">
+        <Button asChild size="sm" className="gap-2">
+          <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
             <MessageCircle className="w-4 h-4" />
             Enviar primeira mensagem no WhatsApp
-          </Button>
-        </a>
+          </a>
+        </Button>
       </div>
     </div>
   );

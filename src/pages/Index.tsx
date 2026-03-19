@@ -11,7 +11,15 @@ import {
 } from "lucide-react";
 
 const WHATSAPP_NUMBER = "554784566364";
-const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}?text=Oi%20Tuddo!`;
+const WHATSAPP_TEXT = encodeURIComponent("Oi Tuddo!");
+const WHATSAPP_WEB_LINK = `https://web.whatsapp.com/send?phone=${WHATSAPP_NUMBER}&text=${WHATSAPP_TEXT}`;
+const WHATSAPP_MOBILE_LINK = `https://wa.me/${WHATSAPP_NUMBER}?text=${WHATSAPP_TEXT}`;
+
+function getWhatsAppLink() {
+  if (typeof navigator === "undefined") return WHATSAPP_WEB_LINK;
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  return isMobile ? WHATSAPP_MOBILE_LINK : WHATSAPP_WEB_LINK;
+}
 
 const PLAN_DAILY_LIMITS: Record<string, number> = {
   FREE: 5,
