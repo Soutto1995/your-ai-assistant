@@ -228,14 +228,20 @@ serve(async (req) => {
   try {
     const rawBody = await req.text();
 
+    let body: Record<string, unknown>;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      return new Response(JSON.stringify({ error: "invalid_json" }), { status: 400, headers: corsHeaders });
+    }
+
     // 1. Authenticate request
-    const isAuthorized = await verifyRequest(req, rawBody);
+    const isAuthorized = await verifyRequest(req, rawBody, body);
     if (!isAuthorized) {
       console.warn("Unauthorized request - rejecting");
       return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
-    const body = JSON.parse(rawBody);
     console.log("Webhook received:", JSON.stringify(body).slice(0, 500));
 
     const data = body.data;
