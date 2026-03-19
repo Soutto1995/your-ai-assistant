@@ -56,18 +56,59 @@ function timingSafeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-function verifyRequest(req: Request): boolean {
-  // Try apikey header first (Evolution API standard)
-  const receivedKey = req.headers.get("apikey");
-  const instanceToken = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN");
-  if (instanceToken && receivedKey && timingSafeEqual(receivedKey, instanceToken)) {
+async function verifyHmacSignature(body: string, signatureHeader: string): Promise<boolean> {
+  const secret = Deno.env.get("EVOLUTION_API_WEBHOOK_SECRET");
+  if (!secret) return false;
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(body));
+  const hashArray = Array.from(new Uint8Array(signature));
+  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  const expectedSignature = `sha256=${hashHex}`;
+
+  return timingSafeEqual(signatureHeader, expectedSignature);
+}
+
+async function verifyRequest(req: Request, rawBody: string, body: Record<string, unknown>): Promise<boolean> {
+  const acceptedKeys = [
+    Deno.env.get("EVOLUTION_API_KEY"),
+    Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN"),
+  ].filter((value): value is string => Boolean(value));
+
+  if (acceptedKeys.length === 0) return false;
+
+  // 1) Prefer HMAC validation when header is present
+  const signatureHeader = req.headers.get("x-hub-signature-256");
+  if (signatureHeader) {
+    const hmacValid = await verifyHmacSignature(rawBody, signatureHeader);
+    if (hmacValid) return true;
+  }
+
+  // 2) API key via header
+  const receivedHeaderKey = req.headers.get("apikey") || req.headers.get("x-api-key");
+  if (receivedHeaderKey && acceptedKeys.some((key) => timingSafeEqual(receivedHeaderKey, key))) {
     return true;
   }
 
-  // Fallback: accept any request if no token is configured (dev mode)
-  // In production, EVOLUTION_API_INSTANCE_TOKEN should always be set
-  if (!instanceToken) {
-    console.warn("EVOLUTION_API_INSTANCE_TOKEN not set - accepting request without auth");
+  // 3) API key via payload (common Evolution webhook setup)
+  const bodyCandidates = [
+    body.apikey,
+    body.apiKey,
+    body.token,
+    typeof body.instance === "object" && body.instance !== null
+      ? (body.instance as Record<string, unknown>).token
+      : undefined,
+  ].filter((value): value is string => typeof value === "string");
+
+  if (bodyCandidates.some((candidate) => acceptedKeys.some((key) => timingSafeEqual(candidate, key)))) {
     return true;
   }
 
@@ -187,13 +228,20 @@ serve(async (req) => {
   try {
     const rawBody = await req.text();
 
+    let body: any;
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      return new Response(JSON.stringify({ error: "invalid_json" }), { status: 400, headers: corsHeaders });
+    }
+
     // 1. Authenticate request
-    if (!verifyRequest(req)) {
+    const isAuthorized = await verifyRequest(req, rawBody, body);
+    if (!isAuthorized) {
       console.warn("Unauthorized request - rejecting");
       return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: corsHeaders });
     }
 
-    const body = JSON.parse(rawBody);
     console.log("Webhook received:", JSON.stringify(body).slice(0, 500));
 
     const data = body.data;
