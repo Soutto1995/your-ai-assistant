@@ -228,7 +228,7 @@ serve(async (req) => {
   try {
     const rawBody = await req.text();
 
-    let body: Record<string, unknown>;
+    let body: any;
     try {
       body = JSON.parse(rawBody);
     } catch {
