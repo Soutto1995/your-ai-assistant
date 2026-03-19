@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 const WHATSAPP_NUMBER = "554784566364";
-const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}?text=Oi%20Tuddo!%20Quero%20come%C3%A7ar.`;
+const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}?text=Oi%20Tuddo!`;
 
 const PLAN_DAILY_LIMITS: Record<string, number> = {
   FREE: 5,

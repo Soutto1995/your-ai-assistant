@@ -324,7 +324,8 @@ async function sendWhatsAppMessage(phone: string, text: string) {
   }
 
   try {
-    const res = await fetch(`${evolutionUrl}/message/sendText/tuddo`, {
+    const instanceName = Deno.env.get("EVOLUTION_API_INSTANCE_NAME") || "Tuddo";
+    const res = await fetch(`${evolutionUrl}/message/sendText/${instanceName}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: evolutionKey },
       body: JSON.stringify({ number: phone, text }),
