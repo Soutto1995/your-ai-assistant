@@ -375,7 +375,9 @@ async function sendWhatsAppMessage(phone: string, text: string): Promise<void> {
   }
 
   try {
-    const response = await fetch(`${evolutionUrl}/message/sendText/${instanceName}`, {
+    const sendUrl = `${evolutionUrl}/message/sendText/${instanceName}`;
+    console.log("DEBUG SEND: URL:", sendUrl, "key length:", evolutionKey.length, "key first 5:", evolutionKey.substring(0, 5));
+    const response = await fetch(sendUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -385,7 +387,8 @@ async function sendWhatsAppMessage(phone: string, text: string): Promise<void> {
     });
 
     if (!response.ok) {
-      console.error("Evolution send error:", response.status, await response.text());
+      const errBody = await response.text();
+      console.error("Evolution send error:", response.status, errBody, "URL:", sendUrl);
       return;
     }
 
