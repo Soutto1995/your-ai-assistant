@@ -1,47 +1,38 @@
 
 
-## Plano: Abrir webhook para todos os clientes + atualizar número do Tuddo
+## Diagnóstico Completo
 
-### O que muda
+### Configuração da Evolution API: CORRETA ✅
+- Webhook habilitado, URL correta, MESSAGES_UPSERT ativado
 
-1. **Edge Function `whatsapp-webhook/index.ts`**
-   - Remover o bloco de self-chat (linhas 125-129) que restringe mensagens apenas ao próprio número
-   - Adicionar filtro para ignorar mensagens de grupos (`@g.us`)
-   - Extrair o número do remetente a partir de `key.participant` (para grupos, caso passe) ou `key.remoteJid`
-   - Manter HMAC, limites de plano e bypass de admin intactos
+### Problema encontrado: 3 secrets FALTANDO no Supabase
 
-2. **Secrets do Supabase** (atualizar via ferramenta)
-   - `WHATSAPP_SELF_JID` → `554784566364@s.whatsapp.net`
-   - `ADMIN_PHONE` → `554784566364`
+A Edge Function precisa de 6 variáveis de ambiente. Atualmente só existem 3 das 6 necessárias:
 
-3. **`src/pages/Index.tsx`**
-   - Trocar `WHATSAPP_NUMBER` de `"5511999999999"` para `"554784566364"`
+| Secret | Status | Valor necessário |
+|--------|--------|-----------------|
+| EVOLUTION_API_KEY | **FALTANDO** | `c79eeae212b4ba58eb7c3ef0286c7bc37e5e49a3b885368f30dc8713011cec65` |
+| EVOLUTION_API_URL | **FALTANDO** | `http://evolution-api-production-6070.up.railway.app` |
+| OPENAI_API_KEY | **FALTANDO** | (sua chave da OpenAI) |
+| EVOLUTION_API_INSTANCE_TOKEN | OK | — |
+| EVOLUTION_API_WEBHOOK_SECRET | OK | — |
+| EVOLUTION_API_INSTANCE_NAME | OK | — |
 
-4. **Deploy** da edge function após as alterações
+Sem `EVOLUTION_API_KEY`, a autenticação falha → "Unauthorized request - rejecting" (exatamente o que aparece nos logs).
+Sem `EVOLUTION_API_URL`, a função não consegue enviar respostas pelo WhatsApp.
+Sem `OPENAI_API_KEY`, a IA não processa as mensagens.
 
-### Detalhes técnicos
+### Perfis no banco (para referência)
 
-No webhook, o bloco atual:
-```typescript
-const MY_OWN_WHATSAPP_NUMBER = Deno.env.get("WHATSAPP_SELF_JID") || "";
-if (key?.fromMe !== true || key?.remoteJid !== MY_OWN_WHATSAPP_NUMBER) {
-  return new Response(...);
-}
-```
-Será substituído por:
-```typescript
-// Ignorar mensagens de grupos
-if (key?.remoteJid?.includes("@g.us")) {
-  return new Response(JSON.stringify({ status: "ignored_group_message" }), { headers: corsHeaders });
-}
-```
+- Bruno: `5547999844528`
+- Bruno Soutto: `5548999844528`
+- Ana Paula: `47996741878`
 
-O resto do fluxo (lookup por telefone na tabela `profiles`, verificação de limites, processamento com IA) permanece igual — já funciona para qualquer número cadastrado.
+### Plano de execução
 
-### Checklist
-- A função aceita mensagens de qualquer cliente cadastrado na tabela `profiles`
-- Verificação HMAC continua obrigatória
-- Bypass de limites para admin funciona com o novo número
-- Link `wa.me` no dashboard aponta para `554784566364`
-- Secrets atualizados no Supabase
+1. **Adicionar os 3 secrets faltantes** (`EVOLUTION_API_KEY`, `EVOLUTION_API_URL`, `OPENAI_API_KEY`) via ferramenta de secrets
+2. **Re-deploy da Edge Function** para que ela capture os novos secrets
+3. **Testar com curl** simulando uma mensagem real para confirmar que tudo funciona
+
+Nenhuma alteração de código é necessária — o código está correto, só faltam as variáveis de ambiente.
 
