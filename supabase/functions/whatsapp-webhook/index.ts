@@ -144,12 +144,6 @@ async function verifyRequest(req: Request, rawBody: string, body: JsonRecord): P
     Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN"),
   ].filter((value): value is string => Boolean(value));
 
-  console.log("DEBUG: accepted tokens count:", acceptedTokens.length);
-  console.log("DEBUG: EVOLUTION_API_KEY length:", (Deno.env.get("EVOLUTION_API_KEY") || "").length);
-  console.log("DEBUG: EVOLUTION_API_KEY first 5 chars:", (Deno.env.get("EVOLUTION_API_KEY") || "").substring(0, 5));
-
-  const payloadCandidatesDebug = extractTokensFromBody(body);
-  console.log("DEBUG: payload candidates:", payloadCandidatesDebug.map(c => c.substring(0, 5) + "..."));
 
   if (acceptedTokens.length === 0) {
     console.error("Webhook auth misconfigured: no accepted tokens configured");
