@@ -1,0 +1,1 @@
+DELETE FROM inbox_messages WHERE user_id = '28f7d750-f055-4eab-a9d8-3c103bf40829' AND created_at >= now() - interval '24 hours';
