@@ -1,38 +1,31 @@
 
 
-## Diagnóstico Completo
+## Problema Identificado: AUTHENTICATION_API_KEY no Railway = `voce-a!`
 
-### Configuração da Evolution API: CORRETA ✅
-- Webhook habilitado, URL correta, MESSAGES_UPSERT ativado
+Nos seus prints, ao revelar o valor de `AUTHENTICATION_API_KEY` no Railway, aparece **`voce-a!`**. Esse é o valor que a Evolution API usa para autenticar requisições.
 
-### Problema encontrado: 3 secrets FALTANDO no Supabase
+No Supabase, o secret `EVOLUTION_API_KEY` foi configurado com `c79eeae212b4...` -- por isso o envio de mensagens falha com **401 Unauthorized**. A Evolution API espera `voce-a!`, mas recebe `c79eeae...`.
 
-A Edge Function precisa de 6 variáveis de ambiente. Atualmente só existem 3 das 6 necessárias:
+### Problema secundário
 
-| Secret | Status | Valor necessário |
-|--------|--------|-----------------|
-| EVOLUTION_API_KEY | **FALTANDO** | `c79eeae212b4ba58eb7c3ef0286c7bc37e5e49a3b885368f30dc8713011cec65` |
-| EVOLUTION_API_URL | **FALTANDO** | `http://evolution-api-production-6070.up.railway.app` |
-| OPENAI_API_KEY | **FALTANDO** | (sua chave da OpenAI) |
-| EVOLUTION_API_INSTANCE_TOKEN | OK | — |
-| EVOLUTION_API_WEBHOOK_SECRET | OK | — |
-| EVOLUTION_API_INSTANCE_NAME | OK | — |
-
-Sem `EVOLUTION_API_KEY`, a autenticação falha → "Unauthorized request - rejecting" (exatamente o que aparece nos logs).
-Sem `EVOLUTION_API_URL`, a função não consegue enviar respostas pelo WhatsApp.
-Sem `OPENAI_API_KEY`, a IA não processa as mensagens.
-
-### Perfis no banco (para referência)
-
-- Bruno: `5547999844528`
-- Bruno Soutto: `5548999844528`
-- Ana Paula: `47996741878`
+`voce-a!` parece ser uma senha placeholder muito fraca. Recomendo fortemente trocar por uma chave segura tanto no Railway quanto no Supabase.
 
 ### Plano de execução
 
-1. **Adicionar os 3 secrets faltantes** (`EVOLUTION_API_KEY`, `EVOLUTION_API_URL`, `OPENAI_API_KEY`) via ferramenta de secrets
-2. **Re-deploy da Edge Function** para que ela capture os novos secrets
-3. **Testar com curl** simulando uma mensagem real para confirmar que tudo funciona
+1. **Atualizar `EVOLUTION_API_KEY` no Supabase** para o valor que está no Railway (`voce-a!`) -- ou, preferencialmente, gerar uma chave forte e atualizar nos dois lugares
+2. **Re-deploy da Edge Function** para capturar o novo valor
+3. **Testar envio** com curl para confirmar que a resposta chega pelo WhatsApp
 
-Nenhuma alteração de código é necessária — o código está correto, só faltam as variáveis de ambiente.
+### Recomendação de segurança
+
+Se `voce-a!` realmente é sua AUTHENTICATION_API_KEY:
+- Vá no Railway, edite `AUTHENTICATION_API_KEY` para uma chave forte (ex: gere um UUID ou hash)
+- Atualize o mesmo valor no Supabase como `EVOLUTION_API_KEY`
+- Faça redeploy no Railway para aplicar
+
+### Decisão necessária
+
+Você quer que eu:
+- **Opção A**: Atualize o secret no Supabase para `voce-a!` (funciona imediatamente, mas chave fraca)
+- **Opção B**: Você primeiro troca a chave no Railway por uma segura e me passa o novo valor
 
