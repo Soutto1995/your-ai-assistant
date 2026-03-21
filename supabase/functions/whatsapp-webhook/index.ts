@@ -144,12 +144,6 @@ async function verifyRequest(req: Request, rawBody: string, body: JsonRecord): P
     Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN"),
   ].filter((value): value is string => Boolean(value));
 
-  console.log("[DEBUG AUTH] Accepted tokens count:", acceptedTokens.length);
-  console.log("[DEBUG AUTH] EVOLUTION_API_KEY set:", !!Deno.env.get("EVOLUTION_API_KEY"));
-  console.log("[DEBUG AUTH] EVOLUTION_API_KEY first 8:", Deno.env.get("EVOLUTION_API_KEY")?.slice(0, 8) || "EMPTY");
-  console.log("[DEBUG AUTH] EVOLUTION_API_INSTANCE_TOKEN set:", !!Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN"));
-  console.log("[DEBUG AUTH] EVOLUTION_API_INSTANCE_TOKEN first 8:", Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN")?.slice(0, 8) || "EMPTY");
-
   if (acceptedTokens.length === 0) {
     console.error("Webhook auth misconfigured: no accepted tokens configured");
     return false;
@@ -157,10 +151,8 @@ async function verifyRequest(req: Request, rawBody: string, body: JsonRecord): P
 
   const signatureHeader = req.headers.get("x-hub-signature-256");
   if (signatureHeader) {
-    console.log("[DEBUG AUTH] HMAC signature present");
     const hmacIsValid = await verifyHmacSignature(rawBody, signatureHeader);
     if (hmacIsValid) return true;
-    console.log("[DEBUG AUTH] HMAC failed");
   }
 
   const headerCandidates = [
@@ -170,9 +162,6 @@ async function verifyRequest(req: Request, rawBody: string, body: JsonRecord): P
     req.headers.get("x-token"),
     req.headers.get("x-webhook-token"),
   ].filter((value): value is string => Boolean(value));
-
-  console.log("[DEBUG AUTH] Header candidates count:", headerCandidates.length);
-  headerCandidates.forEach((c, i) => console.log(`[DEBUG AUTH] Header candidate ${i} first 8:`, c.slice(0, 8)));
 
   if (headerCandidates.some((candidate) => tokenMatches(candidate, acceptedTokens))) {
     return true;
@@ -190,9 +179,6 @@ async function verifyRequest(req: Request, rawBody: string, body: JsonRecord): P
   }
 
   const payloadCandidates = extractTokensFromBody(body);
-  console.log("[DEBUG AUTH] Payload candidates count:", payloadCandidates.length);
-  payloadCandidates.forEach((c, i) => console.log(`[DEBUG AUTH] Payload candidate ${i} first 8:`, c.slice(0, 8)));
-
   if (payloadCandidates.some((candidate) => tokenMatches(candidate, acceptedTokens))) {
     return true;
   }
