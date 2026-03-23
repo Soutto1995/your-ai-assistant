@@ -369,7 +369,7 @@ async function interpretMessage(message: string, now: Date = new Date()): Promis
         model: "gpt-4.1-nano",
         temperature: 0.3,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: SYSTEM_PROMPT + `\n\nDATA ATUAL: ${now.toISOString().split("T")[0]} (${now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "America/Sao_Paulo" })}). Use esta data para interpretar referências relativas como "hoje", "amanhã", "próxima semana", etc. Retorne datas no formato ISO (YYYY-MM-DD).` },
           { role: "user", content: message },
         ],
       }),
