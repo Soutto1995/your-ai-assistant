@@ -708,7 +708,7 @@ serve(async (req) => {
       }
     }
 
-    const aiResult = await interpretMessage(text);
+    const aiResult = await interpretMessage(text, new Date());
     const intent = aiResult.intent || "general_query";
     const entities = isRecord(aiResult.data) ? aiResult.data : {};
     let reply = aiResult.response || "Entendi! Mas não consegui processar. Tente novamente. 🤔";
