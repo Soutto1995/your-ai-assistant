@@ -427,16 +427,17 @@ async function executeIntentAction(supabase: any, userId: string, intent: AiResu
     }
 
     case "create_transaction": {
-      const amountValue = Math.abs(Number(data.amount) || 0);
+      const description =
+        typeof data.description === "string" && data.description.trim().length > 0
+          ? data.description
+          : fallbackText;
+      const category = await categorizeExpense(description);
       const { error } = await supabase.from("transactions").insert({
         user_id: userId,
-        description:
-          typeof data.description === "string" && data.description.trim().length > 0
-            ? data.description
-            : fallbackText,
-        amount: amountValue,
+        description,
+        amount: Math.abs(Number(data.amount) || 0),
         type: typeof data.type === "string" && data.type.trim().length > 0 ? data.type : "gasto",
-        category: typeof data.category === "string" && data.category.trim().length > 0 ? data.category : "Geral",
+        category,
       });
 
       if (error) {
