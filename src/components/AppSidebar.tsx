@@ -24,7 +24,7 @@ const navItems = [
   { icon: DollarSign, label: "Finanças", path: "/financas" },
   { icon: CalendarDays, label: "Calendário", path: "/calendario" },
   { icon: FolderOpen, label: "Projetos", path: "/projetos" },
-  { icon: Brain, label: "Memória", path: "/memoria" },
+  { icon: Target, label: "Orçamento", path: "/orcamento" },
   { icon: CreditCard, label: "Planos", path: "/planos" },
 ];
 
