@@ -6,7 +6,7 @@ import {
   Inbox,
   CheckSquare,
   DollarSign,
-  Users,
+  CalendarDays,
   FolderOpen,
   Brain,
   CreditCard,
