@@ -36,6 +36,7 @@ const statusBadge: Record<string, string> = {
 export default function TasksPage() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState("baixa");
@@ -53,8 +54,14 @@ export default function TasksPage() {
     setTasks(data || []);
   };
 
+  const fetchProjects = async () => {
+    const { data } = await supabase.from("projects").select("*").order("name");
+    setProjects(data || []);
+  };
+
   useEffect(() => {
     fetchTasks();
+    fetchProjects();
     const channel = supabase.channel("tasks-realtime").on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, fetchTasks).subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user, filterStatus, filterPriority]);
