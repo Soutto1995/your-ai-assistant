@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      events: {
+        Row: {
+          category: string | null
+          created_at: string
+          description: string | null
+          event_date: string | null
+          event_time: string | null
+          id: string
+          legacy_meeting_date: string | null
+          participants: number | null
+          reminder_sent: boolean | null
+          status: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          event_date?: string | null
+          event_time?: string | null
+          id?: string
+          legacy_meeting_date?: string | null
+          participants?: number | null
+          reminder_sent?: boolean | null
+          status?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          event_date?: string | null
+          event_time?: string | null
+          id?: string
+          legacy_meeting_date?: string | null
+          participants?: number | null
+          reminder_sent?: boolean | null
+          status?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       inbox_messages: {
         Row: {
           created_at: string
@@ -43,39 +88,6 @@ export type Database = {
           source?: string
           status?: string
           type?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      meetings: {
-        Row: {
-          created_at: string
-          id: string
-          meeting_date: string | null
-          participants: number | null
-          status: string
-          summary: string | null
-          title: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          meeting_date?: string | null
-          participants?: number | null
-          status?: string
-          summary?: string | null
-          title: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          meeting_date?: string | null
-          participants?: number | null
-          status?: string
-          summary?: string | null
-          title?: string
           user_id?: string
         }
         Relationships: []

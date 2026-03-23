@@ -10,7 +10,7 @@ import Index from "./pages/Index";
 import InboxPage from "./pages/InboxPage";
 import TasksPage from "./pages/TasksPage";
 import FinancesPage from "./pages/FinancesPage";
-import MeetingsPage from "./pages/MeetingsPage";
+import CalendarPage from "./pages/CalendarPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import MemoryPage from "./pages/MemoryPage";
 import PlansPage from "./pages/PlansPage";
@@ -40,7 +40,7 @@ const App = () => (
             <Route path="/inbox" element={<ProtectedRoute><InboxPage /></ProtectedRoute>} />
             <Route path="/tarefas" element={<ProtectedRoute><TasksPage /></ProtectedRoute>} />
             <Route path="/financas" element={<ProtectedRoute><FinancesPage /></ProtectedRoute>} />
-            <Route path="/reunioes" element={<ProtectedRoute><MeetingsPage /></ProtectedRoute>} />
+            <Route path="/calendario" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
             <Route path="/projetos" element={<ProtectedRoute><ProjectsPage /></ProtectedRoute>} />
             <Route path="/memoria" element={<ProtectedRoute><MemoryPage /></ProtectedRoute>} />
             <Route path="/planos" element={<PlansPage />} />

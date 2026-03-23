@@ -496,15 +496,29 @@ async function executeIntentAction(supabase: any, userId: string, intent: AiResu
     }
 
     case "create_meeting": {
-      const { error } = await supabase.from("meetings").insert({
+      const meetingDate = typeof data.meeting_date === "string" ? data.meeting_date : null;
+      let eventDate: string | null = null;
+      let eventTime: string | null = null;
+      if (meetingDate) {
+        try {
+          const d = new Date(meetingDate);
+          eventDate = d.toISOString().split("T")[0];
+          eventTime = d.toTimeString().slice(0, 5);
+        } catch {
+          eventDate = meetingDate;
+        }
+      }
+      const { error } = await supabase.from("events").insert({
         user_id: userId,
         title: typeof data.title === "string" && data.title.trim().length > 0 ? data.title : fallbackText,
-        meeting_date: typeof data.meeting_date === "string" ? data.meeting_date : null,
+        legacy_meeting_date: meetingDate,
+        event_date: eventDate,
+        event_time: eventTime,
         status: "agendada",
       });
 
       if (error) {
-        console.error("Meeting insert error:", error);
+        console.error("Event insert error:", error);
         return "Ops, não consegui agendar esse compromisso. Tente novamente! 😅";
       }
 
