@@ -347,7 +347,7 @@ async function categorizeExpense(description: string): Promise<string> {
   }
 }
 
-async function interpretMessage(message: string): Promise<AiResult> {
+async function interpretMessage(message: string, now: Date = new Date()): Promise<AiResult> {
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
   if (!openaiKey) {
     console.error("OPENAI_API_KEY not configured");
@@ -369,7 +369,7 @@ async function interpretMessage(message: string): Promise<AiResult> {
         model: "gpt-4.1-nano",
         temperature: 0.3,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: SYSTEM_PROMPT + `\n\nDATA ATUAL: ${now.toISOString().split("T")[0]} (${now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "America/Sao_Paulo" })}). Use esta data para interpretar referências relativas como "hoje", "amanhã", "próxima semana", etc. Retorne datas no formato ISO (YYYY-MM-DD).` },
           { role: "user", content: message },
         ],
       }),
@@ -694,7 +694,8 @@ serve(async (req) => {
       .map((p) => p.trim())
       .filter(Boolean);
 
-    if (!adminPhones.includes(remotePhone)) {
+    const isAdmin = phoneVariants.some((v) => adminPhones.includes(v)) || adminPhones.includes(remotePhone);
+    if (!isAdmin) {
       const limitExceeded = await checkMessageLimit(supabase, userId, userPlan);
       if (limitExceeded) {
         const limitMessage = PLAN_LIMITS[userPlan]?.message || PLAN_LIMITS.FREE.message;
@@ -707,7 +708,7 @@ serve(async (req) => {
       }
     }
 
-    const aiResult = await interpretMessage(text);
+    const aiResult = await interpretMessage(text, new Date());
     const intent = aiResult.intent || "general_query";
     const entities = isRecord(aiResult.data) ? aiResult.data : {};
     let reply = aiResult.response || "Entendi! Mas não consegui processar. Tente novamente. 🤔";
