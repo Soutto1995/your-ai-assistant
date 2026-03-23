@@ -579,9 +579,12 @@ serve(async (req) => {
 
     const userId = profiles[0].id;
     const userPlan = String(profiles[0].plan || "FREE").toUpperCase();
-    const adminPhone = Deno.env.get("ADMIN_PHONE") || "554784566364";
+    const adminPhones = (Deno.env.get("ADMIN_PHONES") || "")
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean);
 
-    if (remotePhone !== adminPhone) {
+    if (!adminPhones.includes(remotePhone)) {
       const limitExceeded = await checkMessageLimit(supabase, userId, userPlan);
       if (limitExceeded) {
         const limitMessage = PLAN_LIMITS[userPlan]?.message || PLAN_LIMITS.FREE.message;
