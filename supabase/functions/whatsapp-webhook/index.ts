@@ -347,7 +347,7 @@ async function categorizeExpense(description: string): Promise<string> {
   }
 }
 
-async function interpretMessage(message: string): Promise<AiResult> {
+async function interpretMessage(message: string, now: Date = new Date()): Promise<AiResult> {
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
   if (!openaiKey) {
     console.error("OPENAI_API_KEY not configured");
