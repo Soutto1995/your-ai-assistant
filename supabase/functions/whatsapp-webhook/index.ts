@@ -301,6 +301,52 @@ async function checkMessageLimit(supabase: any, userId: string, plan: string): P
   return (count ?? 0) >= planConfig.limit;
 }
 
+async function categorizeExpense(description: string): Promise<string> {
+  const lowerDescription = description.toLowerCase();
+
+  for (const [category, keywords] of Object.entries(categoryDictionary)) {
+    if (keywords.some((kw) => lowerDescription.includes(kw))) {
+      return category;
+    }
+  }
+
+  try {
+    const openaiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!openaiKey) return "Geral";
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openaiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4.1-nano",
+        temperature: 0,
+        messages: [
+          {
+            role: "system",
+            content: `Você é um especialista em finanças. Sua tarefa é categorizar a despesa do usuário em UMA das seguintes categorias: ${Object.keys(categoryDictionary).join(", ")}. Responda APENAS o nome da categoria.`,
+          },
+          { role: "user", content: `Despesa: "${description}"` },
+        ],
+      }),
+    });
+
+    if (!response.ok) return "Geral";
+
+    const payload = await response.json();
+    const category = payload?.choices?.[0]?.message?.content?.trim();
+
+    if (category && Object.keys(categoryDictionary).includes(category)) {
+      return category;
+    }
+    return "Geral";
+  } catch {
+    return "Geral";
+  }
+}
+
 async function interpretMessage(message: string): Promise<AiResult> {
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
   if (!openaiKey) {
