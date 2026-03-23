@@ -12,7 +12,7 @@ import TasksPage from "./pages/TasksPage";
 import FinancesPage from "./pages/FinancesPage";
 import CalendarPage from "./pages/CalendarPage";
 import ProjectsPage from "./pages/ProjectsPage";
-import MemoryPage from "./pages/MemoryPage";
+import BudgetPage from "./pages/BudgetPage";
 import PlansPage from "./pages/PlansPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
@@ -42,7 +42,7 @@ const App = () => (
             <Route path="/financas" element={<ProtectedRoute><FinancesPage /></ProtectedRoute>} />
             <Route path="/calendario" element={<ProtectedRoute><CalendarPage /></ProtectedRoute>} />
             <Route path="/projetos" element={<ProtectedRoute><ProjectsPage /></ProtectedRoute>} />
-            <Route path="/memoria" element={<ProtectedRoute><MemoryPage /></ProtectedRoute>} />
+            <Route path="/orcamento" element={<ProtectedRoute><BudgetPage /></ProtectedRoute>} />
             <Route path="/planos" element={<PlansPage />} />
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="*" element={<NotFound />} />

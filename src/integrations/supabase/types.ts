@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      budgets: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          limit: number
+          user_id: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          limit: number
+          user_id: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          limit?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           category: string | null
@@ -89,30 +113,6 @@ export type Database = {
           status?: string
           type?: string
           user_id?: string
-        }
-        Relationships: []
-      }
-      memory_settings: {
-        Row: {
-          created_at: string
-          id: string
-          key: string
-          user_id: string
-          value: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          key: string
-          user_id: string
-          value: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          key?: string
-          user_id?: string
-          value?: string
         }
         Relationships: []
       }

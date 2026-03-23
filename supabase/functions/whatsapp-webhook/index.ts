@@ -492,6 +492,46 @@ async function executeIntentAction(supabase: any, userId: string, intent: AiResu
       }
 
       reply = "Registrado! Transação salva com sucesso ✅";
+
+      // Check budget alert
+      try {
+        const transactionType = typeof data.type === "string" && data.type.trim().length > 0 ? data.type : "gasto";
+        if (transactionType === "gasto") {
+          const { data: budgetData } = await supabase
+            .from("budgets")
+            .select("limit")
+            .eq("user_id", userId)
+            .eq("category", category)
+            .single();
+
+          if (budgetData) {
+            const monthStart = new Date();
+            monthStart.setDate(1);
+            monthStart.setHours(0, 0, 0, 0);
+
+            const { data: monthTx } = await supabase
+              .from("transactions")
+              .select("amount")
+              .eq("user_id", userId)
+              .eq("category", category)
+              .eq("type", "gasto")
+              .gte("transaction_date", monthStart.toISOString());
+
+            const totalSpent = (monthTx || []).reduce((sum: number, t: any) => sum + Math.abs(Number(t.amount)), 0);
+            const budgetLimit = Number(budgetData.limit);
+            const progress = (totalSpent / budgetLimit) * 100;
+
+            if (progress >= 100) {
+              reply += `\n\n🚨 *Alerta de orçamento!* Você ultrapassou o limite de R$ ${budgetLimit.toLocaleString("pt-BR")} para ${category}. Total gasto: R$ ${totalSpent.toLocaleString("pt-BR")}.`;
+            } else if (progress >= 80) {
+              reply += `\n\n⚠️ *Atenção!* Você já usou ${progress.toFixed(0)}% do orçamento de ${category} (R$ ${totalSpent.toLocaleString("pt-BR")} / R$ ${budgetLimit.toLocaleString("pt-BR")}).`;
+            }
+          }
+        }
+      } catch (budgetError) {
+        console.error("Budget check error:", budgetError);
+      }
+
       break;
     }
 
