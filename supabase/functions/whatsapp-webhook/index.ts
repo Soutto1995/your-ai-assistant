@@ -694,7 +694,8 @@ serve(async (req) => {
       .map((p) => p.trim())
       .filter(Boolean);
 
-    if (!adminPhones.includes(remotePhone)) {
+    const isAdmin = phoneVariants.some((v) => adminPhones.includes(v)) || adminPhones.includes(remotePhone);
+    if (!isAdmin) {
       const limitExceeded = await checkMessageLimit(supabase, userId, userPlan);
       if (limitExceeded) {
         const limitMessage = PLAN_LIMITS[userPlan]?.message || PLAN_LIMITS.FREE.message;
