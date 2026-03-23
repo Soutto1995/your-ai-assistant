@@ -36,6 +36,7 @@ const statusBadge: Record<string, string> = {
 export default function TasksPage() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState("baixa");
@@ -53,8 +54,14 @@ export default function TasksPage() {
     setTasks(data || []);
   };
 
+  const fetchProjects = async () => {
+    const { data } = await supabase.from("projects").select("*").order("name");
+    setProjects(data || []);
+  };
+
   useEffect(() => {
     fetchTasks();
+    fetchProjects();
     const channel = supabase.channel("tasks-realtime").on("postgres_changes", { event: "*", schema: "public", table: "tasks" }, fetchTasks).subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user, filterStatus, filterPriority]);
@@ -70,7 +77,7 @@ export default function TasksPage() {
   const addTask = async () => {
     if (!title.trim() || !user) return;
     const { error } = await supabase.from("tasks").insert({
-      title: title.trim(), priority, project: project || null,
+      title: title.trim(), priority, project: (project && project !== "__none__") ? project : null,
       due_date: dueDate || null, user_id: user.id,
     });
     if (error) { toast.error("Erro ao criar tarefa"); return; }
@@ -115,7 +122,15 @@ export default function TasksPage() {
                       <SelectItem value="alta">Alta</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Input placeholder="Projeto (opcional)" value={project} onChange={e => setProject(e.target.value)} />
+                  <Select value={project} onValueChange={setProject}>
+                    <SelectTrigger><SelectValue placeholder="Projeto (opcional)" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sem projeto</SelectItem>
+                      {projects.map(p => (
+                        <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Input type="datetime-local" value={dueDate} onChange={e => setDueDate(e.target.value)} />
                   <Button onClick={addTask} className="w-full">Criar Tarefa</Button>
                 </div>
