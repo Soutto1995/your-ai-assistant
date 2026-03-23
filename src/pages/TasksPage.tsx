@@ -122,7 +122,15 @@ export default function TasksPage() {
                       <SelectItem value="alta">Alta</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Input placeholder="Projeto (opcional)" value={project} onChange={e => setProject(e.target.value)} />
+                  <Select value={project} onValueChange={setProject}>
+                    <SelectTrigger><SelectValue placeholder="Projeto (opcional)" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sem projeto</SelectItem>
+                      {projects.map(p => (
+                        <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Input type="datetime-local" value={dueDate} onChange={e => setDueDate(e.target.value)} />
                   <Button onClick={addTask} className="w-full">Criar Tarefa</Button>
                 </div>
