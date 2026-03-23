@@ -77,7 +77,7 @@ export default function TasksPage() {
   const addTask = async () => {
     if (!title.trim() || !user) return;
     const { error } = await supabase.from("tasks").insert({
-      title: title.trim(), priority, project: project || null,
+      title: title.trim(), priority, project: (project && project !== "__none__") ? project : null,
       due_date: dueDate || null, user_id: user.id,
     });
     if (error) { toast.error("Erro ao criar tarefa"); return; }
