@@ -8,7 +8,7 @@ import {
   DollarSign,
   CalendarDays,
   FolderOpen,
-  Brain,
+  Target,
   CreditCard,
   ChevronLeft,
   ChevronRight,
