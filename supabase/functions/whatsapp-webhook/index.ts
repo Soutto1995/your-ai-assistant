@@ -41,8 +41,8 @@ Os tipos de "intent" possíveis são:
    - data: {"title": "texto da tarefa", "priority": "baixa"}
    - response: "Anotado! Tarefa criada: [título]"
 2. create_transaction: para registrar gastos, despesas, compras, pagamentos ou receitas/ganhos.
-   - data: {"description": "descrição", "amount": NUMERO, "type": "gasto" ou "receita", "category": "categoria"}
-   - response: "Registrado! [Tipo] de R$ [valor] em [categoria]."
+   - data: {"description": "descrição", "amount": NUMERO, "type": "gasto" ou "receita", "category": ""}
+   - response: "Registrado! [Tipo] de R$ [valor]."
 3. create_meeting: para agendar reuniões ou compromissos.
    - data: {"title": "título", "meeting_date": "ISO date ou null"}
    - response: "Agendado! Compromisso: [título]."
@@ -50,9 +50,7 @@ Os tipos de "intent" possíveis são:
    - data: {}
    - response: Responda de forma amigável e útil.
 REGRAS IMPORTANTES:
-- Seja direto na resposta. Use "Anotado!", "Registrado!", "Agendado!".
-- Para create_transaction, se a categoria não for óbvia, use "Geral".
-- Para create_task, a prioridade é sempre "baixa" por padrão.
+- Seja direto na resposta.
 - O amount da transação deve ser sempre um número positivo.
 - Retorne APENAS o JSON.`;
 
