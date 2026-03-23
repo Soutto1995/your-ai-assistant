@@ -12,7 +12,7 @@ import TasksPage from "./pages/TasksPage";
 import FinancesPage from "./pages/FinancesPage";
 import CalendarPage from "./pages/CalendarPage";
 import ProjectsPage from "./pages/ProjectsPage";
-import MemoryPage from "./pages/MemoryPage";
+import BudgetPage from "./pages/BudgetPage";
 import PlansPage from "./pages/PlansPage";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
