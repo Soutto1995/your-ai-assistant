@@ -7,6 +7,18 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-api-key, x-hub-signature-256, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const categoryDictionary: Record<string, string[]> = {
+  "Alimentação": ["restaurante", "almoço", "jantar", "café", "lanche", "pizza", "hambúrguer", "açaí", "sushi", "padaria", "ifood"],
+  "Mercado": ["supermercado", "compras", "mercado", "sacolão", "hortifruti", "carne", "pão", "leite"],
+  "Transporte": ["gasolina", "combustível", "uber", "99", "táxi", "metrô", "ônibus", "passagem", "estacionamento"],
+  "Moradia": ["aluguel", "condomínio", "iptu", "água", "luz", "energia", "gás", "internet", "telefone"],
+  "Saúde": ["farmácia", "remédio", "medicamento", "consulta", "médico", "dentista", "terapia", "plano de saúde"],
+  "Lazer": ["cinema", "show", "bar", "festa", "viagem", "hotel", "passeio", "streaming", "netflix", "spotify"],
+  "Pessoal": ["roupa", "tênis", "sapato", "perfume", "cabelo", "barbeiro", "salão", "academia", "presente"],
+  "Educação": ["curso", "livro", "faculdade", "escola", "material escolar"],
+  "Outros": ["taxa", "imposto", "doação", "pet"],
+};
+
 const PLAN_LIMITS: Record<string, { limit: number; message: string }> = {
   FREE: {
     limit: 5,
@@ -23,15 +35,14 @@ const PLAN_LIMITS: Record<string, { limit: number; message: string }> = {
     message: "",
   },
 };
-
 const SYSTEM_PROMPT = `Você é o "Tuddo", um assistente pessoal direto e eficiente. Sua única função é analisar a mensagem do usuário e retornar APENAS um objeto JSON válido, sem markdown, crases, ou qualquer texto adicional. A estrutura do JSON deve ser: {"intent": "TIPO", "data": {DADOS}, "response": "RESPOSTA CURTA"}
 Os tipos de "intent" possíveis são:
 1. create_task: para criar tarefas ou lembretes.
    - data: {"title": "texto da tarefa", "priority": "baixa"}
    - response: "Anotado! Tarefa criada: [título]"
 2. create_transaction: para registrar gastos, despesas, compras, pagamentos ou receitas/ganhos.
-   - data: {"description": "descrição", "amount": NUMERO, "type": "gasto" ou "receita", "category": "categoria"}
-   - response: "Registrado! [Tipo] de R$ [valor] em [categoria]."
+   - data: {"description": "descrição", "amount": NUMERO, "type": "gasto" ou "receita", "category": ""}
+   - response: "Registrado! [Tipo] de R$ [valor]."
 3. create_meeting: para agendar reuniões ou compromissos.
    - data: {"title": "título", "meeting_date": "ISO date ou null"}
    - response: "Agendado! Compromisso: [título]."
@@ -39,9 +50,7 @@ Os tipos de "intent" possíveis são:
    - data: {}
    - response: Responda de forma amigável e útil.
 REGRAS IMPORTANTES:
-- Seja direto na resposta. Use "Anotado!", "Registrado!", "Agendado!".
-- Para create_transaction, se a categoria não for óbvia, use "Geral".
-- Para create_task, a prioridade é sempre "baixa" por padrão.
+- Seja direto na resposta.
 - O amount da transação deve ser sempre um número positivo.
 - Retorne APENAS o JSON.`;
 
@@ -292,6 +301,52 @@ async function checkMessageLimit(supabase: any, userId: string, plan: string): P
   return (count ?? 0) >= planConfig.limit;
 }
 
+async function categorizeExpense(description: string): Promise<string> {
+  const lowerDescription = description.toLowerCase();
+
+  for (const [category, keywords] of Object.entries(categoryDictionary)) {
+    if (keywords.some((kw) => lowerDescription.includes(kw))) {
+      return category;
+    }
+  }
+
+  try {
+    const openaiKey = Deno.env.get("OPENAI_API_KEY");
+    if (!openaiKey) return "Geral";
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openaiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4.1-nano",
+        temperature: 0,
+        messages: [
+          {
+            role: "system",
+            content: `Você é um especialista em finanças. Sua tarefa é categorizar a despesa do usuário em UMA das seguintes categorias: ${Object.keys(categoryDictionary).join(", ")}. Responda APENAS o nome da categoria.`,
+          },
+          { role: "user", content: `Despesa: "${description}"` },
+        ],
+      }),
+    });
+
+    if (!response.ok) return "Geral";
+
+    const payload = await response.json();
+    const category = payload?.choices?.[0]?.message?.content?.trim();
+
+    if (category && Object.keys(categoryDictionary).includes(category)) {
+      return category;
+    }
+    return "Geral";
+  } catch {
+    return "Geral";
+  }
+}
+
 async function interpretMessage(message: string): Promise<AiResult> {
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
   if (!openaiKey) {
@@ -418,16 +473,17 @@ async function executeIntentAction(supabase: any, userId: string, intent: AiResu
     }
 
     case "create_transaction": {
-      const amountValue = Math.abs(Number(data.amount) || 0);
+      const description =
+        typeof data.description === "string" && data.description.trim().length > 0
+          ? data.description
+          : fallbackText;
+      const category = await categorizeExpense(description);
       const { error } = await supabase.from("transactions").insert({
         user_id: userId,
-        description:
-          typeof data.description === "string" && data.description.trim().length > 0
-            ? data.description
-            : fallbackText,
-        amount: amountValue,
+        description,
+        amount: Math.abs(Number(data.amount) || 0),
         type: typeof data.type === "string" && data.type.trim().length > 0 ? data.type : "gasto",
-        category: typeof data.category === "string" && data.category.trim().length > 0 ? data.category : "Geral",
+        category,
       });
 
       if (error) {
