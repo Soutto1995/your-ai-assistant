@@ -21,6 +21,8 @@ import {
   X,
   Star,
   ChevronRight,
+  Coffee,
+  TrendingUp,
 } from "lucide-react";
 
 /* ── Plan data ── */
