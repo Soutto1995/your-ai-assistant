@@ -48,6 +48,7 @@ const App = () => (
             <Route path="/orcamento" element={<ProtectedRoute><BudgetPage /></ProtectedRoute>} />
             <Route path="/planos" element={<PlansPage />} />
             <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/reembolso" element={<ProtectedRoute><RefundPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
