@@ -2,7 +2,9 @@ import { useEffect, useState, useMemo } from "react";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { CalendarDays, Plus, Trash2, Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import UpgradeModal from "@/components/UpgradeModal";
+import { CalendarDays, Plus, Trash2, Check, ChevronLeft, ChevronRight, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -22,8 +24,10 @@ function getFirstDayOfWeek(year: number, month: number) {
 
 export default function CalendarPage() {
   const { user } = useAuth();
+  const { plan, limits } = usePlanLimits();
   const [events, setEvents] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [eventDate, setEventDate] = useState("");
   const [eventTime, setEventTime] = useState("");
@@ -42,6 +46,27 @@ export default function CalendarPage() {
     const channel = supabase.channel("events-rt").on("postgres_changes", { event: "*", schema: "public", table: "events" }, fetchEvents).subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [user]);
+
+  // Filter events by history limit
+  const visibleEvents = useMemo(() => {
+    if (limits.historyMonths === Infinity) return events;
+    const cutoff = new Date();
+    cutoff.setMonth(cutoff.getMonth() - limits.historyMonths);
+    return events.filter(e => {
+      const d = e.event_date || e.legacy_meeting_date;
+      if (!d) return true;
+      return new Date(d) >= cutoff;
+    });
+  }, [events, limits.historyMonths]);
+
+  // Count reminders this month
+  const remindersThisMonth = useMemo(() => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    return events.filter(e => new Date(e.created_at) >= monthStart).length;
+  }, [events]);
+
+  const canAddEvent = limits.remindersPerMonth === Infinity || limits.remindersPerMonth === 0 || remindersThisMonth < limits.remindersPerMonth;
 
   const addEvent = async () => {
     if (!title.trim() || !user) return;
@@ -69,7 +94,7 @@ export default function CalendarPage() {
 
   const eventsByDate = useMemo(() => {
     const map: Record<string, any[]> = {};
-    events.forEach(e => {
+    visibleEvents.forEach(e => {
       const dateKey = e.event_date || (e.legacy_meeting_date ? new Date(e.legacy_meeting_date).toISOString().slice(0, 10) : null);
       if (dateKey) {
         const key = dateKey.slice(0, 10);
@@ -77,7 +102,7 @@ export default function CalendarPage() {
       }
     });
     return map;
-  }, [events]);
+  }, [visibleEvents]);
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
   const firstDay = getFirstDayOfWeek(currentYear, currentMonth);
@@ -102,10 +127,19 @@ export default function CalendarPage() {
             <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold text-foreground flex items-center gap-3">
               <CalendarDays className="w-6 h-6 md:w-8 md:h-8 text-primary" />Calendário
             </h1>
-            <p className="text-muted-foreground mt-1 text-sm">Gerencie seus eventos e compromissos.</p>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Gerencie seus eventos e compromissos.
+              {limits.historyMonths !== Infinity && (
+                <span className="ml-2 text-xs text-primary">(Histórico: {limits.historyMonths} meses)</span>
+              )}
+            </p>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button size="sm" className="gap-2 self-start"><Plus className="w-4 h-4" />Novo Evento</Button></DialogTrigger>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-2 self-start">
+                <Plus className="w-4 h-4" />Novo Evento
+              </Button>
+            </DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Novo Evento</DialogTitle></DialogHeader>
               <div className="space-y-4">
@@ -196,14 +230,14 @@ export default function CalendarPage() {
             {!selectedDate && (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">Próximos eventos:</p>
-                {events.filter(e => e.status === "agendada").slice(0, 5).map(e => (
+                {visibleEvents.filter(e => e.status === "agendada").slice(0, 5).map(e => (
                   <div key={e.id} className="p-3 rounded-lg border border-border">
                     <p className="text-sm font-medium text-foreground">{e.title}</p>
                     {e.event_date && <p className="text-xs text-muted-foreground">{new Date(e.event_date + "T12:00:00").toLocaleDateString("pt-BR")}</p>}
                     {e.category && <p className="text-xs text-muted-foreground">📌 {e.category}</p>}
                   </div>
                 ))}
-                {events.filter(e => e.status === "agendada").length === 0 && (
+                {visibleEvents.filter(e => e.status === "agendada").length === 0 && (
                   <p className="text-sm text-muted-foreground">Nenhum evento agendado.</p>
                 )}
               </div>
@@ -211,6 +245,7 @@ export default function CalendarPage() {
           </div>
         </div>
       </div>
+      <UpgradeModal open={upgradeOpen} onOpenChange={setUpgradeOpen} feature="lembretes/mês" currentPlan={plan} limit={limits.remindersPerMonth} requiredPlan="PRO" />
     </AppLayout>
   );
 }

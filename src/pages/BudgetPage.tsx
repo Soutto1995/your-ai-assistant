@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Target, Plus, Trash2 } from "lucide-react";
+import { usePlanLimits } from "@/hooks/usePlanLimits";
+import UpgradeModal from "@/components/UpgradeModal";
+import { Target, Plus, Trash2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -17,9 +19,11 @@ const BUDGET_CATEGORIES = [
 
 export default function BudgetPage() {
   const { user } = useAuth();
+  const { plan, limits } = usePlanLimits();
   const [budgets, setBudgets] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [category, setCategory] = useState(BUDGET_CATEGORIES[0]);
   const [limit, setLimit] = useState("");
 
@@ -53,8 +57,19 @@ export default function BudgetPage() {
       .reduce((sum, t) => sum + Math.abs(Number(t.amount)), 0);
   };
 
+  const canAddBudget = limits.budgets === Infinity || budgets.length < limits.budgets;
+
+  const handleAddClick = () => {
+    if (!canAddBudget) {
+      setUpgradeOpen(true);
+      return;
+    }
+    setOpen(true);
+  };
+
   const addBudget = async () => {
     if (!limit || !user) return;
+    if (!canAddBudget) { setUpgradeOpen(true); return; }
     const { error } = await supabase.from("budgets" as any).insert({
       category,
       limit: Number(limit),
@@ -81,6 +96,38 @@ export default function BudgetPage() {
   const totalSpent = budgets.reduce((s, b) => s + getCategorySpent(b.category), 0);
   const overallProgress = totalBudget > 0 ? Math.min((totalSpent / totalBudget) * 100, 100) : 0;
 
+  // Show blocked state for FREE plan
+  if (limits.budgets === 0) {
+    return (
+      <AppLayout>
+        <div className="space-y-4 md:space-y-6">
+          <div>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold text-foreground flex items-center gap-3">
+              <Target className="w-6 h-6 md:w-8 md:h-8 text-primary" />Orçamento Mensal
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm">Defina limites de gastos por categoria.</p>
+          </div>
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="flex flex-col items-center justify-center py-12 text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center">
+                <Lock className="w-8 h-8 text-primary" />
+              </div>
+              <h2 className="text-lg font-semibold text-foreground">Funcionalidade exclusiva</h2>
+              <p className="text-muted-foreground max-w-md">
+                O controle de orçamento está disponível a partir do plano <span className="font-semibold text-primary">Starter</span>.
+                Defina limites por categoria e receba alertas automáticos!
+              </p>
+              <Button onClick={() => setUpgradeOpen(true)} className="gap-2">
+                <Lock className="w-4 h-4" /> Fazer Upgrade
+              </Button>
+            </CardContent>
+          </Card>
+          <UpgradeModal open={upgradeOpen} onOpenChange={setUpgradeOpen} feature="orçamentos" currentPlan={plan} limit={0} requiredPlan="STARTER" />
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="space-y-4 md:space-y-6">
@@ -89,30 +136,38 @@ export default function BudgetPage() {
             <h1 className="text-xl sm:text-2xl md:text-3xl font-display font-bold text-foreground flex items-center gap-3">
               <Target className="w-6 h-6 md:w-8 md:h-8 text-primary" />Orçamento Mensal
             </h1>
-            <p className="text-muted-foreground mt-1 text-sm">Defina limites de gastos por categoria.</p>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Defina limites de gastos por categoria.
+              {limits.budgets !== Infinity && (
+                <span className="ml-2 text-xs text-primary">({budgets.length}/{limits.budgets} orçamentos)</span>
+              )}
+            </p>
           </div>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button size="sm" className="gap-2 self-start"><Plus className="w-4 h-4" />Novo Orçamento</Button></DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Novo Orçamento</DialogTitle></DialogHeader>
-              <div className="space-y-4">
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  value={category}
-                  onChange={e => setCategory(e.target.value)}
-                >
-                  {BUDGET_CATEGORIES.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-                <Input type="number" placeholder="Limite mensal (R$)" value={limit} onChange={e => setLimit(e.target.value)} />
-                <Button onClick={addBudget} className="w-full">Criar Orçamento</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+          <Button size="sm" className="gap-2 self-start" onClick={handleAddClick} disabled={!canAddBudget && limits.budgets !== Infinity}>
+            {canAddBudget ? <Plus className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+            Novo Orçamento
+          </Button>
         </div>
 
-        {/* Resumo geral */}
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Novo Orçamento</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={category}
+                onChange={e => setCategory(e.target.value)}
+              >
+                {BUDGET_CATEGORIES.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <Input type="number" placeholder="Limite mensal (R$)" value={limit} onChange={e => setLimit(e.target.value)} />
+              <Button onClick={addBudget} className="w-full">Criar Orçamento</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm md:text-base">Visão Geral do Mês</CardTitle>
@@ -129,7 +184,6 @@ export default function BudgetPage() {
           </CardContent>
         </Card>
 
-        {/* Grid de categorias */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {budgets.map((budget, i) => {
             const spent = getCategorySpent(budget.category);
@@ -147,16 +201,8 @@ export default function BudgetPage() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-sm font-semibold">{budget.category}</CardTitle>
                     <div className="flex items-center gap-1">
-                      {isOver && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/20 text-destructive font-medium">
-                          Estourado!
-                        </span>
-                      )}
-                      {isWarning && (
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-600 font-medium">
-                          Atenção
-                        </span>
-                      )}
+                      {isOver && <span className="text-xs px-2 py-0.5 rounded-full bg-destructive/20 text-destructive font-medium">Estourado!</span>}
+                      {isWarning && <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-600 font-medium">Atenção</span>}
                       <Button variant="ghost" size="sm" onClick={() => deleteBudget(budget.id)}>
                         <Trash2 className="w-3 h-3 text-destructive" />
                       </Button>
@@ -165,17 +211,10 @@ export default function BudgetPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex justify-between text-sm mb-2">
-                    <span className="text-muted-foreground">
-                      R$ {spent.toLocaleString("pt-BR")}
-                    </span>
-                    <span className="font-medium text-foreground">
-                      R$ {Number(budget.limit).toLocaleString("pt-BR")}
-                    </span>
+                    <span className="text-muted-foreground">R$ {spent.toLocaleString("pt-BR")}</span>
+                    <span className="font-medium text-foreground">R$ {Number(budget.limit).toLocaleString("pt-BR")}</span>
                   </div>
-                  <Progress
-                    value={progress}
-                    className={isOver ? "[&>div]:bg-destructive" : isWarning ? "[&>div]:bg-yellow-500" : ""}
-                  />
+                  <Progress value={progress} className={isOver ? "[&>div]:bg-destructive" : isWarning ? "[&>div]:bg-yellow-500" : ""} />
                   <p className="text-xs text-muted-foreground mt-1">{progress.toFixed(0)}% utilizado</p>
                 </CardContent>
               </Card>
@@ -188,6 +227,7 @@ export default function BudgetPage() {
           )}
         </div>
       </div>
+      <UpgradeModal open={upgradeOpen} onOpenChange={setUpgradeOpen} feature="orçamentos" currentPlan={plan} limit={limits.budgets} requiredPlan="PRO" />
     </AppLayout>
   );
 }
