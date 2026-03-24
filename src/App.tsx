@@ -19,6 +19,7 @@ import SignupPage from "./pages/SignupPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import PricingPage from "./pages/PricingPage";
+import RefundPage from "./pages/RefundPage";
 import NotFound from "./pages/NotFound";
 import InstallPrompt from "./components/InstallPrompt";
 
@@ -47,6 +48,7 @@ const App = () => (
             <Route path="/orcamento" element={<ProtectedRoute><BudgetPage /></ProtectedRoute>} />
             <Route path="/planos" element={<PlansPage />} />
             <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/reembolso" element={<ProtectedRoute><RefundPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

@@ -563,6 +563,7 @@ export default function HomePage() {
           <div className="flex gap-6 text-sm text-muted-foreground">
             <a href="#" className="hover:text-foreground transition-colors">Termos de Serviço</a>
             <a href="#" className="hover:text-foreground transition-colors">Política de Privacidade</a>
+            <Link to="/reembolso" className="hover:text-foreground transition-colors">Política de Reembolso</Link>
           </div>
           <p className="text-xs text-muted-foreground">© 2026 Tuddo. Todos os direitos reservados.</p>
         </div>

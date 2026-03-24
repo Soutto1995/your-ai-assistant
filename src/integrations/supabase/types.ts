@@ -123,6 +123,9 @@ export type Database = {
           id: string
           phone: string | null
           plan: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_date: string | null
         }
         Insert: {
           created_at?: string
@@ -130,6 +133,9 @@ export type Database = {
           id: string
           phone?: string | null
           plan?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_date?: string | null
         }
         Update: {
           created_at?: string
@@ -137,6 +143,9 @@ export type Database = {
           id?: string
           phone?: string | null
           plan?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_date?: string | null
         }
         Relationships: []
       }
