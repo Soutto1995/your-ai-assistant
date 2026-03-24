@@ -350,17 +350,17 @@ export default function HomePage() {
               {
                 num: "1",
                 title: "Envie uma mensagem",
-                desc: 'Mande um áudio ou texto para o seu WhatsApp. Ex: "gastei 50 no mercado" ou "lembrete: reunião às 15h".',
+                desc: "Sua vida acontece, você apenas relata. Um áudio de 10s ou uma frase. É só isso.",
               },
               {
                 num: "2",
                 title: "A Mágica Acontece",
-                desc: "Nossa IA entende, classifica e organiza a informação para você em segundos.",
+                desc: "Nossa IA, treinada para o português do dia a dia, entende, categoriza e organiza tudo em segundos. Sem esforço.",
               },
               {
                 num: "3",
                 title: "Veja Tudo Organizado",
-                desc: "Acesse seu painel e veja suas finanças, tarefas e agenda, tudo em um só lugar.",
+                desc: "Acesse seu painel e veja, pela primeira vez, clareza total sobre sua vida financeira. Tome decisões inteligentes, sem estresse.",
               },
             ].map((step) => (
               <div key={step.num} className="bg-card border border-border rounded-xl p-6 text-center space-y-4">
