@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,8 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const refCode = searchParams.get("ref");
   const { toast } = useToast();
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -64,6 +66,16 @@ export default function SignupPage() {
         variant: "destructive",
       });
     } else {
+      // If there's a referral code, link the new user
+      if (refCode) {
+        const { data: { user: newUser } } = await supabase.auth.getUser();
+        if (newUser) {
+          await supabase.from("referrals").update({
+            referred_id: newUser.id,
+            status: "cadastrado",
+          } as any).eq("referral_code", refCode).is("referred_id", null);
+        }
+      }
       toast({ title: "Conta criada!", description: "Você já pode usar o Tuddo." });
       navigate("/dashboard");
     }
