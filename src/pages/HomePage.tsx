@@ -233,6 +233,18 @@ function DashboardMockup() {
 export default function HomePage() {
   const [mobileNav, setMobileNav] = useState(false);
   const [annual, setAnnual] = useState(false);
+  const [remainingSpots, setRemainingSpots] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchSpots = async () => {
+      const { count } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true })
+        .neq("plan", "FREE");
+      setRemainingSpots(Math.max(0, 500 - (count ?? 0)));
+    };
+    fetchSpots();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
