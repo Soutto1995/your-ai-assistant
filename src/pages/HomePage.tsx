@@ -23,6 +23,10 @@ import {
   ChevronRight,
   Coffee,
   TrendingUp,
+  Lock,
+  ShieldCheck,
+  Flame,
+  Clock,
 } from "lucide-react";
 
 /* ── Plan data ── */
@@ -280,20 +284,20 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
           <div className="flex-1 text-center lg:text-left space-y-6">
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold leading-tight">
-              Organize tudo.{" "}
-              <span className="gold-text">Direto do WhatsApp.</span>
+              Paz financeira{" "}
+              <span className="gold-text">no seu WhatsApp.</span>
             </h1>
             <p className="text-base sm:text-lg text-muted-foreground max-w-xl mx-auto lg:mx-0">
-              Finanças, tarefas e compromissos — tudo num só lugar, com uma simples mensagem.
+              Diga adeus à ansiedade das planilhas. Saiba para onde vai cada centavo com uma simples mensagem.
             </p>
             <div className="space-y-3">
               <Link to="/signup">
                 <Button size="lg" className="text-base px-8 gap-2">
-                  Começar de Graça <ChevronRight className="w-4 h-4" />
+                  Quero minha paz financeira agora <ChevronRight className="w-4 h-4" />
                 </Button>
               </Link>
-              <p className="text-xs text-muted-foreground">
-                Grátis para sempre. Não precisa de cartão de crédito.
+              <p className="text-xs text-muted-foreground flex items-center justify-center lg:justify-start gap-1">
+                <Lock className="w-3 h-3" /> Grátis para sempre. Não precisa de cartão de crédito.
               </p>
             </div>
           </div>
@@ -346,17 +350,17 @@ export default function HomePage() {
               {
                 num: "1",
                 title: "Envie uma mensagem",
-                desc: 'Mande um áudio ou texto para o seu WhatsApp. Ex: "gastei 50 no mercado" ou "lembrete: reunião às 15h".',
+                desc: "Sua vida acontece, você apenas relata. Um áudio de 10s ou uma frase. É só isso.",
               },
               {
                 num: "2",
                 title: "A Mágica Acontece",
-                desc: "Nossa IA entende, classifica e organiza a informação para você em segundos.",
+                desc: "Nossa IA, treinada para o português do dia a dia, entende, categoriza e organiza tudo em segundos. Sem esforço.",
               },
               {
                 num: "3",
                 title: "Veja Tudo Organizado",
-                desc: "Acesse seu painel e veja suas finanças, tarefas e agenda, tudo em um só lugar.",
+                desc: "Acesse seu painel e veja, pela primeira vez, clareza total sobre sua vida financeira. Tome decisões inteligentes, sem estresse.",
               },
             ].map((step) => (
               <div key={step.num} className="bg-card border border-border rounded-xl p-6 text-center space-y-4">
@@ -365,6 +369,43 @@ export default function HomePage() {
                 </div>
                 <h3 className="font-display font-semibold text-lg text-foreground">{step.title}</h3>
                 <p className="text-sm text-muted-foreground">{step.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── AGITAÇÃO DA DOR ─── */}
+      <section className="py-16 md:py-24 bg-card/50 px-4">
+        <div className="max-w-5xl mx-auto space-y-10">
+          <h2 className="text-2xl md:text-3xl font-display font-bold text-center">
+            Você se identifica com <span className="gold-text">isso?</span>
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                emoji: "📊",
+                title: "Planilhas Complicadas",
+                desc: "Você abre sua planilha de gastos e sente um calafrio? Horas perdidas para um controle que nunca fica em dia.",
+              },
+              {
+                emoji: "👁️",
+                title: "Falta de Visibilidade",
+                desc: 'O salário cai, as contas chegam, e no fim do mês você se pergunta: "para onde foi meu dinheiro?"',
+              },
+              {
+                emoji: "🔓",
+                title: "Segurança Questionável",
+                desc: "Cansado de aplicativos que pedem a senha do seu banco? A segurança dos seus dados não deveria ser uma preocupação.",
+              },
+            ].map((pain) => (
+              <div
+                key={pain.title}
+                className="bg-card border border-border rounded-xl p-6 space-y-4 hover:border-destructive/30 transition-colors"
+              >
+                <span className="text-4xl">{pain.emoji}</span>
+                <h3 className="font-display font-semibold text-lg text-foreground">{pain.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{pain.desc}</p>
               </div>
             ))}
           </div>
@@ -413,6 +454,22 @@ export default function HomePage() {
       {/* ─── PRICING ─── */}
       <section id="precos" className="py-16 md:py-24 px-4">
         <div className="max-w-5xl mx-auto space-y-8">
+          {/* Banner de Urgência */}
+          <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 md:p-5 text-center space-y-2 animate-fade-in">
+            <div className="flex items-center justify-center gap-2 text-foreground">
+              <Flame className="w-5 h-5 text-destructive" />
+              <span className="font-display font-bold text-sm md:text-base">
+                OFERTA DE LANÇAMENTO: Os primeiros 500 usuários PRO ganham acesso vitalício à feature "Análise Preditiva" que será lançada em breve!
+              </span>
+            </div>
+            <div className="flex items-center justify-center gap-2 text-muted-foreground">
+              <Clock className="w-4 h-4" />
+              <span className="text-xs md:text-sm font-semibold">
+                ⏰ Restam apenas 127 vagas nesta oferta!
+              </span>
+            </div>
+          </div>
+
           <div className="text-center space-y-3">
             <h2 className="text-2xl md:text-3xl font-display font-bold">
               Escolha o plano perfeito para <span className="gold-text">você</span>
@@ -517,6 +574,25 @@ export default function HomePage() {
                 )}
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── GARANTIA ─── */}
+      <section className="py-16 md:py-24 px-4">
+        <div className="max-w-3xl mx-auto text-center space-y-6">
+          <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+            <ShieldCheck className="w-10 h-10 text-primary" />
+          </div>
+          <h2 className="text-2xl md:text-3xl font-display font-bold">
+            Seu risco é <span className="gold-text">zero.</span>
+          </h2>
+          <p className="text-base text-muted-foreground max-w-xl mx-auto leading-relaxed">
+            Teste o Tuddo PRO por 30 dias. Se você não sentir que sua vida financeira está mais organizada e sob controle, nós devolvemos 100% do seu dinheiro. Sem perguntas, sem burocracia. Basta um único e-mail.
+          </p>
+          <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-5 py-2">
+            <ShieldCheck className="w-5 h-5 text-primary" />
+            <span className="text-sm font-semibold text-primary">Garantia de 30 Dias</span>
           </div>
         </div>
       </section>
