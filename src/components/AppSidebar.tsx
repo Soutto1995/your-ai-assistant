@@ -27,6 +27,7 @@ const navItems = [
   { icon: FolderOpen, label: "Projetos", path: "/projetos" },
   { icon: Target, label: "Orçamento", path: "/orcamento" },
   { icon: CreditCard, label: "Planos", path: "/planos" },
+  { icon: Gift, label: "Indicações", path: "/indicacoes" },
 ];
 
 export default function AppSidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
