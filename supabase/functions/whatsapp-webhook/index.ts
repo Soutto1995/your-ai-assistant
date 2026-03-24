@@ -537,7 +537,7 @@ async function sendWhatsAppMessage(phone: string, text: string): Promise<void> {
   }
 }
 
-async function executeIntentAction(supabase: any, userId: string, intent: AiResult["intent"], data: JsonRecord, fallbackText: string): Promise<string> {
+async function executeIntentAction(supabase: any, userId: string, userPlan: string, intent: AiResult["intent"], data: JsonRecord, fallbackText: string): Promise<string> {
   let reply = "Entendi!";
 
   switch (intent) {
