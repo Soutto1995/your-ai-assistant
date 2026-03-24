@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import StatCard from "@/components/StatCard";
 import OnboardingGuide from "@/components/OnboardingGuide";
+import OnboardingModal from "@/components/OnboardingModal";
+import InteractiveTutorial from "@/components/InteractiveTutorial";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +39,14 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
+const SAMPLE_TRANSACTIONS = [
+  { description: "Mercado Pão de Açúcar", amount: -89.50, type: "gasto", category: "Alimentação" },
+  { description: "Uber para o trabalho", amount: -22.00, type: "gasto", category: "Transporte" },
+  { description: "Cinema com amigos", amount: -35.00, type: "gasto", category: "Lazer" },
+  { description: "Almoço restaurante", amount: -42.00, type: "gasto", category: "Alimentação" },
+  { description: "Gasolina", amount: -150.00, type: "gasto", category: "Transporte" },
+];
+
 export default function Dashboard() {
   const { profile, signOut, user } = useAuth();
   const userName = profile?.full_name || "Usuário";
@@ -55,8 +65,73 @@ export default function Dashboard() {
   const [pendingTasks, setPendingTasks] = useState<any[]>([]);
   const [isNewUser, setIsNewUser] = useState(false);
 
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+
   const usagePct = isPro ? 0 : clamp(Math.round((messagesCount / messagesLimit) * 100), 0, 100);
   const showUpgradeHint = planName === "FREE" && usagePct >= 80;
+
+  // Check onboarding status
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("profiles")
+      .select("onboarding_completed")
+      .eq("id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (data && !data.onboarding_completed) {
+          setShowOnboardingModal(true);
+        }
+        setOnboardingChecked(true);
+      });
+  }, [user]);
+
+  const completeOnboarding = async () => {
+    setShowOnboardingModal(false);
+    setShowTutorial(false);
+    if (user) {
+      await supabase
+        .from("profiles")
+        .update({ onboarding_completed: true } as any)
+        .eq("id", user.id);
+    }
+  };
+
+  const seedSampleData = async () => {
+    if (!user) return;
+    // Check if user already has transactions
+    const { count } = await supabase
+      .from("transactions")
+      .select("id", { count: "exact", head: true });
+    
+    if ((count || 0) === 0) {
+      const now = new Date();
+      const samples = SAMPLE_TRANSACTIONS.map((t, i) => ({
+        ...t,
+        user_id: user.id,
+        amount: Math.abs(t.amount),
+        transaction_date: new Date(now.getTime() - i * 86400000).toISOString(),
+      }));
+      await supabase.from("transactions").insert(samples);
+    }
+  };
+
+  const handleStartTutorial = async () => {
+    setShowOnboardingModal(false);
+    await seedSampleData();
+    await fetchData();
+    setShowTutorial(true);
+  };
+
+  const handleSkipOnboarding = () => {
+    completeOnboarding();
+  };
+
+  const handleTutorialComplete = () => {
+    completeOnboarding();
+  };
 
   const fetchData = async () => {
     if (!user) return;
@@ -122,7 +197,7 @@ export default function Dashboard() {
           </div>
           <div className="flex flex-wrap gap-2">
             {!whatsappConnected && (
-              <Button asChild size="sm" className="gap-2">
+              <Button asChild size="sm" className="gap-2" id="whatsapp-connect-btn">
                 <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
                   <MessageCircle className="w-4 h-4" />Conectar WhatsApp
                 </a>
@@ -134,9 +209,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {isNewUser && <OnboardingGuide whatsappLink={whatsappLink} />}
+        {isNewUser && !showTutorial && <OnboardingGuide whatsappLink={whatsappLink} />}
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4" id="dashboard-stats">
           <StatCard icon={<CheckSquare className="w-5 h-5" />} label="Tarefas Pendentes" value={String(pendingTasksCount)} />
           <StatCard icon={<DollarSign className="w-5 h-5" />} label="Gastos do Mês" value={`R$ ${monthExpenses.toLocaleString("pt-BR")}`} />
           <StatCard icon={<TrendingUp className="w-5 h-5" />} label="Receita do Mês" value={`R$ ${monthIncome.toLocaleString("pt-BR")}`} />
@@ -216,6 +291,23 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Onboarding Modal */}
+      {onboardingChecked && (
+        <OnboardingModal
+          open={showOnboardingModal}
+          onStartTutorial={handleStartTutorial}
+          onSkip={handleSkipOnboarding}
+        />
+      )}
+
+      {/* Interactive Tutorial */}
+      {showTutorial && (
+        <InteractiveTutorial
+          onComplete={handleTutorialComplete}
+          onSkip={handleSkipOnboarding}
+        />
+      )}
     </AppLayout>
   );
 }
