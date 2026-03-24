@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -126,6 +127,18 @@ const faqs = [
     q: "Posso cancelar quando quiser?",
     a: "Sim. Você pode cancelar sua assinatura a qualquer momento, sem burocracia.",
   },
+  {
+    q: "Por que eu pagaria por isso se posso usar uma planilha?",
+    a: "Uma planilha leva horas por mês e ainda assim fica desorganizada. O Tuddo faz tudo em segundos, com 100% de precisão. Você economiza 5+ horas por semana, o que vale muito mais que R$ 12,90/mês.",
+  },
+  {
+    q: "Como vocês protegem meus dados?",
+    a: "Usamos criptografia de ponta a ponta, autenticação de dois fatores e conformidade com LGPD. Seus dados nunca são vendidos ou compartilhados.",
+  },
+  {
+    q: "Posso integrar com meu banco?",
+    a: "Sim! O Tuddo se integra com os principais bancos brasileiros. Você pode sincronizar suas contas e transações automaticamente.",
+  },
 ];
 
 /* ── Mockup Components ── */
@@ -220,6 +233,18 @@ function DashboardMockup() {
 export default function HomePage() {
   const [mobileNav, setMobileNav] = useState(false);
   const [annual, setAnnual] = useState(false);
+  const [remainingSpots, setRemainingSpots] = useState<number | null>(null);
+
+  useEffect(() => {
+    const fetchSpots = async () => {
+      const { count } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true })
+        .neq("plan", "FREE");
+      setRemainingSpots(Math.max(0, 500 - (count ?? 0)));
+    };
+    fetchSpots();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -527,20 +552,22 @@ export default function HomePage() {
       <section id="precos" className="py-16 md:py-24 bg-card/50 px-4">
         <div className="max-w-5xl mx-auto space-y-8">
           {/* Banner de Urgência */}
-          <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 md:p-5 text-center space-y-2 animate-fade-in">
-            <div className="flex items-center justify-center gap-2 text-foreground">
-              <Flame className="w-5 h-5 text-destructive" />
-              <span className="font-display font-bold text-sm md:text-base">
-                OFERTA DE LANÇAMENTO: Os primeiros 500 usuários PRO ganham acesso vitalício à feature "Análise Preditiva" que será lançada em breve!
-              </span>
+          {remainingSpots !== null && remainingSpots > 0 && (
+            <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 md:p-5 text-center space-y-2 animate-fade-in">
+              <div className="flex items-center justify-center gap-2 text-foreground">
+                <Flame className="w-5 h-5 text-destructive" />
+                <span className="font-display font-bold text-sm md:text-base">
+                  OFERTA DE LANÇAMENTO: Os primeiros 500 usuários PRO ganham acesso vitalício à feature "Análise Preditiva" que será lançada em breve!
+                </span>
+              </div>
+              <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                <Clock className="w-4 h-4" />
+                <span className="text-xs md:text-sm font-semibold">
+                  ⏰ Restam apenas <span className="text-destructive font-bold">{remainingSpots}</span> vagas nesta oferta!
+                </span>
+              </div>
             </div>
-            <div className="flex items-center justify-center gap-2 text-muted-foreground">
-              <Clock className="w-4 h-4" />
-              <span className="text-xs md:text-sm font-semibold">
-                ⏰ Restam apenas 127 vagas nesta oferta!
-              </span>
-            </div>
-          </div>
+          )}
 
           <div className="text-center space-y-3">
             <h2 className="text-2xl md:text-3xl font-display font-bold">
@@ -693,13 +720,19 @@ export default function HomePage() {
       <section className="py-16 md:py-24 px-4">
         <div className="max-w-3xl mx-auto text-center space-y-6">
           <h2 className="text-2xl md:text-4xl font-display font-bold">
-            Sua vida organizada em uma <span className="gold-text">conversa.</span>
+            Sua jornada para a paz financeira começa com uma{" "}
+            <span className="gold-text">mensagem.</span>
           </h2>
-          <Link to="/signup">
-            <Button size="lg" className="text-base px-10 gap-2 mt-4">
-              Começar de Graça Agora <ChevronRight className="w-4 h-4" />
-            </Button>
-          </Link>
+          <div className="space-y-3">
+            <Link to="/signup">
+              <Button size="lg" className="text-base px-10 gap-2">
+                Quero ter controle total das minhas finanças <ChevronRight className="w-4 h-4" />
+              </Button>
+            </Link>
+            <p className="text-sm text-muted-foreground">
+              Crie sua conta grátis. Leva 30 segundos.
+            </p>
+          </div>
         </div>
       </section>
 
