@@ -21,6 +21,8 @@ import {
   X,
   Star,
   ChevronRight,
+  Coffee,
+  TrendingUp,
 } from "lucide-react";
 
 /* ── Plan data ── */
@@ -50,9 +52,10 @@ const plans = [
     monthlyLabel: "R$ 12,90/mês",
     annualLabel: "R$ 123,90/ano",
     annualMonthly: "R$ 10,33/mês",
+    dailyCost: "R$ 0,43",
     limit: "50 mensagens/dia",
     features: ["50 mensagens por dia", "Tudo do plano Grátis", "Prioridade no suporte", "Relatórios semanais"],
-    cta: "Assinar Starter",
+    cta: "Quero o Plano Starter",
     highlight: true,
     monthly: 12.9,
     stripeMonthly: STRIPE_LINK_STARTER_MONTHLY,
@@ -64,9 +67,10 @@ const plans = [
     monthlyLabel: "R$ 24,90/mês",
     annualLabel: "R$ 239,90/ano",
     annualMonthly: "R$ 19,99/mês",
+    dailyCost: "R$ 0,83",
     limit: "Mensagens ilimitadas",
     features: ["Mensagens ilimitadas", "Tudo do plano Starter", "IA avançada", "Integrações premium"],
-    cta: "Assinar PRO",
+    cta: "Organizar minhas finanças",
     highlight: false,
     monthly: 24.9,
     stripeMonthly: STRIPE_LINK_PRO_MONTHLY,
@@ -424,6 +428,22 @@ export default function HomePage() {
             </div>
           </div>
 
+          {/* Valor Percebido */}
+          <div className="bg-card border border-border rounded-xl p-5 md:p-6 text-center space-y-2">
+            <div className="flex items-center justify-center gap-2 text-primary">
+              <TrendingUp className="w-5 h-5" />
+              <span className="font-display font-semibold text-sm md:text-base">
+                Economize de R$ 50 a R$ 200 por mês com nossas sugestões inteligentes.
+              </span>
+            </div>
+            <div className="flex items-center justify-center gap-2 text-muted-foreground">
+              <Coffee className="w-4 h-4" />
+              <span className="text-xs md:text-sm">
+                Menos que um cafezinho por dia para ter suas finanças em ordem.
+              </span>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
             {plans.map((plan) => (
               <div
@@ -444,10 +464,26 @@ export default function HomePage() {
                   <h3 className="font-display font-semibold text-lg">{plan.name}</h3>
                   {plan.monthly === 0 ? (
                     <p className="text-3xl font-bold text-foreground">Grátis</p>
+                  ) : plan.name === "PRO" ? (
+                    <>
+                      <p className="text-lg md:text-xl font-bold text-primary">
+                        apenas {annual ? "R$ 0,67" : (plan as any).dailyCost} por dia
+                      </p>
+                      {annual ? (
+                        <>
+                          <p className="text-sm text-muted-foreground mt-1">{plan.annualMonthly}</p>
+                          <p className="text-xs text-muted-foreground">{plan.annualLabel}</p>
+                          <p className="text-xs font-semibold text-primary mt-1">Economize R$ 59 por ano!</p>
+                        </>
+                      ) : (
+                        <p className="text-sm text-muted-foreground mt-1">{plan.monthlyLabel}</p>
+                      )}
+                    </>
                   ) : annual ? (
                     <>
                       <p className="text-3xl font-bold text-foreground">{plan.annualMonthly}</p>
                       <p className="text-xs text-muted-foreground">{plan.annualLabel}</p>
+                      <p className="text-xs font-semibold text-primary mt-1">Economize R$ 30 por ano!</p>
                     </>
                   ) : (
                     <p className="text-3xl font-bold text-foreground">{plan.monthlyLabel}</p>
