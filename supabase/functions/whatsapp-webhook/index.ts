@@ -23,18 +23,105 @@ const PLAN_LIMITS: Record<string, { limit: number; message: string }> = {
   FREE: {
     limit: 5,
     message:
-      "Você atingiu o limite de 5 mensagens diárias do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por apenas R$ 12,90/mês e tenha 50 mensagens por dia! 🚀",
+      "Você atingiu o limite de 5 mensagens diárias do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por apenas R$ 12,90/mês e tenha 50 mensagens por dia! 🚀\n\n👉 tuddo.lovable.app/pricing",
   },
   STARTER: {
     limit: 50,
     message:
-      "Você atingiu o seu limite de 50 mensagens diárias. Para ter mais liberdade, faça o upgrade para o plano PRO com mensagens ilimitadas! 💎",
+      "Você atingiu o seu limite de 50 mensagens diárias. Para ter mais liberdade, faça o upgrade para o plano PRO com mensagens ilimitadas! 💎\n\n👉 tuddo.lovable.app/pricing",
   },
   PRO: {
     limit: Infinity,
     message: "",
   },
 };
+
+const FEATURE_LIMITS: Record<string, { transactionsPerMonth: number; budgets: number; categories: number }> = {
+  FREE: { transactionsPerMonth: 50, budgets: 0, categories: 5 },
+  STARTER: { transactionsPerMonth: 200, budgets: 3, categories: 10 },
+  PRO: { transactionsPerMonth: Infinity, budgets: Infinity, categories: Infinity },
+};
+
+async function checkFeatureLimit(supabase: any, userId: string, plan: string, feature: "transaction" | "budget"): Promise<string | null> {
+  const limits = FEATURE_LIMITS[plan] || FEATURE_LIMITS.FREE;
+
+  if (feature === "transaction") {
+    if (limits.transactionsPerMonth === Infinity) return null;
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const { count } = await supabase
+      .from("transactions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .gte("transaction_date", monthStart.toISOString());
+    if ((count ?? 0) >= limits.transactionsPerMonth) {
+      return `Você atingiu o limite de ${limits.transactionsPerMonth} transações/mês do seu plano. Faça upgrade para continuar! 🚀\n\n👉 tuddo.lovable.app/pricing`;
+    }
+  }
+
+  if (feature === "budget") {
+    if (limits.budgets === Infinity) return null;
+    if (limits.budgets === 0) {
+      return "O controle de orçamento está disponível a partir do plano Starter. Faça upgrade! 🚀\n\n👉 tuddo.lovable.app/pricing";
+    }
+    const { count } = await supabase
+      .from("budgets")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId);
+    if ((count ?? 0) >= limits.budgets) {
+      return `Você atingiu o limite de ${limits.budgets} orçamentos do seu plano. Faça upgrade para mais! 🚀\n\n👉 tuddo.lovable.app/pricing`;
+    }
+  }
+
+  return null;
+}
+
+async function getSpendingComparison(supabase: any, userId: string, category: string, currentAmount: number): Promise<string> {
+  const now = new Date();
+  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const { data: prevTx } = await supabase
+    .from("transactions")
+    .select("amount, transaction_date")
+    .eq("user_id", userId)
+    .eq("category", category)
+    .eq("type", "gasto")
+    .gte("transaction_date", threeMonthsAgo.toISOString())
+    .lt("transaction_date", currentMonthStart.toISOString());
+
+  if (!prevTx || prevTx.length === 0) return "";
+
+  const monthlyTotals: Record<string, number> = {};
+  prevTx.forEach((t: any) => {
+    const key = new Date(t.transaction_date).toISOString().slice(0, 7);
+    monthlyTotals[key] = (monthlyTotals[key] || 0) + Math.abs(Number(t.amount));
+  });
+
+  const months = Object.values(monthlyTotals);
+  if (months.length === 0) return "";
+
+  const average = months.reduce((s, v) => s + v, 0) / months.length;
+
+  // Get current month total
+  const { data: currentTx } = await supabase
+    .from("transactions")
+    .select("amount")
+    .eq("user_id", userId)
+    .eq("category", category)
+    .eq("type", "gasto")
+    .gte("transaction_date", currentMonthStart.toISOString());
+
+  const currentTotal = (currentTx || []).reduce((s: number, t: any) => s + Math.abs(Number(t.amount)), 0);
+
+  if (average === 0) return "";
+
+  const percentChange = ((currentTotal - average) / average) * 100;
+  const direction = percentChange > 0 ? "a mais" : "a menos";
+
+  return `\n\n📊 *Análise PRO:* Você já gastou R$ ${currentTotal.toLocaleString("pt-BR")} em ${category} este mês. Isso é ${Math.abs(percentChange).toFixed(0)}% ${direction} que sua média de R$ ${average.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}.`;
+}
 const SYSTEM_PROMPT = `Você é o "Tuddo", um assistente pessoal direto e eficiente. Sua única função é analisar a mensagem do usuário e retornar APENAS um objeto JSON válido, sem markdown, crases, ou qualquer texto adicional. A estrutura do JSON deve ser: {"intent": "TIPO", "data": {DADOS}, "response": "RESPOSTA CURTA"}
 Os tipos de "intent" possíveis são:
 1. create_task: para criar tarefas ou lembretes.
@@ -450,7 +537,7 @@ async function sendWhatsAppMessage(phone: string, text: string): Promise<void> {
   }
 }
 
-async function executeIntentAction(supabase: any, userId: string, intent: AiResult["intent"], data: JsonRecord, fallbackText: string): Promise<string> {
+async function executeIntentAction(supabase: any, userId: string, userPlan: string, intent: AiResult["intent"], data: JsonRecord, fallbackText: string): Promise<string> {
   let reply = "Entendi!";
 
   switch (intent) {
@@ -473,16 +560,21 @@ async function executeIntentAction(supabase: any, userId: string, intent: AiResu
     }
 
     case "create_transaction": {
+      // Check feature limit
+      const txLimitMsg = await checkFeatureLimit(supabase, userId, userPlan, "transaction");
+      if (txLimitMsg) return txLimitMsg;
+
       const description =
         typeof data.description === "string" && data.description.trim().length > 0
           ? data.description
           : fallbackText;
       const category = await categorizeExpense(description);
+      const transactionType = typeof data.type === "string" && data.type.trim().length > 0 ? data.type : "gasto";
       const { error } = await supabase.from("transactions").insert({
         user_id: userId,
         description,
         amount: Math.abs(Number(data.amount) || 0),
-        type: typeof data.type === "string" && data.type.trim().length > 0 ? data.type : "gasto",
+        type: transactionType,
         category,
       });
 
@@ -495,7 +587,6 @@ async function executeIntentAction(supabase: any, userId: string, intent: AiResu
 
       // Check budget alert
       try {
-        const transactionType = typeof data.type === "string" && data.type.trim().length > 0 ? data.type : "gasto";
         if (transactionType === "gasto") {
           const { data: budgetData } = await supabase
             .from("budgets")
@@ -525,6 +616,16 @@ async function executeIntentAction(supabase: any, userId: string, intent: AiResu
               reply += `\n\n🚨 *Alerta de orçamento!* Você ultrapassou o limite de R$ ${budgetLimit.toLocaleString("pt-BR")} para ${category}. Total gasto: R$ ${totalSpent.toLocaleString("pt-BR")}.`;
             } else if (progress >= 80) {
               reply += `\n\n⚠️ *Atenção!* Você já usou ${progress.toFixed(0)}% do orçamento de ${category} (R$ ${totalSpent.toLocaleString("pt-BR")} / R$ ${budgetLimit.toLocaleString("pt-BR")}).`;
+            }
+          }
+
+          // PRO spending comparison
+          if (userPlan === "PRO") {
+            try {
+              const comparison = await getSpendingComparison(supabase, userId, category, Math.abs(Number(data.amount) || 0));
+              if (comparison) reply += comparison;
+            } catch (compError) {
+              console.error("Comparison error:", compError);
             }
           }
         }
@@ -714,7 +815,7 @@ serve(async (req) => {
     let reply = aiResult.response || "Entendi! Mas não consegui processar. Tente novamente. 🤔";
 
     if (intent !== "general_query") {
-      reply = await executeIntentAction(supabase, userId, intent, entities, text);
+      reply = await executeIntentAction(supabase, userId, userPlan, intent, entities, text);
       if (aiResult.response && aiResult.response.trim().length > 0) {
         reply = aiResult.response;
       }
