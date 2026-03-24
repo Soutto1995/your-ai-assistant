@@ -23,6 +23,10 @@ import {
   ChevronRight,
   Coffee,
   TrendingUp,
+  Lock,
+  ShieldCheck,
+  Flame,
+  Clock,
 } from "lucide-react";
 
 /* ── Plan data ── */
