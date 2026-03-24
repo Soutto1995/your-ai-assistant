@@ -552,20 +552,22 @@ export default function HomePage() {
       <section id="precos" className="py-16 md:py-24 bg-card/50 px-4">
         <div className="max-w-5xl mx-auto space-y-8">
           {/* Banner de Urgência */}
-          <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 md:p-5 text-center space-y-2 animate-fade-in">
-            <div className="flex items-center justify-center gap-2 text-foreground">
-              <Flame className="w-5 h-5 text-destructive" />
-              <span className="font-display font-bold text-sm md:text-base">
-                OFERTA DE LANÇAMENTO: Os primeiros 500 usuários PRO ganham acesso vitalício à feature "Análise Preditiva" que será lançada em breve!
-              </span>
+          {remainingSpots !== null && remainingSpots > 0 && (
+            <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 md:p-5 text-center space-y-2 animate-fade-in">
+              <div className="flex items-center justify-center gap-2 text-foreground">
+                <Flame className="w-5 h-5 text-destructive" />
+                <span className="font-display font-bold text-sm md:text-base">
+                  OFERTA DE LANÇAMENTO: Os primeiros 500 usuários PRO ganham acesso vitalício à feature "Análise Preditiva" que será lançada em breve!
+                </span>
+              </div>
+              <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                <Clock className="w-4 h-4" />
+                <span className="text-xs md:text-sm font-semibold">
+                  ⏰ Restam apenas <span className="text-destructive font-bold">{remainingSpots}</span> vagas nesta oferta!
+                </span>
+              </div>
             </div>
-            <div className="flex items-center justify-center gap-2 text-muted-foreground">
-              <Clock className="w-4 h-4" />
-              <span className="text-xs md:text-sm font-semibold">
-                ⏰ Restam apenas <span className="text-destructive font-bold">{Math.max(0, 500 - 373)}</span> vagas nesta oferta!
-              </span>
-            </div>
-          </div>
+          )}
 
           <div className="text-center space-y-3">
             <h2 className="text-2xl md:text-3xl font-display font-bold">
