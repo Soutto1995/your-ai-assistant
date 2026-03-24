@@ -549,7 +549,7 @@ export default function HomePage() {
             <div className="flex items-center justify-center gap-2 text-muted-foreground">
               <Clock className="w-4 h-4" />
               <span className="text-xs md:text-sm font-semibold">
-                ⏰ Restam apenas 127 vagas nesta oferta!
+                ⏰ Restam apenas <span className="text-destructive font-bold">{Math.max(0, 500 - 373)}</span> vagas nesta oferta!
               </span>
             </div>
           </div>
