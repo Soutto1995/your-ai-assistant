@@ -15,6 +15,7 @@ import {
   MessageCircle,
   Search,
   LogOut,
+  Gift,
 } from "lucide-react";
 
 const navItems = [
