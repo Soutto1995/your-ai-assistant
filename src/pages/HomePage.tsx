@@ -578,6 +578,25 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ─── GARANTIA ─── */}
+      <section className="py-16 md:py-24 px-4">
+        <div className="max-w-3xl mx-auto text-center space-y-6">
+          <div className="mx-auto w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
+            <ShieldCheck className="w-10 h-10 text-primary" />
+          </div>
+          <h2 className="text-2xl md:text-3xl font-display font-bold">
+            Seu risco é <span className="gold-text">zero.</span>
+          </h2>
+          <p className="text-base text-muted-foreground max-w-xl mx-auto leading-relaxed">
+            Teste o Tuddo PRO por 30 dias. Se você não sentir que sua vida financeira está mais organizada e sob controle, nós devolvemos 100% do seu dinheiro. Sem perguntas, sem burocracia. Basta um único e-mail.
+          </p>
+          <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-5 py-2">
+            <ShieldCheck className="w-5 h-5 text-primary" />
+            <span className="text-sm font-semibold text-primary">Garantia de 30 Dias</span>
+          </div>
+        </div>
+      </section>
+
       {/* ─── FAQ ─── */}
       <section id="faq" className="py-16 md:py-24 bg-card/50 px-4">
         <div className="max-w-3xl mx-auto space-y-8">
