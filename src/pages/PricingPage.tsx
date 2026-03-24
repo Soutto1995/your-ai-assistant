@@ -3,7 +3,7 @@ import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Check, Zap, Crown } from "lucide-react";
+import { Check, Zap, Crown, Coffee, TrendingUp } from "lucide-react";
 
 const STRIPE_LINK_STARTER_MONTHLY = 'https://buy.stripe.com/test_3cIdRagEv05v34p82HbMQ00';
 const STRIPE_LINK_STARTER_YEARLY = 'https://buy.stripe.com/test_5kQ6oI3RJcSh6gB1EjbMQ01';
@@ -19,6 +19,7 @@ const plans = [
     monthlyLabel: "R$ 0",
     annualLabel: "R$ 0",
     annualMonthly: "",
+    dailyCost: "",
     limit: "5 mensagens/dia",
     features: ["5 mensagens por dia", "Tarefas básicas", "Registro de gastos", "Agenda de reuniões"],
     cta: "Começar agora",
@@ -34,9 +35,10 @@ const plans = [
     monthlyLabel: "R$ 12,90/mês",
     annualLabel: "R$ 123,90/ano",
     annualMonthly: "R$ 10,33/mês",
+    dailyCost: "R$ 0,43",
     limit: "50 mensagens/dia",
     features: ["50 mensagens por dia", "Tudo do plano Grátis", "Prioridade no suporte", "Relatórios semanais"],
-    cta: "Assinar Starter",
+    cta: "Quero o Plano Starter",
     highlight: true,
     stripeMonthly: STRIPE_LINK_STARTER_MONTHLY,
     stripeYearly: STRIPE_LINK_STARTER_YEARLY,
@@ -49,9 +51,10 @@ const plans = [
     monthlyLabel: "R$ 24,90/mês",
     annualLabel: "R$ 239,90/ano",
     annualMonthly: "R$ 19,99/mês",
+    dailyCost: "R$ 0,83",
     limit: "Mensagens ilimitadas",
     features: ["Mensagens ilimitadas", "Tudo do plano Starter", "IA avançada", "Integrações premium"],
-    cta: "Assinar PRO",
+    cta: "Organizar minhas finanças",
     highlight: false,
     stripeMonthly: STRIPE_LINK_PRO_MONTHLY,
     stripeYearly: STRIPE_LINK_PRO_YEARLY,
@@ -80,6 +83,22 @@ export default function PricingPage() {
           </div>
         </div>
 
+        {/* Valor Percebido */}
+        <div className="bg-card border border-border rounded-xl p-5 md:p-6 text-center space-y-2">
+          <div className="flex items-center justify-center gap-2 text-primary">
+            <TrendingUp className="w-5 h-5" />
+            <span className="font-display font-semibold text-sm md:text-base">
+              Economize de R$ 50 a R$ 200 por mês com nossas sugestões inteligentes.
+            </span>
+          </div>
+          <div className="flex items-center justify-center gap-2 text-muted-foreground">
+            <Coffee className="w-4 h-4" />
+            <span className="text-xs md:text-sm">
+              Menos que um cafezinho por dia para ter suas finanças em ordem.
+            </span>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
           {plans.map((plan) => (
             <Card
@@ -99,10 +118,26 @@ export default function PricingPage() {
                 <div>
                   {plan.monthly === 0 ? (
                     <p className="text-2xl md:text-3xl font-bold text-foreground">Grátis</p>
+                  ) : plan.name === "PRO" ? (
+                    <>
+                      <p className="text-lg md:text-xl font-bold text-primary">
+                        apenas {annual ? "R$ 0,67" : plan.dailyCost} por dia
+                      </p>
+                      {annual ? (
+                        <>
+                          <p className="text-sm text-muted-foreground mt-1">{plan.annualMonthly}</p>
+                          <p className="text-xs text-muted-foreground">{plan.annualLabel}</p>
+                          <p className="text-xs font-semibold text-primary mt-1">Economize R$ 59 por ano!</p>
+                        </>
+                      ) : (
+                        <p className="text-sm text-muted-foreground mt-1">{plan.monthlyLabel}</p>
+                      )}
+                    </>
                   ) : annual ? (
                     <>
                       <p className="text-2xl md:text-3xl font-bold text-foreground">{plan.annualMonthly}</p>
                       <p className="text-xs text-muted-foreground">{plan.annualLabel}</p>
+                      <p className="text-xs font-semibold text-primary mt-1">Economize R$ 30 por ano!</p>
                     </>
                   ) : (
                     <p className="text-2xl md:text-3xl font-bold text-foreground">{plan.monthlyLabel}</p>
