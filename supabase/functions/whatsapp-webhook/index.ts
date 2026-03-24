@@ -560,16 +560,21 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
     }
 
     case "create_transaction": {
+      // Check feature limit
+      const txLimitMsg = await checkFeatureLimit(supabase, userId, userPlan, "transaction");
+      if (txLimitMsg) return txLimitMsg;
+
       const description =
         typeof data.description === "string" && data.description.trim().length > 0
           ? data.description
           : fallbackText;
       const category = await categorizeExpense(description);
+      const transactionType = typeof data.type === "string" && data.type.trim().length > 0 ? data.type : "gasto";
       const { error } = await supabase.from("transactions").insert({
         user_id: userId,
         description,
         amount: Math.abs(Number(data.amount) || 0),
-        type: typeof data.type === "string" && data.type.trim().length > 0 ? data.type : "gasto",
+        type: transactionType,
         category,
       });
 
@@ -582,7 +587,6 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
 
       // Check budget alert
       try {
-        const transactionType = typeof data.type === "string" && data.type.trim().length > 0 ? data.type : "gasto";
         if (transactionType === "gasto") {
           const { data: budgetData } = await supabase
             .from("budgets")
@@ -612,6 +616,16 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
               reply += `\n\n🚨 *Alerta de orçamento!* Você ultrapassou o limite de R$ ${budgetLimit.toLocaleString("pt-BR")} para ${category}. Total gasto: R$ ${totalSpent.toLocaleString("pt-BR")}.`;
             } else if (progress >= 80) {
               reply += `\n\n⚠️ *Atenção!* Você já usou ${progress.toFixed(0)}% do orçamento de ${category} (R$ ${totalSpent.toLocaleString("pt-BR")} / R$ ${budgetLimit.toLocaleString("pt-BR")}).`;
+            }
+          }
+
+          // PRO spending comparison
+          if (userPlan === "PRO") {
+            try {
+              const comparison = await getSpendingComparison(supabase, userId, category, Math.abs(Number(data.amount) || 0));
+              if (comparison) reply += comparison;
+            } catch (compError) {
+              console.error("Comparison error:", compError);
             }
           }
         }
