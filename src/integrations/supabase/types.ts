@@ -121,6 +121,7 @@ export type Database = {
           created_at: string
           full_name: string | null
           id: string
+          onboarding_completed: boolean
           phone: string | null
           plan: string
           stripe_customer_id: string | null
@@ -131,6 +132,7 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id: string
+          onboarding_completed?: boolean
           phone?: string | null
           plan?: string
           stripe_customer_id?: string | null
@@ -141,6 +143,7 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id?: string
+          onboarding_completed?: boolean
           phone?: string | null
           plan?: string
           stripe_customer_id?: string | null
