@@ -66,6 +66,16 @@ export default function SignupPage() {
         variant: "destructive",
       });
     } else {
+      // If there's a referral code, link the new user
+      if (refCode) {
+        const { data: { user: newUser } } = await supabase.auth.getUser();
+        if (newUser) {
+          await supabase.from("referrals").update({
+            referred_id: newUser.id,
+            status: "cadastrado",
+          } as any).eq("referral_code", refCode).is("referred_id", null);
+        }
+      }
       toast({ title: "Conta criada!", description: "Você já pode usar o Tuddo." });
       navigate("/dashboard");
     }
