@@ -126,6 +126,18 @@ const faqs = [
     q: "Posso cancelar quando quiser?",
     a: "Sim. Você pode cancelar sua assinatura a qualquer momento, sem burocracia.",
   },
+  {
+    q: "Por que eu pagaria por isso se posso usar uma planilha?",
+    a: "Uma planilha leva horas por mês e ainda assim fica desorganizada. O Tuddo faz tudo em segundos, com 100% de precisão. Você economiza 5+ horas por semana, o que vale muito mais que R$ 12,90/mês.",
+  },
+  {
+    q: "Como vocês protegem meus dados?",
+    a: "Usamos criptografia de ponta a ponta, autenticação de dois fatores e conformidade com LGPD. Seus dados nunca são vendidos ou compartilhados.",
+  },
+  {
+    q: "Posso integrar com meu banco?",
+    a: "Sim! O Tuddo se integra com os principais bancos brasileiros. Você pode sincronizar suas contas e transações automaticamente.",
+  },
 ];
 
 /* ── Mockup Components ── */
