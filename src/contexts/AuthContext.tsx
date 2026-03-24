@@ -7,6 +7,7 @@ interface Profile {
   full_name: string | null;
   phone: string | null;
   plan: string;
+  onboarding_completed: boolean;
 }
 
 interface AuthContextType {
