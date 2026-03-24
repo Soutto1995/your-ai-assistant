@@ -375,6 +375,43 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ─── AGITAÇÃO DA DOR ─── */}
+      <section className="py-16 md:py-24 bg-card/50 px-4">
+        <div className="max-w-5xl mx-auto space-y-10">
+          <h2 className="text-2xl md:text-3xl font-display font-bold text-center">
+            Você se identifica com <span className="gold-text">isso?</span>
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                emoji: "📊",
+                title: "Planilhas Complicadas",
+                desc: "Você abre sua planilha de gastos e sente um calafrio? Horas perdidas para um controle que nunca fica em dia.",
+              },
+              {
+                emoji: "👁️",
+                title: "Falta de Visibilidade",
+                desc: 'O salário cai, as contas chegam, e no fim do mês você se pergunta: "para onde foi meu dinheiro?"',
+              },
+              {
+                emoji: "🔓",
+                title: "Segurança Questionável",
+                desc: "Cansado de aplicativos que pedem a senha do seu banco? A segurança dos seus dados não deveria ser uma preocupação.",
+              },
+            ].map((pain) => (
+              <div
+                key={pain.title}
+                className="bg-card border border-border rounded-xl p-6 space-y-4 hover:border-destructive/30 transition-colors"
+              >
+                <span className="text-4xl">{pain.emoji}</span>
+                <h3 className="font-display font-semibold text-lg text-foreground">{pain.title}</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">{pain.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ─── FEATURES ─── */}
       <section id="funcionalidades" className="py-16 md:py-24 bg-card/50 px-4">
         <div className="max-w-5xl mx-auto space-y-10">
