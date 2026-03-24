@@ -815,7 +815,7 @@ serve(async (req) => {
     let reply = aiResult.response || "Entendi! Mas não consegui processar. Tente novamente. 🤔";
 
     if (intent !== "general_query") {
-      reply = await executeIntentAction(supabase, userId, intent, entities, text);
+      reply = await executeIntentAction(supabase, userId, userPlan, intent, entities, text);
       if (aiResult.response && aiResult.response.trim().length > 0) {
         reply = aiResult.response;
       }
