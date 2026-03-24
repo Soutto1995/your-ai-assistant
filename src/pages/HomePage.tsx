@@ -284,20 +284,20 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
           <div className="flex-1 text-center lg:text-left space-y-6">
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-display font-bold leading-tight">
-              Organize tudo.{" "}
-              <span className="gold-text">Direto do WhatsApp.</span>
+              Paz financeira{" "}
+              <span className="gold-text">no seu WhatsApp.</span>
             </h1>
             <p className="text-base sm:text-lg text-muted-foreground max-w-xl mx-auto lg:mx-0">
-              Finanças, tarefas e compromissos — tudo num só lugar, com uma simples mensagem.
+              Diga adeus à ansiedade das planilhas. Saiba para onde vai cada centavo com uma simples mensagem.
             </p>
             <div className="space-y-3">
               <Link to="/signup">
                 <Button size="lg" className="text-base px-8 gap-2">
-                  Começar de Graça <ChevronRight className="w-4 h-4" />
+                  Quero minha paz financeira agora <ChevronRight className="w-4 h-4" />
                 </Button>
               </Link>
-              <p className="text-xs text-muted-foreground">
-                Grátis para sempre. Não precisa de cartão de crédito.
+              <p className="text-xs text-muted-foreground flex items-center justify-center lg:justify-start gap-1">
+                <Lock className="w-3 h-3" /> Grátis para sempre. Não precisa de cartão de crédito.
               </p>
             </div>
           </div>
