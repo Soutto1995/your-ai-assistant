@@ -705,13 +705,19 @@ export default function HomePage() {
       <section className="py-16 md:py-24 px-4">
         <div className="max-w-3xl mx-auto text-center space-y-6">
           <h2 className="text-2xl md:text-4xl font-display font-bold">
-            Sua vida organizada em uma <span className="gold-text">conversa.</span>
+            Sua jornada para a paz financeira começa com uma{" "}
+            <span className="gold-text">mensagem.</span>
           </h2>
-          <Link to="/signup">
-            <Button size="lg" className="text-base px-10 gap-2 mt-4">
-              Começar de Graça Agora <ChevronRight className="w-4 h-4" />
-            </Button>
-          </Link>
+          <div className="space-y-3">
+            <Link to="/signup">
+              <Button size="lg" className="text-base px-10 gap-2">
+                Quero ter controle total das minhas finanças <ChevronRight className="w-4 h-4" />
+              </Button>
+            </Link>
+            <p className="text-sm text-muted-foreground">
+              Crie sua conta grátis. Leva 30 segundos.
+            </p>
+          </div>
         </div>
       </section>
 
