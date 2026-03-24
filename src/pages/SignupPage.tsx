@@ -28,6 +28,8 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const refCode = searchParams.get("ref");
   const { toast } = useToast();
 
   const handleSignup = async (e: React.FormEvent) => {
