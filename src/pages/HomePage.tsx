@@ -158,19 +158,19 @@ const faqs = [
 /* ── Pain point icons ── */
 const painPoints = [
   {
-    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/bYebUaHpwvkQevrz.jpg",
+    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/BUokifsxwuIrJSJa.png",
     iconAlt: "Ícone de planilhas e caos financeiro",
     title: "Planilhas Complicadas",
     desc: "Você abre sua planilha de gastos e sente um calafrio? Horas perdidas para um controle que nunca fica em dia.",
   },
   {
-    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/HfauEoekDjpHjScT.jpg",
+    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/OBYYiBqXNJNOeorl.png",
     iconAlt: "Ícone de tempo e dinheiro perdidos",
     title: "Falta de Visibilidade",
     desc: 'O salário cai, as contas chegam, e no fim do mês você se pergunta: "para onde foi meu dinheiro?"',
   },
   {
-    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/asDVkjIAfRmRRdws.jpg",
+    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/RsinrKUQwRRhLCui.png",
     iconAlt: "Ícone de privacidade e segurança",
     title: "Segurança Questionável",
     desc: "Cansado de aplicativos que pedem a senha do seu banco? A segurança dos seus dados não deveria ser uma preocupação.",
@@ -263,17 +263,19 @@ export default function HomePage() {
             </div>
           </div>
           {/* Hero images */}
-          <div className="flex items-end relative">
+          <div className="relative flex flex-col items-start">
             <img
-              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/eYErqiieZQnctGFc.jpg"
+              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/pbyrLhYwLqUCWCPi.png"
               alt="iPhone com WhatsApp mostrando conversa com Tuddo"
-              className="w-[260px] sm:w-[280px] h-auto relative z-10 drop-shadow-2xl"
+              className="w-[260px] md:w-[320px] h-auto relative z-[2] object-contain"
+              style={{ filter: "drop-shadow(0 24px 48px rgba(245, 166, 35, 0.2))" }}
               loading="lazy"
             />
             <img
-              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/gmbtKsjgbQFRhVal.jpg"
+              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/qwvOhMoXEhLhyofM.png"
               alt="Dashboard do Tuddo com gráficos financeiros"
-              className="hidden md:block w-[320px] sm:w-[380px] h-auto -ml-12 opacity-90 drop-shadow-2xl"
+              className="hidden md:block w-[300px] md:w-[380px] h-auto relative z-[1] -mt-[60px] ml-[40px] rounded-2xl object-contain"
+              style={{ boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}
               loading="lazy"
             />
           </div>
@@ -409,7 +411,8 @@ export default function HomePage() {
                 <img
                   src={pain.icon}
                   alt={pain.iconAlt}
-                  className="w-20 h-20 mx-auto object-contain"
+                  className="w-[72px] h-[72px] mx-auto object-contain mb-4"
+                  style={{ background: "transparent" }}
                   loading="lazy"
                 />
                 <h3 className="font-display font-semibold text-lg text-foreground">{pain.title}</h3>
@@ -500,20 +503,41 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto space-y-8">
           {/* Banner de Oferta de Aniversário */}
           {remainingSpots !== null && remainingSpots > 0 && (
-            <div className="relative bg-card border border-primary/30 rounded-xl overflow-hidden animate-fade-in">
-              <img
-                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/DKCzlEUkkRyoKxFx.jpg"
-                alt="Oferta de aniversário Tuddo"
-                className="w-full h-32 md:h-40 object-cover opacity-30"
-                loading="lazy"
+            <div
+              className="relative overflow-hidden rounded-2xl mx-auto max-w-[800px] text-center animate-fade-in"
+              style={{
+                background: "linear-gradient(135deg, #1a1200 0%, #2d1f00 50%, #1a1200 100%)",
+                border: "1px solid hsl(var(--primary))",
+                padding: "32px 40px",
+              }}
+            >
+              <div
+                className="absolute top-0 left-0 right-0 h-px"
+                style={{ background: "linear-gradient(90deg, transparent, hsl(var(--primary)), transparent)" }}
               />
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center space-y-2">
-                <span className="font-display font-bold text-sm md:text-base text-foreground max-w-2xl">
-                  OFERTA DE ANIVERSÁRIO TUDDO: Os próximos 500 usuários PRO ganham acesso à feature "Análise Preditiva" que será lançada em breve!
-                </span>
-                <span className="text-xs md:text-sm font-semibold text-muted-foreground">
-                  Restam apenas <span className="text-primary font-bold">{remainingSpots}</span> vagas nesta oferta!
-                </span>
+              <span
+                className="inline-block text-[11px] font-extrabold tracking-[2px] uppercase rounded-full mb-4"
+                style={{ background: "hsl(var(--primary))", color: "#000", padding: "4px 16px" }}
+              >
+                ANIVERSÁRIO TUDDO
+              </span>
+              <p className="text-xl font-semibold text-foreground mb-2 leading-relaxed">
+                Oferta exclusiva para os próximos{" "}
+                <span className="text-primary font-bold">500 usuários PRO</span>
+              </p>
+              <p className="text-[15px] text-muted-foreground mb-5">
+                Ganhe acesso vitalício à feature <strong className="text-foreground">"Análise Preditiva"</strong> — lançamento em breve.
+              </p>
+              <div
+                className="inline-flex items-center gap-2 rounded-full"
+                style={{
+                  background: "hsla(var(--primary) / 0.1)",
+                  border: "1px solid hsla(var(--primary) / 0.3)",
+                  padding: "6px 20px",
+                }}
+              >
+                <span className="text-lg font-extrabold text-primary">{remainingSpots}</span>
+                <span className="text-[13px] text-muted-foreground">vagas restantes</span>
               </div>
             </div>
           )}
