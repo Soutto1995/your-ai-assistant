@@ -271,7 +271,7 @@ export default function HomePage() {
               loading="lazy"
             />
             <img
-              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/QFibmHGOIRLwhzuX.png"
+              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/gmbtKsjgbQFRhVal.jpg"
               alt="Dashboard do Tuddo com gráficos financeiros"
               className="hidden md:block w-[320px] sm:w-[380px] h-auto -ml-12 opacity-90 drop-shadow-2xl"
               loading="lazy"
