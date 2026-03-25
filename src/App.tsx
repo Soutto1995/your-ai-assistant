@@ -52,6 +52,7 @@ const App = () => (
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/reembolso" element={<ProtectedRoute><RefundPage /></ProtectedRoute>} />
             <Route path="/indicacoes" element={<ProtectedRoute><ReferralsPage /></ProtectedRoute>} />
+            <Route path="/success" element={<SuccessPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
