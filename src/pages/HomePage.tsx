@@ -411,7 +411,8 @@ export default function HomePage() {
                 <img
                   src={pain.icon}
                   alt={pain.iconAlt}
-                  className="w-20 h-20 mx-auto object-contain"
+                  className="w-[72px] h-[72px] mx-auto object-contain mb-4"
+                  style={{ background: "transparent" }}
                   loading="lazy"
                 />
                 <h3 className="font-display font-semibold text-lg text-foreground">{pain.title}</h3>
