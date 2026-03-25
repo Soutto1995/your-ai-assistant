@@ -265,7 +265,7 @@ export default function HomePage() {
           {/* Hero images */}
           <div className="flex items-end relative">
             <img
-              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/MvBoVmWSVmTGTPqn.png"
+              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/eYErqiieZQnctGFc.jpg"
               alt="iPhone com WhatsApp mostrando conversa com Tuddo"
               className="w-[260px] sm:w-[280px] h-auto relative z-10 drop-shadow-2xl"
               loading="lazy"
