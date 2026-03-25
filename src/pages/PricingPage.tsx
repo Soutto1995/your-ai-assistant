@@ -1,14 +1,16 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Check, Zap, Crown, Coffee, TrendingUp } from "lucide-react";
+import { Check, Zap, Crown, Coffee, TrendingUp, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-const STRIPE_LINK_STARTER_MONTHLY = 'https://buy.stripe.com/test_3cIdRagEv05v34p82HbMQ00';
-const STRIPE_LINK_STARTER_YEARLY = 'https://buy.stripe.com/test_5kQ6oI3RJcSh6gB1EjbMQ01';
-const STRIPE_LINK_PRO_MONTHLY = 'https://buy.stripe.com/test_14AeVe87Z2dDcEZ0AfbMQ02';
-const STRIPE_LINK_PRO_YEARLY = 'https://buy.stripe.com/test_dRm8wQ0Fxg4t48t82HbMQ03';
+const PRICE_STARTER_MONTHLY = 'price_1TEcLALkc2YbZKCTTJ5PHokf';
+const PRICE_PRO_MONTHLY = 'price_11EcLALkc2YbZKCTXMpglSRQ';
 
 const plans = [
   {
