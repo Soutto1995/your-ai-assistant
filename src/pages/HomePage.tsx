@@ -158,7 +158,7 @@ const faqs = [
 /* ── Pain point icons ── */
 const painPoints = [
   {
-    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/JyqeYjqGECBNGSsN.png",
+    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/bYebUaHpwvkQevrz.jpg",
     iconAlt: "Ícone de planilhas e caos financeiro",
     title: "Planilhas Complicadas",
     desc: "Você abre sua planilha de gastos e sente um calafrio? Horas perdidas para um controle que nunca fica em dia.",
