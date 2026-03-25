@@ -355,7 +355,7 @@ export default function HomePage() {
             {/* ANTES */}
             <div className="bg-card border border-destructive/20 rounded-xl overflow-hidden">
               <img
-                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/yZmuyivVNRbpcazh.png"
+                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/YoVTATftbXlXNpFJ.jpg"
                 alt="Antes: planilhas e caos financeiro"
                 className="w-full h-48 md:h-56 object-cover"
                 loading="lazy"
