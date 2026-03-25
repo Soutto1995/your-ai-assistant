@@ -170,7 +170,7 @@ const painPoints = [
     desc: 'O salário cai, as contas chegam, e no fim do mês você se pergunta: "para onde foi meu dinheiro?"',
   },
   {
-    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/HJwefxtfBJfWRZgy.png",
+    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/asDVkjIAfRmRRdws.jpg",
     iconAlt: "Ícone de privacidade e segurança",
     title: "Segurança Questionável",
     desc: "Cansado de aplicativos que pedem a senha do seu banco? A segurança dos seus dados não deveria ser uma preocupação.",
