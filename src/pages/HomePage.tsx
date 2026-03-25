@@ -378,7 +378,7 @@ export default function HomePage() {
             {/* DEPOIS */}
             <div className="bg-card border border-primary/20 rounded-xl overflow-hidden">
               <img
-                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/aDiHZRUzZjVwPCHU.png"
+                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/XnBwLDCcNjyHsyyA.jpg"
                 alt="Depois: dashboard Tuddo organizado"
                 className="w-full h-48 md:h-56 object-cover"
                 loading="lazy"
