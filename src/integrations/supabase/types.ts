@@ -121,9 +121,11 @@ export type Database = {
           created_at: string
           full_name: string | null
           id: string
+          last_payment_date: string | null
           onboarding_completed: boolean
           phone: string | null
           plan: string
+          status: string | null
           stripe_customer_id: string | null
           stripe_subscription_id: string | null
           subscription_date: string | null
@@ -132,9 +134,11 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id: string
+          last_payment_date?: string | null
           onboarding_completed?: boolean
           phone?: string | null
           plan?: string
+          status?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_date?: string | null
@@ -143,9 +147,11 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id?: string
+          last_payment_date?: string | null
           onboarding_completed?: boolean
           phone?: string | null
           plan?: string
+          status?: string | null
           stripe_customer_id?: string | null
           stripe_subscription_id?: string | null
           subscription_date?: string | null
@@ -215,6 +221,41 @@ export type Database = {
           {
             foreignKeyName: "referrals_referrer_id_fkey"
             columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      refunds: {
+        Row: {
+          amount: number
+          created_at: string | null
+          id: string
+          reason: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refunds_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
