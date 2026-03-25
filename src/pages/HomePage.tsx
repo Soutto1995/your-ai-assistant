@@ -158,19 +158,19 @@ const faqs = [
 /* ── Pain point icons ── */
 const painPoints = [
   {
-    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/bYebUaHpwvkQevrz.jpg",
+    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/BUokifsxwuIrJSJa.png",
     iconAlt: "Ícone de planilhas e caos financeiro",
     title: "Planilhas Complicadas",
     desc: "Você abre sua planilha de gastos e sente um calafrio? Horas perdidas para um controle que nunca fica em dia.",
   },
   {
-    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/HfauEoekDjpHjScT.jpg",
+    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/OBYYiBqXNJNOeorl.png",
     iconAlt: "Ícone de tempo e dinheiro perdidos",
     title: "Falta de Visibilidade",
     desc: 'O salário cai, as contas chegam, e no fim do mês você se pergunta: "para onde foi meu dinheiro?"',
   },
   {
-    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/asDVkjIAfRmRRdws.jpg",
+    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/RsinrKUQwRRhLCui.png",
     iconAlt: "Ícone de privacidade e segurança",
     title: "Segurança Questionável",
     desc: "Cansado de aplicativos que pedem a senha do seu banco? A segurança dos seus dados não deveria ser uma preocupação.",
