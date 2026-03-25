@@ -21,6 +21,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import PricingPage from "./pages/PricingPage";
 import RefundPage from "./pages/RefundPage";
 import ReferralsPage from "./pages/ReferralsPage";
+import SuccessPage from "./pages/SuccessPage";
 import NotFound from "./pages/NotFound";
 import InstallPrompt from "./components/InstallPrompt";
 

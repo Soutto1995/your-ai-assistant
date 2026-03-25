@@ -26,8 +26,8 @@ const plans = [
     features: ["5 mensagens por dia", "Tarefas básicas", "Registro de gastos", "Agenda de reuniões"],
     cta: "Começar agora",
     highlight: false,
-    stripeMonthly: "",
-    stripeYearly: "",
+    priceId: "",
+    planKey: "free",
   },
   {
     name: "STARTER",
@@ -42,8 +42,8 @@ const plans = [
     features: ["50 mensagens por dia", "Tudo do plano Grátis", "Prioridade no suporte", "Relatórios semanais"],
     cta: "Quero o Plano Starter",
     highlight: true,
-    stripeMonthly: STRIPE_LINK_STARTER_MONTHLY,
-    stripeYearly: STRIPE_LINK_STARTER_YEARLY,
+    priceId: PRICE_STARTER_MONTHLY,
+    planKey: "STARTER",
   },
   {
     name: "PRO",
@@ -58,13 +58,57 @@ const plans = [
     features: ["Mensagens ilimitadas", "Tudo do plano Starter", "IA avançada", "Integrações premium"],
     cta: "Organizar minhas finanças",
     highlight: false,
-    stripeMonthly: STRIPE_LINK_PRO_MONTHLY,
-    stripeYearly: STRIPE_LINK_PRO_YEARLY,
+    priceId: PRICE_PRO_MONTHLY,
+    planKey: "PRO",
   },
 ];
 
 export default function PricingPage() {
   const [annual, setAnnual] = useState(false);
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const { user, session } = useAuth();
+  const navigate = useNavigate();
+
+  const handleCheckout = async (priceId: string, planKey: string) => {
+    if (!session?.access_token || !user) {
+      navigate("/login");
+      return;
+    }
+
+    setLoadingPlan(planKey);
+    try {
+      const response = await fetch(
+        'https://jwxrtnleqdvzvoywzqir.supabase.co/functions/v1/create-checkout',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            priceId,
+            plan: planKey,
+            email: user.email,
+            userId: user.id,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao criar checkout');
+      }
+
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Erro ao processar checkout. Tente novamente.");
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
 
   return (
     <AppLayout>
@@ -102,80 +146,87 @@ export default function PricingPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-          {plans.map((plan) => (
-            <Card
-              key={plan.name}
-              className={`relative flex flex-col ${plan.highlight ? "border-primary card-glow" : "border-border"}`}
-            >
-              {plan.highlight && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-xs font-semibold gold-gradient text-primary-foreground">
-                  Popular
-                </div>
-              )}
-              <CardHeader className="text-center space-y-2 p-4 md:p-6">
-                <div className="mx-auto w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center bg-primary/10 text-primary">
-                  {plan.icon}
-                </div>
-                <CardTitle className="text-base md:text-lg">{plan.name}</CardTitle>
-                <div>
+          {plans.map((plan) => {
+            const isLoading = loadingPlan === plan.planKey;
+            return (
+              <Card
+                key={plan.name}
+                className={`relative flex flex-col ${plan.highlight ? "border-primary card-glow" : "border-border"}`}
+              >
+                {plan.highlight && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-xs font-semibold gold-gradient text-primary-foreground">
+                    Popular
+                  </div>
+                )}
+                <CardHeader className="text-center space-y-2 p-4 md:p-6">
+                  <div className="mx-auto w-10 h-10 md:w-12 md:h-12 rounded-xl flex items-center justify-center bg-primary/10 text-primary">
+                    {plan.icon}
+                  </div>
+                  <CardTitle className="text-base md:text-lg">{plan.name}</CardTitle>
+                  <div>
+                    {plan.monthly === 0 ? (
+                      <p className="text-2xl md:text-3xl font-bold text-foreground">Grátis</p>
+                    ) : plan.name === "PRO" ? (
+                      <>
+                        <p className="text-lg md:text-xl font-bold text-primary">
+                          apenas {annual ? "R$ 0,67" : plan.dailyCost} por dia
+                        </p>
+                        {annual ? (
+                          <>
+                            <p className="text-sm text-muted-foreground mt-1">{plan.annualMonthly}</p>
+                            <p className="text-xs text-muted-foreground">{plan.annualLabel}</p>
+                            <p className="text-xs font-semibold text-primary mt-1">Economize R$ 59 por ano!</p>
+                          </>
+                        ) : (
+                          <p className="text-sm text-muted-foreground mt-1">{plan.monthlyLabel}</p>
+                        )}
+                      </>
+                    ) : annual ? (
+                      <>
+                        <p className="text-2xl md:text-3xl font-bold text-foreground">{plan.annualMonthly}</p>
+                        <p className="text-xs text-muted-foreground">{plan.annualLabel}</p>
+                        <p className="text-xs font-semibold text-primary mt-1">Economize R$ 30 por ano!</p>
+                      </>
+                    ) : (
+                      <p className="text-2xl md:text-3xl font-bold text-foreground">{plan.monthlyLabel}</p>
+                    )}
+                  </div>
+                  <CardDescription>{plan.limit}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 flex flex-col p-4 md:p-6 pt-0">
+                  <ul className="space-y-2 flex-1 mb-6">
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Check className="w-4 h-4 text-primary shrink-0" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
                   {plan.monthly === 0 ? (
-                    <p className="text-2xl md:text-3xl font-bold text-foreground">Grátis</p>
-                  ) : plan.name === "PRO" ? (
-                    <>
-                      <p className="text-lg md:text-xl font-bold text-primary">
-                        apenas {annual ? "R$ 0,67" : plan.dailyCost} por dia
-                      </p>
-                      {annual ? (
+                    <Button className="w-full" variant="outline" onClick={() => navigate("/signup")}>
+                      {plan.cta}
+                    </Button>
+                  ) : (
+                    <Button
+                      className="w-full"
+                      variant={plan.highlight ? "default" : "outline"}
+                      disabled={isLoading}
+                      onClick={() => handleCheckout(plan.priceId, plan.planKey)}
+                    >
+                      {isLoading ? (
                         <>
-                          <p className="text-sm text-muted-foreground mt-1">{plan.annualMonthly}</p>
-                          <p className="text-xs text-muted-foreground">{plan.annualLabel}</p>
-                          <p className="text-xs font-semibold text-primary mt-1">Economize R$ 59 por ano!</p>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Processando...
                         </>
                       ) : (
-                        <p className="text-sm text-muted-foreground mt-1">{plan.monthlyLabel}</p>
+                        plan.cta
                       )}
-                    </>
-                  ) : annual ? (
-                    <>
-                      <p className="text-2xl md:text-3xl font-bold text-foreground">{plan.annualMonthly}</p>
-                      <p className="text-xs text-muted-foreground">{plan.annualLabel}</p>
-                      <p className="text-xs font-semibold text-primary mt-1">Economize R$ 30 por ano!</p>
-                    </>
-                  ) : (
-                    <p className="text-2xl md:text-3xl font-bold text-foreground">{plan.monthlyLabel}</p>
+                    </Button>
                   )}
-                </div>
-                <CardDescription>{plan.limit}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col p-4 md:p-6 pt-0">
-                <ul className="space-y-2 flex-1 mb-6">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Check className="w-4 h-4 text-primary shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                {plan.monthly === 0 ? (
-                  <a href="/signup">
-                    <Button className="w-full" variant="outline">
-                      {plan.cta}
-                    </Button>
-                  </a>
-                ) : (
-                  <a
-                    href={annual ? plan.stripeYearly : plan.stripeMonthly}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button className="w-full" variant={plan.highlight ? "default" : "outline"}>
-                      {plan.cta}
-                    </Button>
-                  </a>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
     </AppLayout>
