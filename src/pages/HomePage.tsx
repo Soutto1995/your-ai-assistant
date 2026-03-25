@@ -164,7 +164,7 @@ const painPoints = [
     desc: "Você abre sua planilha de gastos e sente um calafrio? Horas perdidas para um controle que nunca fica em dia.",
   },
   {
-    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/aNHwhLeWNyjtSORv.png",
+    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/HfauEoekDjpHjScT.jpg",
     iconAlt: "Ícone de tempo e dinheiro perdidos",
     title: "Falta de Visibilidade",
     desc: 'O salário cai, as contas chegam, e no fim do mês você se pergunta: "para onde foi meu dinheiro?"',
