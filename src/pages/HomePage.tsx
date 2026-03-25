@@ -158,19 +158,19 @@ const faqs = [
 /* ── Pain point icons ── */
 const painPoints = [
   {
-    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/JyqeYjqGECBNGSsN.png",
+    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/bYebUaHpwvkQevrz.jpg",
     iconAlt: "Ícone de planilhas e caos financeiro",
     title: "Planilhas Complicadas",
     desc: "Você abre sua planilha de gastos e sente um calafrio? Horas perdidas para um controle que nunca fica em dia.",
   },
   {
-    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/aNHwhLeWNyjtSORv.png",
+    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/HfauEoekDjpHjScT.jpg",
     iconAlt: "Ícone de tempo e dinheiro perdidos",
     title: "Falta de Visibilidade",
     desc: 'O salário cai, as contas chegam, e no fim do mês você se pergunta: "para onde foi meu dinheiro?"',
   },
   {
-    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/HJwefxtfBJfWRZgy.png",
+    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/asDVkjIAfRmRRdws.jpg",
     iconAlt: "Ícone de privacidade e segurança",
     title: "Segurança Questionável",
     desc: "Cansado de aplicativos que pedem a senha do seu banco? A segurança dos seus dados não deveria ser uma preocupação.",
@@ -265,13 +265,13 @@ export default function HomePage() {
           {/* Hero images */}
           <div className="flex items-end relative">
             <img
-              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/MvBoVmWSVmTGTPqn.png"
+              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/eYErqiieZQnctGFc.jpg"
               alt="iPhone com WhatsApp mostrando conversa com Tuddo"
               className="w-[260px] sm:w-[280px] h-auto relative z-10 drop-shadow-2xl"
               loading="lazy"
             />
             <img
-              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/QFibmHGOIRLwhzuX.png"
+              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/gmbtKsjgbQFRhVal.jpg"
               alt="Dashboard do Tuddo com gráficos financeiros"
               className="hidden md:block w-[320px] sm:w-[380px] h-auto -ml-12 opacity-90 drop-shadow-2xl"
               loading="lazy"
@@ -355,7 +355,7 @@ export default function HomePage() {
             {/* ANTES */}
             <div className="bg-card border border-destructive/20 rounded-xl overflow-hidden">
               <img
-                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/yZmuyivVNRbpcazh.png"
+                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/YoVTATftbXlXNpFJ.jpg"
                 alt="Antes: planilhas e caos financeiro"
                 className="w-full h-48 md:h-56 object-cover"
                 loading="lazy"
@@ -378,7 +378,7 @@ export default function HomePage() {
             {/* DEPOIS */}
             <div className="bg-card border border-primary/20 rounded-xl overflow-hidden">
               <img
-                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/aDiHZRUzZjVwPCHU.png"
+                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/XnBwLDCcNjyHsyyA.jpg"
                 alt="Depois: dashboard Tuddo organizado"
                 className="w-full h-48 md:h-56 object-cover"
                 loading="lazy"
@@ -502,7 +502,7 @@ export default function HomePage() {
           {remainingSpots !== null && remainingSpots > 0 && (
             <div className="relative bg-card border border-primary/30 rounded-xl overflow-hidden animate-fade-in">
               <img
-                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/KEcCSjHANjxaVUNt.png"
+                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/DKCzlEUkkRyoKxFx.jpg"
                 alt="Oferta de aniversário Tuddo"
                 className="w-full h-32 md:h-40 object-cover opacity-30"
                 loading="lazy"
