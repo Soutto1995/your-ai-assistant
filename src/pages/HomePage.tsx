@@ -502,7 +502,7 @@ export default function HomePage() {
           {remainingSpots !== null && remainingSpots > 0 && (
             <div className="relative bg-card border border-primary/30 rounded-xl overflow-hidden animate-fade-in">
               <img
-                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/KEcCSjHANjxaVUNt.png"
+                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/DKCzlEUkkRyoKxFx.jpg"
                 alt="Oferta de aniversário Tuddo"
                 className="w-full h-32 md:h-40 object-cover opacity-30"
                 loading="lazy"
