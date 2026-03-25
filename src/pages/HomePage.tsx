@@ -263,17 +263,19 @@ export default function HomePage() {
             </div>
           </div>
           {/* Hero images */}
-          <div className="flex items-end relative">
+          <div className="relative flex flex-col items-start">
             <img
-              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/eYErqiieZQnctGFc.jpg"
+              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/pbyrLhYwLqUCWCPi.png"
               alt="iPhone com WhatsApp mostrando conversa com Tuddo"
-              className="w-[260px] sm:w-[280px] h-auto relative z-10 drop-shadow-2xl"
+              className="w-[260px] md:w-[320px] h-auto relative z-[2] object-contain"
+              style={{ filter: "drop-shadow(0 24px 48px rgba(245, 166, 35, 0.2))" }}
               loading="lazy"
             />
             <img
-              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/gmbtKsjgbQFRhVal.jpg"
+              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/qwvOhMoXEhLhyofM.png"
               alt="Dashboard do Tuddo com gráficos financeiros"
-              className="hidden md:block w-[320px] sm:w-[380px] h-auto -ml-12 opacity-90 drop-shadow-2xl"
+              className="hidden md:block w-[300px] md:w-[380px] h-auto relative z-[1] -mt-[60px] ml-[40px] rounded-2xl object-contain"
+              style={{ boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}
               loading="lazy"
             />
           </div>
