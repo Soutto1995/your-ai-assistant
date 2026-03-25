@@ -26,15 +26,11 @@ import {
   TrendingUp,
   Lock,
   ShieldCheck,
-  Flame,
-  Clock,
   Users,
   Award,
   ArrowRight,
   Coins,
 } from "lucide-react";
-import beforeChaosImg from "@/assets/before-chaos.jpg";
-import afterControlImg from "@/assets/after-control.jpg";
 
 /* ── Plan data ── */
 const STRIPE_LINK_STARTER_MONTHLY = 'https://buy.stripe.com/test_3cIdRagEv05v34p82HbMQ00';
@@ -108,6 +104,24 @@ const testimonials = [
     name: "Juliana S.",
     role: "Estudante",
   },
+  {
+    text: '"Eu trabalhava 12 horas por dia e no final do mês não sobrava nada. Com o Tuddo, descobri que estava gastando R$ 800 por mês em coisas que nem percebia. No primeiro ano economizei R$ 4.800. Mudou minha vida."',
+    metric: "Resultado: R$ 4.800 economizados no primeiro ano.",
+    name: "Roberto L.",
+    role: "Motorista de aplicativo",
+  },
+  {
+    text: '"Com 3 filhos, controlar as finanças da família era impossível. O Tuddo me mostrou exatamente onde ia cada centavo. Finalmente sei onde vai o dinheiro da família e consigo planejar as férias das crianças."',
+    metric: "Resultado: Planejamento financeiro familiar completo.",
+    name: "Mariana C.",
+    role: "Mãe e dona de casa",
+  },
+  {
+    text: '"Eu misturava as contas pessoais com as da empresa. O Tuddo separou tudo automaticamente e reduzi 60% do tempo que gastava com gestão financeira. Agora foco no que importa: crescer meu negócio."',
+    metric: "Resultado: 60% menos tempo em gestão financeira.",
+    name: "Pedro H.",
+    role: "Pequeno empresário",
+  },
 ];
 
 const faqs = [
@@ -141,93 +155,27 @@ const faqs = [
   },
 ];
 
-/* ── Mockup Components ── */
-function PhoneMockup() {
-  return (
-    <div className="w-[260px] sm:w-[280px] h-[420px] sm:h-[480px] bg-card rounded-[2rem] border-2 border-border p-3 flex flex-col shadow-2xl shadow-primary/10">
-      <div className="flex items-center justify-between px-3 py-1 text-[10px] text-muted-foreground">
-        <span>9:41</span>
-        <div className="flex gap-1">
-          <div className="w-3 h-2 rounded-sm bg-muted-foreground/40" />
-          <div className="w-3 h-2 rounded-sm bg-muted-foreground/40" />
-        </div>
-      </div>
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
-        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-          <MessageCircle className="w-4 h-4 text-primary" />
-        </div>
-        <div>
-          <p className="text-xs font-semibold text-foreground">Tuddo</p>
-          <p className="text-[10px] text-success">online</p>
-        </div>
-      </div>
-      <div className="flex-1 overflow-hidden py-3 px-2 space-y-2">
-        <div className="flex justify-end">
-          <div className="bg-primary/20 text-foreground text-[11px] px-3 py-1.5 rounded-xl rounded-br-sm max-w-[85%]">
-            gastei 50 reais no almoço
-          </div>
-        </div>
-        <div className="flex justify-start">
-          <div className="bg-secondary text-foreground text-[11px] px-3 py-1.5 rounded-xl rounded-bl-sm max-w-[85%]">
-            ✅ Registrado! Gasto de R$ 50 em Alimentação.
-          </div>
-        </div>
-        <div className="flex justify-end">
-          <div className="bg-primary/20 text-foreground text-[11px] px-3 py-1.5 rounded-xl rounded-br-sm max-w-[85%]">
-            lembrete: reunião às 15h
-          </div>
-        </div>
-        <div className="flex justify-start">
-          <div className="bg-secondary text-foreground text-[11px] px-3 py-1.5 rounded-xl rounded-bl-sm max-w-[85%]">
-            📅 Agendado! Compromisso: Reunião às 15h.
-          </div>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 px-2 py-2 border-t border-border">
-        <div className="flex-1 bg-secondary rounded-full px-3 py-1.5 text-[10px] text-muted-foreground">
-          Mensagem...
-        </div>
-        <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center">
-          <Send className="w-3 h-3 text-primary-foreground" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DashboardMockup() {
-  return (
-    <div className="w-[320px] sm:w-[380px] h-[260px] sm:h-[300px] bg-card rounded-xl border border-border p-4 shadow-2xl shadow-primary/10 hidden md:block">
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center">
-          <span className="text-[10px] font-bold text-primary-foreground">T</span>
-        </div>
-        <span className="text-xs font-display font-bold text-primary">Tuddo</span>
-      </div>
-      <div className="grid grid-cols-3 gap-2 mb-3">
-        {[
-          { label: "Tarefas", value: "12", color: "text-primary" },
-          { label: "Gastos", value: "R$ 850", color: "text-destructive" },
-          { label: "Reuniões", value: "3", color: "text-info" },
-        ].map((s) => (
-          <div key={s.label} className="bg-secondary rounded-lg p-2 text-center">
-            <p className={`text-sm font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-[9px] text-muted-foreground">{s.label}</p>
-          </div>
-        ))}
-      </div>
-      <div className="bg-secondary rounded-lg p-3 h-24 flex items-end gap-1">
-        {[40, 65, 35, 80, 55, 70, 45].map((h, i) => (
-          <div
-            key={i}
-            className="flex-1 bg-primary/60 rounded-t-sm"
-            style={{ height: `${h}%` }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
+/* ── Pain point icons ── */
+const painPoints = [
+  {
+    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/JyqeYjqGECBNGSsN.png",
+    iconAlt: "Ícone de planilhas e caos financeiro",
+    title: "Planilhas Complicadas",
+    desc: "Você abre sua planilha de gastos e sente um calafrio? Horas perdidas para um controle que nunca fica em dia.",
+  },
+  {
+    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/aNHwhLeWNyjtSORv.png",
+    iconAlt: "Ícone de tempo e dinheiro perdidos",
+    title: "Falta de Visibilidade",
+    desc: 'O salário cai, as contas chegam, e no fim do mês você se pergunta: "para onde foi meu dinheiro?"',
+  },
+  {
+    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/HJwefxtfBJfWRZgy.png",
+    iconAlt: "Ícone de privacidade e segurança",
+    title: "Segurança Questionável",
+    desc: "Cansado de aplicativos que pedem a senha do seu banco? A segurança dos seus dados não deveria ser uma preocupação.",
+  },
+];
 
 /* ── Main Page ── */
 export default function HomePage() {
@@ -251,7 +199,7 @@ export default function HomePage() {
       {/* ─── HEADER ─── */}
       <header className="fixed top-0 inset-x-0 z-50 border-b border-border bg-background/80 backdrop-blur-lg">
         <div className="max-w-7xl mx-auto flex items-center justify-between px-4 h-16">
-          <Link to="/" className="font-display font-bold text-xl text-primary">
+          <Link to="/" className="font-display font-bold text-[28px] text-primary">
             Tuddo
           </Link>
           <nav className="hidden md:flex items-center gap-6">
@@ -314,11 +262,20 @@ export default function HomePage() {
               </p>
             </div>
           </div>
-          <div className="flex items-end gap-[-20px] relative">
-            <PhoneMockup />
-            <div className="absolute -right-4 -bottom-4 lg:relative lg:right-0 lg:bottom-0 lg:-ml-8">
-              <DashboardMockup />
-            </div>
+          {/* Hero images */}
+          <div className="flex items-end relative">
+            <img
+              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/MvBoVmWSVmTGTPqn.png"
+              alt="iPhone com WhatsApp mostrando conversa com Tuddo"
+              className="w-[260px] sm:w-[280px] h-auto relative z-10 drop-shadow-2xl"
+              loading="lazy"
+            />
+            <img
+              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/QFibmHGOIRLwhzuX.png"
+              alt="Dashboard do Tuddo com gráficos financeiros"
+              className="hidden md:block w-[320px] sm:w-[380px] h-auto -ml-12 opacity-90 drop-shadow-2xl"
+              loading="lazy"
+            />
           </div>
         </div>
       </section>
@@ -392,18 +349,16 @@ export default function HomePage() {
       <section className="py-16 md:py-24 bg-card/50 px-4">
         <div className="max-w-5xl mx-auto space-y-10">
           <h2 className="text-2xl md:text-3xl font-display font-bold text-center">
-            De Caos a Controle. <span className="gold-text">Em um instante.</span>
+            De caos a controle. <span className="gold-text">Em um instante.</span>
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-6 items-center">
             {/* ANTES */}
             <div className="bg-card border border-destructive/20 rounded-xl overflow-hidden">
               <img
-                src={beforeChaosImg}
+                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/yZmuyivVNRbpcazh.png"
                 alt="Antes: planilhas e caos financeiro"
                 className="w-full h-48 md:h-56 object-cover"
                 loading="lazy"
-                width={640}
-                height={512}
               />
               <div className="p-5 text-center space-y-2">
                 <span className="inline-block bg-destructive/10 text-destructive text-xs font-semibold px-3 py-1 rounded-full">
@@ -423,12 +378,10 @@ export default function HomePage() {
             {/* DEPOIS */}
             <div className="bg-card border border-primary/20 rounded-xl overflow-hidden">
               <img
-                src={afterControlImg}
+                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/aDiHZRUzZjVwPCHU.png"
                 alt="Depois: dashboard Tuddo organizado"
                 className="w-full h-48 md:h-56 object-cover"
                 loading="lazy"
-                width={640}
-                height={512}
               />
               <div className="p-5 text-center space-y-2">
                 <span className="inline-block bg-primary/10 text-primary text-xs font-semibold px-3 py-1 rounded-full">
@@ -448,28 +401,17 @@ export default function HomePage() {
             Você se identifica com <span className="gold-text">isso?</span>
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              {
-                emoji: "📊",
-                title: "Planilhas Complicadas",
-                desc: "Você abre sua planilha de gastos e sente um calafrio? Horas perdidas para um controle que nunca fica em dia.",
-              },
-              {
-                emoji: "👁️",
-                title: "Falta de Visibilidade",
-                desc: 'O salário cai, as contas chegam, e no fim do mês você se pergunta: "para onde foi meu dinheiro?"',
-              },
-              {
-                emoji: "🔓",
-                title: "Segurança Questionável",
-                desc: "Cansado de aplicativos que pedem a senha do seu banco? A segurança dos seus dados não deveria ser uma preocupação.",
-              },
-            ].map((pain) => (
+            {painPoints.map((pain) => (
               <div
                 key={pain.title}
-                className="bg-card border border-border rounded-xl p-6 space-y-4 hover:border-destructive/30 transition-colors"
+                className="bg-card border border-border rounded-xl p-6 space-y-4 hover:border-destructive/30 transition-colors text-center"
               >
-                <span className="text-4xl">{pain.emoji}</span>
+                <img
+                  src={pain.icon}
+                  alt={pain.iconAlt}
+                  className="w-20 h-20 mx-auto object-contain"
+                  loading="lazy"
+                />
                 <h3 className="font-display font-semibold text-lg text-foreground">{pain.title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{pain.desc}</p>
               </div>
@@ -488,17 +430,17 @@ export default function HomePage() {
             {[
               {
                 icon: <DollarSign className="w-8 h-8" />,
-                title: "Saiba Exatamente Para Onde Vai Seu Dinheiro",
+                title: "Saiba exatamente para onde vai seu dinheiro",
                 desc: "Registre despesas e receitas sem sair do WhatsApp. Veja gráficos simples que mostram claramente seus hábitos de gastos.",
               },
               {
                 icon: <CheckSquare className="w-8 h-8" />,
-                title: "Nunca Mais Esqueça um Pagamento ou Compromisso",
+                title: "Nunca mais esqueça um pagamento ou compromisso",
                 desc: "Crie lembretes automáticos para contas, boletos e compromissos importantes. Tudo sincronizado com seu WhatsApp.",
               },
               {
                 icon: <Calendar className="w-8 h-8" />,
-                title: "Sua Vida Pessoal e Profissional, Sincronizada",
+                title: "Sua vida pessoal e profissional, sincronizada",
                 desc: "Agende reuniões, consultas e eventos diretamente do WhatsApp. Tudo integrado com sua agenda pessoal.",
               },
             ].map((f) => (
@@ -538,9 +480,14 @@ export default function HomePage() {
                 <div className="bg-primary/10 border border-primary/20 rounded-lg px-3 py-2">
                   <p className="text-xs font-semibold text-primary">{t.metric}</p>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">{t.name}</p>
-                  <p className="text-xs text-muted-foreground">{t.role}</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
+                    {t.name.split(" ").map(n => n[0]).join("")}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{t.name}</p>
+                    <p className="text-xs text-muted-foreground">{t.role}</p>
+                  </div>
                 </div>
               </div>
             ))}
@@ -551,19 +498,21 @@ export default function HomePage() {
       {/* ─── PRICING ─── */}
       <section id="precos" className="py-16 md:py-24 bg-card/50 px-4">
         <div className="max-w-5xl mx-auto space-y-8">
-          {/* Banner de Urgência */}
+          {/* Banner de Oferta de Aniversário */}
           {remainingSpots !== null && remainingSpots > 0 && (
-            <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-4 md:p-5 text-center space-y-2 animate-fade-in">
-              <div className="flex items-center justify-center gap-2 text-foreground">
-                <Flame className="w-5 h-5 text-destructive" />
-                <span className="font-display font-bold text-sm md:text-base">
-                  OFERTA DE LANÇAMENTO: Os primeiros 500 usuários PRO ganham acesso vitalício à feature "Análise Preditiva" que será lançada em breve!
+            <div className="relative bg-card border border-primary/30 rounded-xl overflow-hidden animate-fade-in">
+              <img
+                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/KEcCSjHANjxaVUNt.png"
+                alt="Oferta de aniversário Tuddo"
+                className="w-full h-32 md:h-40 object-cover opacity-30"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center space-y-2">
+                <span className="font-display font-bold text-sm md:text-base text-foreground max-w-2xl">
+                  OFERTA DE ANIVERSÁRIO TUDDO: Os próximos 500 usuários PRO ganham acesso à feature "Análise Preditiva" que será lançada em breve!
                 </span>
-              </div>
-              <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                <Clock className="w-4 h-4" />
-                <span className="text-xs md:text-sm font-semibold">
-                  ⏰ Restam apenas <span className="text-destructive font-bold">{remainingSpots}</span> vagas nesta oferta!
+                <span className="text-xs md:text-sm font-semibold text-muted-foreground">
+                  Restam apenas <span className="text-primary font-bold">{remainingSpots}</span> vagas nesta oferta!
                 </span>
               </div>
             </div>
@@ -588,7 +537,7 @@ export default function HomePage() {
             <div className="flex items-center justify-center gap-2 text-primary">
               <TrendingUp className="w-5 h-5" />
               <span className="font-display font-semibold text-sm md:text-base">
-                Economize de R$ 50 a R$ 200 por mês com nossas sugestões inteligentes.
+                Economize até 10x o valor da assinatura todo mês
               </span>
             </div>
             <div className="flex items-center justify-center gap-2 text-muted-foreground">
@@ -686,11 +635,11 @@ export default function HomePage() {
             Seu risco é <span className="gold-text">zero.</span>
           </h2>
           <p className="text-base text-muted-foreground max-w-xl mx-auto leading-relaxed">
-            Teste o Tuddo PRO por 30 dias. Se você não sentir que sua vida financeira está mais organizada e sob controle, nós devolvemos 100% do seu dinheiro. Sem perguntas, sem burocracia. Basta um único e-mail.
+            Teste o Tuddo PRO por 7 dias. Se você não sentir que sua vida financeira está mais organizada e sob controle, nós devolvemos 100% do seu dinheiro. Sem perguntas, sem burocracia. Basta um único e-mail.
           </p>
           <div className="inline-flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-full px-5 py-2">
             <ShieldCheck className="w-5 h-5 text-primary" />
-            <span className="text-sm font-semibold text-primary">Garantia de 30 Dias</span>
+            <span className="text-sm font-semibold text-primary">Garantia de 7 Dias</span>
           </div>
         </div>
       </section>
