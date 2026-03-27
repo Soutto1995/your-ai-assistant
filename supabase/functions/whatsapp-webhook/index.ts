@@ -125,19 +125,25 @@ async function getSpendingComparison(supabase: any, userId: string, category: st
 const SYSTEM_PROMPT = `Você é o "Tuddo", um assistente pessoal direto e eficiente. Sua única função é analisar a mensagem do usuário e retornar APENAS um objeto JSON válido, sem markdown, crases, ou qualquer texto adicional. A estrutura do JSON deve ser: {"intent": "TIPO", "data": {DADOS}, "response": "RESPOSTA CURTA"}
 Os tipos de "intent" possíveis são:
 1. create_task: para criar tarefas ou lembretes.
-   - data: {"title": "texto da tarefa", "priority": "baixa"}
-   - response: "Anotado! Tarefa criada: [título]"
+   - data: {"title": "texto da tarefa", "due_date": "YYYY-MM-DDTHH:mm:ss.sssZ ou null", "priority": "baixa"}
+   - response: "Anotado! Tarefa criada: [título] para [data/hora]."
 2. create_transaction: para registrar gastos, despesas, compras, pagamentos ou receitas/ganhos.
    - data: {"description": "descrição", "amount": NUMERO, "type": "gasto" ou "receita", "category": ""}
    - response: "Registrado! [Tipo] de R$ [valor]."
 3. create_meeting: para agendar reuniões ou compromissos.
-   - data: {"title": "título", "meeting_date": "ISO date ou null"}
-   - response: "Agendado! Compromisso: [título]."
+   - data: {"title": "título", "meeting_date": "YYYY-MM-DDTHH:mm:ss.sssZ ou null"}
+   - response: "Agendado! Compromisso: [título] para [data/hora]."
 4. general_query: para qualquer outra pergunta, saudação ou conversa.
    - data: {}
    - response: Responda de forma amigável e útil.
-REGRAS IMPORTANTES:
-- Seja direto na resposta.
+REGRAS CRÍTICAS DE DATA E HORA:
+- A data e hora atual são fornecidas no fuso horário America/Sao_Paulo (GMT-3).
+- Interprete datas relativas (hoje, amanhã, próxima semana) com base na data/hora atual fornecida.
+- Se o usuário fornecer uma data (ex: "dia 29/03") sem um ano, assuma o ano corrente.
+- Se o usuário NÃO especificar um horário, use o meio-dia (12:00:00) do fuso horário local (America/Sao_Paulo) como padrão para o evento.
+- Os campos "due_date" e "meeting_date" DEVEM ser um timestamp completo no formato ISO 8601 (YYYY-MM-DDTHH:mm:ss.sssZ) em UTC, ou null se não houver data.
+- Na "response", sempre confirme a data e a hora de forma amigável para o usuário (ex: "para amanhã às 14h").
+OUTRAS REGRAS:
 - O amount da transação deve ser sempre um número positivo.
 - Retorne APENAS o JSON.`;
 
@@ -456,7 +462,7 @@ async function interpretMessage(message: string, now: Date = new Date()): Promis
         model: "gpt-4.1-nano",
         temperature: 0.3,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT + `\n\nDATA ATUAL: ${now.toISOString().split("T")[0]} (${now.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "America/Sao_Paulo" })}). Use esta data para interpretar referências relativas como "hoje", "amanhã", "próxima semana", etc. Retorne datas no formato ISO (YYYY-MM-DD).` },
+          { role: "system", content: SYSTEM_PROMPT + `\n\nDATA E HORA ATUAL (America/Sao_Paulo): ${now.toLocaleString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "America/Sao_Paulo" })}. ISO UTC: ${now.toISOString()}. Use estas informações para interpretar referências relativas como "hoje", "amanhã", "próxima semana", etc. Retorne datas SEMPRE no formato ISO 8601 completo em UTC (YYYY-MM-DDTHH:mm:ss.sssZ).` },
           { role: "user", content: message },
         ],
       }),
@@ -643,10 +649,14 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
       if (meetingDate) {
         try {
           const d = new Date(meetingDate);
-          eventDate = d.toISOString().split("T")[0];
-          eventTime = d.toTimeString().slice(0, 5);
+          if (!isNaN(d.getTime())) {
+            // Extract date in São Paulo timezone
+            const spDate = new Date(d.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+            eventDate = `${spDate.getFullYear()}-${String(spDate.getMonth() + 1).padStart(2, "0")}-${String(spDate.getDate()).padStart(2, "0")}`;
+            eventTime = `${String(spDate.getHours()).padStart(2, "0")}:${String(spDate.getMinutes()).padStart(2, "0")}`;
+          }
         } catch {
-          eventDate = meetingDate;
+          console.error("Failed to parse meeting date:", meetingDate);
         }
       }
       const { error } = await supabase.from("events").insert({
@@ -663,7 +673,7 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
         return "Ops, não consegui agendar esse compromisso. Tente novamente! 😅";
       }
 
-      reply = "Agendado! Compromisso criado com sucesso ✅";
+      reply = aiResult.response || "Agendado! Compromisso criado com sucesso ✅";
       break;
     }
 
