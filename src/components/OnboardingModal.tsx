@@ -15,22 +15,11 @@ interface OnboardingModalProps {
   onSkip: () => void;
 }
 
-const VIDEO_URL = "https://www.youtube.com/embed/dQw4w9WgXcQ"; // placeholder
-
 export default function OnboardingModal({ open, onStartTutorial, onSkip }: OnboardingModalProps) {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onSkip()}>
-      <DialogContent className="sm:max-w-xl p-0 overflow-hidden gap-0">
-        <div className="relative w-full aspect-video bg-secondary">
-          <iframe
-            src={VIDEO_URL}
-            className="absolute inset-0 w-full h-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            title="Como usar o Tuddo"
-          />
-        </div>
-        <div className="p-6 space-y-4">
+      <DialogContent className="sm:max-w-xl overflow-hidden">
+        <div className="space-y-4">
           <DialogHeader>
             <DialogTitle className="text-xl font-display">
               Bem-vindo ao <span className="gold-text">Tuddo</span>! 🎉
