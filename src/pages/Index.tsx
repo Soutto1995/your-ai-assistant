@@ -140,7 +140,7 @@ export default function Dashboard() {
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    
 
     const [tasksRes, txRes, inboxRes, recentInboxRes, pendingTasksRes] = await Promise.all([
       supabase.from("tasks").select("id", { count: "exact", head: true }).eq("status", "pendente"),
