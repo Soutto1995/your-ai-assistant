@@ -347,7 +347,7 @@ export default function HomePage() {
               {
                 num: "1",
                 title: "Envie uma mensagem",
-                desc: "Sua vida acontece, você apenas relata. Um áudio de 10s ou uma frase. É só isso.",
+                desc: "Sua vida acontece, você apenas relata. Uma frase simples. É só isso.",
               },
               {
                 num: "2",
