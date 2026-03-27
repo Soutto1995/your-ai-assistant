@@ -23,12 +23,12 @@ const PLAN_LIMITS: Record<string, { limit: number; message: string }> = {
   FREE: {
     limit: 5,
     message:
-      "Você atingiu o limite de 5 mensagens diárias do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por apenas R$ 12,90/mês e tenha 50 mensagens por dia! 🚀\n\n👉 tuddo.lovable.app/pricing",
+      "Você atingiu o limite de 5 mensagens diárias do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por apenas R$ 19,90/mês e tenha 200 mensagens por mês! 🚀\n\n👉 tuddo.lovable.app/pricing",
   },
   STARTER: {
-    limit: 50,
+    limit: 200,
     message:
-      "Você atingiu o seu limite de 50 mensagens diárias. Para ter mais liberdade, faça o upgrade para o plano PRO com mensagens ilimitadas! 💎\n\n👉 tuddo.lovable.app/pricing",
+      "Você atingiu o seu limite de 200 mensagens mensais. Para ter mais liberdade, faça o upgrade para o plano PRO com mensagens ilimitadas! 💎\n\n👉 tuddo.lovable.app/pricing",
   },
   PRO: {
     limit: Infinity,
@@ -122,35 +122,49 @@ async function getSpendingComparison(supabase: any, userId: string, category: st
 
   return `\n\n📊 *Análise PRO:* Você já gastou R$ ${currentTotal.toLocaleString("pt-BR")} em ${category} este mês. Isso é ${Math.abs(percentChange).toFixed(0)}% ${direction} que sua média de R$ ${average.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}.`;
 }
-const SYSTEM_PROMPT = `Você é o "Tuddo", um assistente pessoal direto e eficiente. Sua única função é analisar a mensagem do usuário e retornar APENAS um objeto JSON válido, sem markdown, crases, ou qualquer texto adicional. A estrutura do JSON deve ser: {"intent": "TIPO", "data": {DADOS}, "response": "RESPOSTA CURTA"}
-Os tipos de "intent" possíveis são:
-1. create_task: para criar tarefas ou lembretes.
-   - data: {"title": "texto da tarefa", "due_date": "YYYY-MM-DDTHH:mm:ss.sssZ ou null", "priority": "baixa"}
-   - response: "Anotado! Tarefa criada: [título] para [data/hora]."
-2. create_transaction: para registrar gastos, despesas, compras, pagamentos ou receitas/ganhos.
-   - data: {"description": "descrição", "amount": NUMERO, "type": "gasto" ou "receita", "category": ""}
-   - response: "Registrado! [Tipo] de R$ [valor]."
-3. create_meeting: para agendar reuniões ou compromissos.
-   - data: {"title": "título", "meeting_date": "YYYY-MM-DDTHH:mm:ss.sssZ ou null"}
-   - response: "Agendado! Compromisso: [título] para [data/hora]."
-4. general_query: para qualquer outra pergunta, saudação ou conversa.
-   - data: {}
-   - response: Responda de forma amigável e útil.
-REGRAS CRÍTICAS DE DATA E HORA:
-- A data e hora atual são fornecidas no fuso horário America/Sao_Paulo (GMT-3).
-- Interprete datas relativas (hoje, amanhã, próxima semana) com base na data/hora atual fornecida.
-- Se o usuário fornecer uma data (ex: "dia 29/03") sem um ano, assuma o ano corrente.
-- Se o usuário NÃO especificar um horário, use o meio-dia (12:00:00) do fuso horário local (America/Sao_Paulo) como padrão para o evento.
-- Os campos "due_date" e "meeting_date" DEVEM ser um timestamp completo no formato ISO 8601 (YYYY-MM-DDTHH:mm:ss.sssZ) em UTC, ou null se não houver data.
-- Na "response", sempre confirme a data e a hora de forma amigável para o usuário (ex: "para amanhã às 14h").
-OUTRAS REGRAS:
-- O amount da transação deve ser sempre um número positivo.
-- Retorne APENAS o JSON.`;
+const SYSTEM_PROMPT = `Você é o "Tuddo", um assistente financeiro e de produtividade para WhatsApp. Sua única função é analisar a mensagem do usuário e retornar APENAS um objeto JSON, sem markdown, crases ou texto adicional. A data e hora atual (fuso America/Sao_Paulo) são: {{current_time}}.
+
+**Estrutura JSON de Saída:**
+{"intent": "TIPO_DA_INTENCAO", "data": { ...DADOS... }, "response": "RESPOSTA_PARA_O_USUARIO"}
+
+**Tipos de Intenção (intent):**
+1. **create_transaction**: Qualquer registro de dinheiro entrando ou saindo (gastos, compras, despesas, pagamentos, vendas, salários, recebimentos).
+2. **create_task**: Tarefas, lembretes, coisas a fazer.
+3. **create_meeting**: Compromissos, reuniões, eventos com data e hora.
+4. **list_items**: Quando o usuário pede para ver ou listar algo (ex: "meus gastos de hoje", "minhas tarefas pendentes").
+5. **general_query**: Saudações, perguntas gerais, ou qualquer coisa que não se encaixe nas outras intenções.
+
+**Extração de Dados (data):**
+* **description**: O que é a transação/tarefa/reunião. Seja detalhado.
+* **amount**: O valor numérico. Extraia mesmo sem "R$". Deve ser sempre um número positivo.
+* **type**: "gasto" ou "receita". Inferir de verbos como "gastei", "paguei", "comprei" (gasto) vs "recebi", "ganhei", "vendi" (receita).
+* **category**: Use uma das categorias disponíveis: ${Object.keys(categoryDictionary).join(", ")}. Se não tiver certeza, use "Geral".
+* **due_date** / **meeting_date**: Formato ISO 8601 UTC (YYYY-MM-DDTHH:mm:ss.sssZ). Se não houver data, use null. Se não houver hora, use 12:00:00 (meio-dia) do fuso local.
+* **item_type**: Para \`list_items\`, especifique o que listar: "transaction", "task", ou "meeting".
+* **date_filter**: Para \`list_items\`, especifique o período: "hoje", "ontem", "esta semana", "este mês".
+
+**Regras Críticas de Interpretação:**
+1. **Datas Relativas**: Interprete "hoje", "amanhã", "depois de amanhã", "próxima semana", "semana que vem", "mês que vem", "última sexta-feira" com base na data/hora atual fornecida.
+2. **Valores Monetários**: Reconheça valores mesmo sem o símbolo "R$" (ex: "gastei 50 no mercado").
+3. **Respostas Humanizadas**: A \`response\` deve ser curta, amigável e confirmar a ação com os dados principais (ex: "Anotado! Tarefa: Pagar aluguel para amanhã às 10h.", "Registrado! Gasto de R$ 50,00 em Mercado.").
+
+**Exemplos:**
+* **Input**: "paguei 75 reais no almoço de hoje no restaurante"
+  **Output**: {"intent": "create_transaction", "data": {"description": "Almoço no restaurante", "amount": 75, "type": "gasto", "category": "Alimentação"}, "response": "Registrado! Gasto de R$ 75,00 em Alimentação."}
+* **Input**: "recebi 1500 de um freela"
+  **Output**: {"intent": "create_transaction", "data": {"description": "Freela", "amount": 1500, "type": "receita", "category": "Geral"}, "response": "Registrado! Receita de R$ 1.500,00."}
+* **Input**: "lembrete comprar ração do cachorro semana que vem"
+  **Output**: {"intent": "create_task", "data": {"title": "Comprar ração do cachorro", "due_date": "YYYY-MM-DDTHH:mm:ss.sssZ"}, "response": "Anotado! Lembrete: Comprar ração do cachorro para semana que vem."}
+* **Input**: "quais foram meus gastos de hoje?"
+  **Output**: {"intent": "list_items", "data": {"item_type": "transaction", "date_filter": "hoje"}, "response": "Claro! Buscando seus gastos de hoje..."}
+* **Input**: "bom dia tuddo"
+  **Output**: {"intent": "general_query", "data": {}, "response": "Bom dia! Como posso te ajudar a organizar seu dia?"}
+Retorne APENAS o objeto JSON.`;
 
 type JsonRecord = Record<string, unknown>;
 
 type AiResult = {
-  intent: "create_task" | "create_transaction" | "create_meeting" | "general_query";
+  intent: "create_task" | "create_transaction" | "create_meeting" | "list_items" | "general_query";
   data: JsonRecord;
   response: string;
 };
@@ -358,7 +372,7 @@ function extractAiJson(content: string): AiResult | null {
     const data = isRecord(parsed.data) ? parsed.data : {};
 
     return {
-      intent: ["create_task", "create_transaction", "create_meeting", "general_query"].includes(intent)
+      intent: ["create_task", "create_transaction", "create_meeting", "list_items", "general_query"].includes(intent)
         ? (intent as AiResult["intent"])
         : "general_query",
       data,
@@ -379,12 +393,23 @@ async function checkMessageLimit(supabase: any, userId: string, plan: string): P
   const planConfig = PLAN_LIMITS[plan] ?? PLAN_LIMITS.FREE;
   if (planConfig.limit === Infinity) return false;
 
-  const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  let sinceDate: string;
+  if (plan === "FREE") {
+    // FREE: limit is daily (5 msgs/day)
+    sinceDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  } else {
+    // STARTER: limit is monthly (200 msgs/month)
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    sinceDate = monthStart.toISOString();
+  }
+
   const { count, error } = await supabase
     .from("inbox_messages")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
-    .gte("created_at", twentyFourHoursAgo);
+    .gte("created_at", sinceDate);
 
   if (error) {
     console.error("Count error:", error);
@@ -673,7 +698,7 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
         return "Ops, não consegui agendar esse compromisso. Tente novamente! 😅";
       }
 
-      reply = aiResult.response || "Agendado! Compromisso criado com sucesso ✅";
+      reply = fallbackText || "Agendado! Compromisso criado com sucesso ✅";
       break;
     }
 
