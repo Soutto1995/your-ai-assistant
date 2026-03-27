@@ -164,7 +164,7 @@ Retorne APENAS o objeto JSON.`;
 type JsonRecord = Record<string, unknown>;
 
 type AiResult = {
-  intent: "create_task" | "create_transaction" | "create_meeting" | "general_query";
+  intent: "create_task" | "create_transaction" | "create_meeting" | "list_items" | "general_query";
   data: JsonRecord;
   response: string;
 };
@@ -372,7 +372,7 @@ function extractAiJson(content: string): AiResult | null {
     const data = isRecord(parsed.data) ? parsed.data : {};
 
     return {
-      intent: ["create_task", "create_transaction", "create_meeting", "general_query"].includes(intent)
+      intent: ["create_task", "create_transaction", "create_meeting", "list_items", "general_query"].includes(intent)
         ? (intent as AiResult["intent"])
         : "general_query",
       data,
