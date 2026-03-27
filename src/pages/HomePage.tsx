@@ -45,9 +45,9 @@ const plans = [
     monthlyLabel: "R$ 0",
     annualLabel: "R$ 0",
     annualMonthly: "",
-    limit: "5 mensagens/dia",
+    limit: "20 mensagens/mês",
     features: [
-      "5 mensagens por dia",
+      "20 mensagens por mês",
       "Registro de gastos e receitas",
       "Categorização automática básica",
       "Painel de visualização",
@@ -151,7 +151,7 @@ const faqs = [
   },
   {
     q: "Como funciona o plano gratuito?",
-    a: "O plano gratuito te dá direito a 5 mensagens por dia, para sempre. É perfeito para você testar e se organizar no dia a dia.",
+    a: "O plano gratuito te dá direito a 20 mensagens por mês, para sempre. É perfeito para você testar e se organizar no dia a dia.",
   },
   {
     q: "Posso cancelar quando quiser?",

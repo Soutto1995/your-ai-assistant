@@ -21,9 +21,9 @@ const categoryDictionary: Record<string, string[]> = {
 
 const PLAN_LIMITS: Record<string, { limit: number; message: string }> = {
   FREE: {
-    limit: 5,
+    limit: 20,
     message:
-      "Você atingiu o limite de 5 mensagens diárias do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por apenas R$ 19,90/mês e tenha 200 mensagens por mês! 🚀\n\n👉 tuddo.lovable.app/pricing",
+      "Você atingiu o limite de 20 mensagens mensais do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por R$ 19,90 e tenha 200 mensagens/mês! 🚀\n\n👉 tuddo.lovable.app/pricing",
   },
   STARTER: {
     limit: 200,
@@ -393,17 +393,11 @@ async function checkMessageLimit(supabase: any, userId: string, plan: string): P
   const planConfig = PLAN_LIMITS[plan] ?? PLAN_LIMITS.FREE;
   if (planConfig.limit === Infinity) return false;
 
-  let sinceDate: string;
-  if (plan === "FREE") {
-    // FREE: limit is daily (5 msgs/day)
-    sinceDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  } else {
-    // STARTER: limit is monthly (200 msgs/month)
-    const monthStart = new Date();
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
-    sinceDate = monthStart.toISOString();
-  }
+  // FREE and STARTER: monthly limit
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
+  const sinceDate = monthStart.toISOString();
 
   const { count, error } = await supabase
     .from("inbox_messages")
