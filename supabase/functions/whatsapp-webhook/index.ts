@@ -23,12 +23,12 @@ const PLAN_LIMITS: Record<string, { limit: number; message: string }> = {
   FREE: {
     limit: 20,
     message:
-      "Você atingiu o limite de 20 mensagens mensais do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por R$ 19,90 e tenha 200 mensagens/mês! 🚀\n\n👉 tuddo.lovable.app/pricing",
+      "Você atingiu o limite de 20 mensagens mensais do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por R$ 19,90 e tenha 200 mensagens/mês! 🚀\n\n👉 tuddo.pro/planos",
   },
   STARTER: {
     limit: 200,
     message:
-      "Você atingiu o seu limite de 200 mensagens mensais. Para ter mais liberdade, faça o upgrade para o plano PRO com mensagens ilimitadas! 💎\n\n👉 tuddo.lovable.app/pricing",
+      "Você atingiu o seu limite de 200 mensagens mensais. Para ter mais liberdade, faça o upgrade para o plano PRO com mensagens ilimitadas! 💎\n\n👉 tuddo.pro/planos",
   },
   PRO: {
     limit: Infinity,
@@ -37,7 +37,7 @@ const PLAN_LIMITS: Record<string, { limit: number; message: string }> = {
 };
 
 const FEATURE_LIMITS: Record<string, { transactionsPerMonth: number; budgets: number; categories: number }> = {
-  FREE: { transactionsPerMonth: 50, budgets: 0, categories: 5 },
+  FREE: { transactionsPerMonth: 20, budgets: 0, categories: 5 },
   STARTER: { transactionsPerMonth: 200, budgets: 3, categories: 10 },
   PRO: { transactionsPerMonth: Infinity, budgets: Infinity, categories: Infinity },
 };
@@ -56,21 +56,21 @@ async function checkFeatureLimit(supabase: any, userId: string, plan: string, fe
       .eq("user_id", userId)
       .gte("transaction_date", monthStart.toISOString());
     if ((count ?? 0) >= limits.transactionsPerMonth) {
-      return `Você atingiu o limite de ${limits.transactionsPerMonth} transações/mês do seu plano. Faça upgrade para continuar! 🚀\n\n👉 tuddo.lovable.app/pricing`;
+      return `Você atingiu o limite de ${limits.transactionsPerMonth} transações/mês do seu plano. Faça upgrade para continuar! 🚀\n\n👉 tuddo.pro/planos`;
     }
   }
 
   if (feature === "budget") {
     if (limits.budgets === Infinity) return null;
     if (limits.budgets === 0) {
-      return "O controle de orçamento está disponível a partir do plano Starter. Faça upgrade! 🚀\n\n👉 tuddo.lovable.app/pricing";
+      return "O controle de orçamento está disponível a partir do plano Starter. Faça upgrade! 🚀\n\n👉 tuddo.pro/planos";
     }
     const { count } = await supabase
       .from("budgets")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId);
     if ((count ?? 0) >= limits.budgets) {
-      return `Você atingiu o limite de ${limits.budgets} orçamentos do seu plano. Faça upgrade para mais! 🚀\n\n👉 tuddo.lovable.app/pricing`;
+      return `Você atingiu o limite de ${limits.budgets} orçamentos do seu plano. Faça upgrade para mais! 🚀\n\n👉 tuddo.pro/planos`;
     }
   }
 
@@ -104,7 +104,6 @@ async function getSpendingComparison(supabase: any, userId: string, category: st
 
   const average = months.reduce((s, v) => s + v, 0) / months.length;
 
-  // Get current month total
   const { data: currentTx } = await supabase
     .from("transactions")
     .select("amount")
@@ -122,37 +121,72 @@ async function getSpendingComparison(supabase: any, userId: string, category: st
 
   return `\n\n📊 *Análise PRO:* Você já gastou R$ ${currentTotal.toLocaleString("pt-BR")} em ${category} este mês. Isso é ${Math.abs(percentChange).toFixed(0)}% ${direction} que sua média de R$ ${average.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}.`;
 }
-const SYSTEM_PROMPT = `Você é o "Tuddo", um assistente especialista em extrair dados de texto. Sua única função é analisar a mensagem do usuário e retornar APENAS um objeto JSON, sem markdown ou texto adicional. A data e hora atual no fuso America/Sao_Paulo são: {{current_time}}.
 
-**Estrutura JSON de Saída:**
-{"intent": "TIPO_DA_INTENCAO", "data": { ...DADOS... }, "response": "RESPOSTA_PARA_O_USUARIO"}
+// ============================================================
+// SYSTEM PROMPT — REESCRITO PARA PRECISÃO CIRÚRGICA
+// ============================================================
+const SYSTEM_PROMPT = `Você é o "Tuddo", um assistente de produtividade e finanças para WhatsApp. Analise a mensagem do usuário e retorne APENAS um objeto JSON válido, sem markdown, crases ou texto extra.
 
-**Tipos de Intenção (intent):**
-1. **create_transaction**: Qualquer registro de dinheiro (gastos, compras, pagamentos, vendas, salários, recebimentos).
-2. **create_task**: Tarefas, lembretes, coisas a fazer.
-3. **create_meeting**: Compromissos, reuniões, eventos com data e hora.
-4. **list_items**: Quando o usuário pede para ver ou listar algo (ex: "meus gastos de hoje", "minhas tarefas pendentes", "compromissos de amanhã").
-5. **general_query**: Saudações ou qualquer coisa que não se encaixe nas outras intenções.
+DATA/HORA ATUAL (America/Sao_Paulo): {{current_time}}
 
-**Extração de Dados (data):**
-* **description**: O que é o item. Seja detalhado.
-* **amount**: O valor numérico. Extraia mesmo sem "R$". Sempre positivo.
-* **type**: "gasto" ou "receita". Inferir de verbos como "gastei", "paguei" (gasto) vs "recebi", "vendi" (receita).
-* **category**: Use uma das categorias: ${Object.keys(categoryDictionary).join(", ")}. Se não tiver certeza, use "Geral".
-* **due_date** / **meeting_date**: Formato ISO 8601 **NO FUSO HORÁRIO DE SÃO PAULO (America/Sao_Paulo)**. Ex: "2026-03-28T14:00:00.000-03:00". Se não houver hora, use 12:00:00.
-* **item_type**: Para \`list_items\`, especifique o que listar: "transaction", "task", ou "meeting".
-* **date_filter**: Para \`list_items\`, especifique o período: "hoje", "amanhã", "esta semana", "este mês", "próxima semana", "próximo mês".
+ESTRUTURA DE SAÍDA:
+{"intent":"TIPO","data":{...},"response":"TEXTO"}
 
-**Regras Críticas de Interpretação:**
-1. **Datas e Horas:** Seja CIRÚRGICO. "14h" significa 14:00. "Amanhã às 14h" significa 14:00 do dia seguinte. Use a data/hora atual para resolver todas as datas relativas.
-2. **Respostas Humanizadas**: A \`response\` deve ser curta e confirmar a ação. Para \`list_items\`, use "Claro! Buscando seus {item_type}s de {date_filter}..."
+INTENTS DISPONÍVEIS:
+1. create_transaction — registrar gasto ou receita
+2. create_task — criar tarefa ou lembrete
+3. create_meeting — agendar compromisso/reunião/evento
+4. list_items — listar/consultar itens existentes
+5. general_query — saudações ou perguntas gerais
 
-**Exemplos:**
-* **Input**: "reunião com cliente amanhã as 14h"
-  **Output**: {"intent": "create_meeting", "data": {"title": "Reunião com cliente", "meeting_date": "2026-03-28T14:00:00.000-03:00"}, "response": "Agendado! Reunião com cliente para amanhã às 14:00."}
-* **Input**: "quais meus compromissos de amanhã?"
-  **Output**: {"intent": "list_items", "data": {"item_type": "meeting", "date_filter": "amanhã"}, "response": "Claro! Buscando seus compromissos de amanhã..."}
-Retorne APENAS o objeto JSON.`;
+REGRAS DE EXTRAÇÃO DE DADOS:
+
+Para create_transaction:
+- data.description: descrição curta (ex: "Almoço no restaurante")
+- data.amount: valor numérico positivo (extrair mesmo sem "R$")
+- data.type: "gasto" (gastei, paguei, comprei) ou "receita" (recebi, ganhei, vendi)
+- data.category: uma das categorias [${Object.keys(categoryDictionary).join(", ")}]. Default: "Geral"
+
+Para create_task:
+- data.description: título conciso da tarefa
+- data.due_date: data no formato "YYYY-MM-DDTHH:mm:ss" (horário local São Paulo, SEM sufixo Z ou offset)
+
+Para create_meeting:
+- data.description: título conciso do compromisso (NÃO repita a mensagem inteira, extraia apenas o assunto. Ex: "marcar consulta para amanhã" → "Consulta")
+- data.meeting_date: data no formato "YYYY-MM-DDTHH:mm:ss" (horário local São Paulo, SEM sufixo Z ou offset). Se não houver hora, use 12:00:00
+
+Para list_items:
+- data.item_type: "transaction", "task" ou "meeting"
+- data.transaction_type: APENAS para transações — "gasto" (se pediu gastos/despesas) ou "receita" (se pediu ganhos/receitas). Se pediu "transações" ou "tudo", omitir este campo
+- data.date_filter: "hoje", "ontem", "amanhã", "esta semana", "este mês"
+
+REGRAS CRÍTICAS:
+1. HORÁRIOS: "14h" = 14:00:00. "9h" = 09:00:00. "3 da tarde" = 15:00:00. NUNCA converta para UTC.
+2. DATAS RELATIVAS: Use a data/hora atual fornecida. "Amanhã" = dia seguinte. "Semana que vem" = próxima segunda-feira.
+3. TÍTULOS: Extraia títulos CONCISOS. "marcar consulta para amanhã às 14h" → description: "Consulta". "reunião com João segunda" → description: "Reunião com João".
+4. PORTUGUÊS: Toda response DEVE começar com letra maiúscula. Use concordância correta (seus compromissos, suas tarefas, seus gastos).
+5. RESPONSE: Seja breve e confirme a ação. Para create_meeting: "Agendado! {título} para {data} às {hora}.". Para list_items: não precisa de response elaborada.
+
+EXEMPLOS:
+Input: "marcar consulta para amanhã as 14h"
+Output: {"intent":"create_meeting","data":{"description":"Consulta","meeting_date":"2026-03-28T14:00:00"},"response":"Agendado! Consulta para amanhã às 14:00."}
+
+Input: "gastei 50 no mercado"
+Output: {"intent":"create_transaction","data":{"description":"Mercado","amount":50,"type":"gasto","category":"Mercado"},"response":"Registrado! Gasto de R$ 50,00 em Mercado."}
+
+Input: "quanto eu gastei hoje?"
+Output: {"intent":"list_items","data":{"item_type":"transaction","transaction_type":"gasto","date_filter":"hoje"},"response":"Buscando seus gastos de hoje..."}
+
+Input: "quais meus compromissos de amanhã?"
+Output: {"intent":"list_items","data":{"item_type":"meeting","date_filter":"amanhã"},"response":"Buscando seus compromissos de amanhã..."}
+
+Input: "minhas transações deste mês"
+Output: {"intent":"list_items","data":{"item_type":"transaction","date_filter":"este mês"},"response":"Buscando suas transações deste mês..."}
+
+Input: "quanto eu ganhei este mês?"
+Output: {"intent":"list_items","data":{"item_type":"transaction","transaction_type":"receita","date_filter":"este mês"},"response":"Buscando suas receitas deste mês..."}
+
+Retorne APENAS o JSON.`;
 
 type JsonRecord = Record<string, unknown>;
 
@@ -252,7 +286,6 @@ async function verifyRequest(req: Request, rawBody: string, body: JsonRecord): P
     Deno.env.get("EVOLUTION_API_KEY"),
     Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN"),
   ].filter((value): value is string => Boolean(value));
-
 
   if (acceptedTokens.length === 0) {
     console.error("Webhook auth misconfigured: no accepted tokens configured");
@@ -386,7 +419,6 @@ async function checkMessageLimit(supabase: any, userId: string, plan: string): P
   const planConfig = PLAN_LIMITS[plan] ?? PLAN_LIMITS.FREE;
   if (planConfig.limit === Infinity) return false;
 
-  // FREE and STARTER: monthly limit
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
@@ -431,7 +463,7 @@ async function categorizeExpense(description: string): Promise<string> {
         messages: [
           {
             role: "system",
-            content: `Você é um especialista em finanças. Sua tarefa é categorizar a despesa do usuário em UMA das seguintes categorias: ${Object.keys(categoryDictionary).join(", ")}. Responda APENAS o nome da categoria.`,
+            content: `Categorize a despesa em UMA categoria: ${Object.keys(categoryDictionary).join(", ")}. Responda APENAS o nome da categoria.`,
           },
           { role: "user", content: `Despesa: "${description}"` },
         ],
@@ -452,6 +484,9 @@ async function categorizeExpense(description: string): Promise<string> {
   }
 }
 
+// ============================================================
+// INTERPRET MESSAGE — CORRIGIDO
+// ============================================================
 async function interpretMessage(message: string, now: Date = new Date()): Promise<AiResult> {
   const openaiKey = Deno.env.get("OPENAI_API_KEY");
   if (!openaiKey) {
@@ -464,6 +499,20 @@ async function interpretMessage(message: string, now: Date = new Date()): Promis
   }
 
   try {
+    const saoPauloTime = now.toLocaleString("pt-BR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      timeZone: "America/Sao_Paulo",
+      hour12: false,
+    });
+
+    const systemPromptWithTime = SYSTEM_PROMPT.replace("{{current_time}}", saoPauloTime);
+
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -474,7 +523,7 @@ async function interpretMessage(message: string, now: Date = new Date()): Promis
         model: "gpt-4.1-mini",
         temperature: 0,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT + `\n\nDATA E HORA ATUAL (America/Sao_Paulo): ${now.toLocaleString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "America/Sao_Paulo" })}. ISO UTC: ${now.toISOString()}. Use estas informações para interpretar referências relativas como "hoje", "amanhã", "próxima semana", etc. Retorne datas SEMPRE no formato ISO 8601 completo em UTC (YYYY-MM-DDTHH:mm:ss.sssZ).` },
+          { role: "system", content: systemPromptWithTime },
           { role: "user", content: message },
         ],
       }),
@@ -555,15 +604,25 @@ async function sendWhatsAppMessage(phone: string, text: string): Promise<void> {
   }
 }
 
-async function executeIntentAction(supabase: any, userId: string, userPlan: string, intent: AiResult["intent"], data: JsonRecord, fallbackText: string): Promise<string> {
-  let reply = "Entendi!";
+// ============================================================
+// EXECUTE INTENT ACTION — TOTALMENTE REESCRITO
+// ============================================================
+async function executeIntentAction(supabase: any, userId: string, userPlan: string, aiResult: AiResult, fallbackText: string): Promise<string> {
+  const { intent, data, response: aiResponse } = aiResult;
 
   switch (intent) {
+    // -------------------------------------------------------
+    // CRIAR TAREFA
+    // -------------------------------------------------------
     case "create_task": {
+      const title = typeof data.description === "string" && data.description.trim().length > 0
+        ? data.description
+        : (typeof data.title === "string" && data.title.trim().length > 0 ? data.title : fallbackText);
+
       const { error } = await supabase.from("tasks").insert({
         user_id: userId,
-        title: typeof data.title === "string" && data.title.trim().length > 0 ? data.title : fallbackText,
-        priority: typeof data.priority === "string" && data.priority.trim().length > 0 ? data.priority : "baixa",
+        title,
+        priority: "baixa",
         status: "pendente",
         due_date: typeof data.due_date === "string" ? data.due_date : null,
       });
@@ -573,12 +632,13 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
         return "Ops, não consegui criar a tarefa. Tente novamente! 😅";
       }
 
-      reply = "Anotado! Tarefa criada com sucesso ✅";
-      break;
+      return aiResponse || `Anotado! Tarefa "${title}" criada com sucesso ✅`;
     }
 
+    // -------------------------------------------------------
+    // CRIAR TRANSAÇÃO
+    // -------------------------------------------------------
     case "create_transaction": {
-      // Check feature limit
       const txLimitMsg = await checkFeatureLimit(supabase, userId, userPlan, "transaction");
       if (txLimitMsg) return txLimitMsg;
 
@@ -588,10 +648,12 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
           : fallbackText;
       const category = await categorizeExpense(description);
       const transactionType = typeof data.type === "string" && data.type.trim().length > 0 ? data.type : "gasto";
+      const amount = Math.abs(Number(data.amount) || 0);
+
       const { error } = await supabase.from("transactions").insert({
         user_id: userId,
         description,
-        amount: Math.abs(Number(data.amount) || 0),
+        amount,
         type: transactionType,
         category,
       });
@@ -601,9 +663,9 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
         return "Ops, não consegui registrar essa transação. Tente novamente! 😅";
       }
 
-      reply = "Registrado! Transação salva com sucesso ✅";
+      let reply = aiResponse || `Registrado! ${transactionType === "receita" ? "Receita" : "Gasto"} de R$ ${amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} em ${category} ✅`;
 
-      // Check budget alert
+      // Verificar alerta de orçamento
       try {
         if (transactionType === "gasto") {
           const { data: budgetData } = await supabase
@@ -637,10 +699,10 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
             }
           }
 
-          // PRO spending comparison
+          // Comparação PRO
           if (userPlan === "PRO") {
             try {
-              const comparison = await getSpendingComparison(supabase, userId, category, Math.abs(Number(data.amount) || 0));
+              const comparison = await getSpendingComparison(supabase, userId, category, amount);
               if (comparison) reply += comparison;
             } catch (compError) {
               console.error("Comparison error:", compError);
@@ -651,17 +713,46 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
         console.error("Budget check error:", budgetError);
       }
 
-      break;
+      return reply;
     }
 
+    // -------------------------------------------------------
+    // CRIAR COMPROMISSO / REUNIÃO
+    // -------------------------------------------------------
     case "create_meeting": {
-      const meetingDate = typeof data.meeting_date === "string" ? data.meeting_date : null;
+      const meetingDateRaw = typeof data.meeting_date === "string" ? data.meeting_date : null;
+
+      let eventDate: string | null = null;
+      let eventTime: string | null = null;
+
+      if (meetingDateRaw) {
+        const parts = meetingDateRaw.split("T");
+        if (parts.length >= 2) {
+          eventDate = parts[0];
+          eventTime = parts[1].slice(0, 5);
+        } else {
+          try {
+            const d = new Date(meetingDateRaw);
+            if (!isNaN(d.getTime())) {
+              const spDate = new Date(d.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+              eventDate = `${spDate.getFullYear()}-${String(spDate.getMonth() + 1).padStart(2, "0")}-${String(spDate.getDate()).padStart(2, "0")}`;
+              eventTime = `${String(spDate.getHours()).padStart(2, "0")}:${String(spDate.getMinutes()).padStart(2, "0")}`;
+            }
+          } catch {
+            console.error("Failed to parse meeting date:", meetingDateRaw);
+          }
+        }
+      }
+
+      const title = typeof data.description === "string" && data.description.trim().length > 0
+        ? data.description
+        : (typeof data.title === "string" && data.title.trim().length > 0 ? data.title : fallbackText);
+
       const { error } = await supabase.from("events").insert({
         user_id: userId,
-        title: typeof data.title === "string" && data.title.trim().length > 0 ? data.title : fallbackText,
-        legacy_meeting_date: meetingDate,
-        event_date: meetingDate ? meetingDate.split("T")[0] : null,
-        event_time: meetingDate ? meetingDate.split("T")[1]?.slice(0, 5) : null,
+        title,
+        event_date: eventDate,
+        event_time: eventTime,
         status: "agendada",
       });
 
@@ -670,98 +761,161 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
         return "Ops, não consegui agendar esse compromisso. Tente novamente! 😅";
       }
 
-      reply = fallbackText || "Agendado! Compromisso criado com sucesso ✅";
-      break;
+      const timeStr = eventTime ? ` às ${eventTime}` : "";
+      return aiResponse || `Agendado! "${title}"${timeStr} ✅`;
     }
 
+    // -------------------------------------------------------
+    // LISTAR ITENS
+    // -------------------------------------------------------
     case "list_items": {
-      const itemType = data.item_type as string;
-      const dateFilter = data.date_filter as string;
+      const itemType = typeof data.item_type === "string" ? data.item_type : "transaction";
+      const dateFilter = typeof data.date_filter === "string" ? data.date_filter : "hoje";
+      const transactionType = typeof data.transaction_type === "string" ? data.transaction_type : null;
 
-      // Calculate date range based on filter
       const now = new Date();
       const spNow = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+      const formatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
       let startDate: string;
       let endDate: string;
 
-      const formatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-      if (dateFilter === "amanhã") {
-        const tomorrow = new Date(spNow);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        startDate = formatDate(tomorrow);
-        endDate = startDate;
-      } else if (dateFilter === "esta semana") {
-        const dayOfWeek = spNow.getDay();
-        const startOfWeek = new Date(spNow);
-        startOfWeek.setDate(spNow.getDate() - dayOfWeek);
-        const endOfWeek = new Date(startOfWeek);
-        endOfWeek.setDate(startOfWeek.getDate() + 6);
-        startDate = formatDate(startOfWeek);
-        endDate = formatDate(endOfWeek);
-      } else if (dateFilter === "este mês") {
-        startDate = `${spNow.getFullYear()}-${String(spNow.getMonth() + 1).padStart(2, "0")}-01`;
-        const lastDay = new Date(spNow.getFullYear(), spNow.getMonth() + 1, 0);
-        endDate = formatDate(lastDay);
-      } else {
-        // Default: hoje
-        startDate = formatDate(spNow);
-        endDate = startDate;
+      switch (dateFilter) {
+        case "amanhã": {
+          const tomorrow = new Date(spNow);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          startDate = formatDate(tomorrow);
+          endDate = startDate;
+          break;
+        }
+        case "ontem": {
+          const yesterday = new Date(spNow);
+          yesterday.setDate(yesterday.getDate() - 1);
+          startDate = formatDate(yesterday);
+          endDate = startDate;
+          break;
+        }
+        case "esta semana": {
+          const dayOfWeek = spNow.getDay();
+          const startOfWeek = new Date(spNow);
+          startOfWeek.setDate(spNow.getDate() - dayOfWeek);
+          const endOfWeek = new Date(startOfWeek);
+          endOfWeek.setDate(startOfWeek.getDate() + 6);
+          startDate = formatDate(startOfWeek);
+          endDate = formatDate(endOfWeek);
+          break;
+        }
+        case "este mês": {
+          startDate = `${spNow.getFullYear()}-${String(spNow.getMonth() + 1).padStart(2, "0")}-01`;
+          const lastDay = new Date(spNow.getFullYear(), spNow.getMonth() + 1, 0);
+          endDate = formatDate(lastDay);
+          break;
+        }
+        default: {
+          startDate = formatDate(spNow);
+          endDate = startDate;
+          break;
+        }
       }
 
       let items: string[] = [];
+      let total = 0;
 
       if (itemType === "transaction") {
-        const { data: txs } = await supabase
+        let query = supabase
           .from("transactions")
           .select("description, amount, type, category")
           .eq("user_id", userId)
           .gte("transaction_date", `${startDate}T00:00:00`)
-          .lte("transaction_date", `${endDate}T23:59:59`);
+          .lte("transaction_date", `${endDate}T23:59:59`)
+          .order("transaction_date", { ascending: false });
+
+        if (transactionType) {
+          query = query.eq("type", transactionType);
+        }
+
+        const { data: txs } = await query;
         if (txs && txs.length > 0) {
-          items = txs.map((t: any) => `- ${t.description}: R$ ${Number(t.amount).toLocaleString("pt-BR")} (${t.type})`);
+          items = txs.map((t: any) => {
+            const emoji = t.type === "receita" ? "💰" : "💸";
+            return `${emoji} ${t.description}: R$ ${Number(t.amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
+          });
+          total = txs.reduce((sum: number, t: any) => sum + Math.abs(Number(t.amount)), 0);
         }
       } else if (itemType === "task") {
         const { data: tasks } = await supabase
           .from("tasks")
           .select("title, status, due_date")
           .eq("user_id", userId)
-          .eq("status", "pendente");
+          .eq("status", "pendente")
+          .order("created_at", { ascending: false });
+
         if (tasks && tasks.length > 0) {
-          items = tasks.map((t: any) => `- ${t.title}`);
+          items = tasks.map((t: any) => {
+            const dueStr = t.due_date ? ` (até ${new Date(t.due_date).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })})` : "";
+            return `📌 ${t.title}${dueStr}`;
+          });
         }
       } else if (itemType === "meeting") {
         const { data: events } = await supabase
           .from("events")
-          .select("title, event_time")
+          .select("title, event_time, event_date")
           .eq("user_id", userId)
           .gte("event_date", startDate)
-          .lte("event_date", endDate);
+          .lte("event_date", endDate)
+          .order("event_time", { ascending: true });
+
         if (events && events.length > 0) {
           items = events.map((e: any) => {
-            const time = e.event_time ? ` às ${e.event_time.slice(0, 5)}` : "";
-            return `- ${e.title}${time}`;
+            const time = e.event_time ? ` às ${String(e.event_time).slice(0, 5)}` : "";
+            return `📅 ${e.title}${time}`;
           });
         }
       }
 
       if (items.length === 0) {
-        reply = `Não encontrei nenhum registro de ${itemType === "transaction" ? "transações" : itemType === "task" ? "tarefas" : "compromissos"} para ${dateFilter || "hoje"}. 📭`;
-      } else {
-        const typeLabel = itemType === "transaction" ? "transações" : itemType === "task" ? "tarefas pendentes" : "compromissos";
-        reply = `📋 *Suas ${typeLabel} de ${dateFilter || "hoje"}:*\n\n${items.join("\n")}`;
+        const itemLabel = itemType === "transaction"
+          ? (transactionType === "gasto" ? "gastos" : transactionType === "receita" ? "receitas" : "transações")
+          : itemType === "task" ? "tarefas pendentes" : "compromissos";
+        return `Não encontrei nenhum registro de ${itemLabel} para ${dateFilter}. 📭`;
       }
-      break;
+
+      let header: string;
+      if (itemType === "transaction") {
+        if (transactionType === "gasto") {
+          header = `Seus gastos de ${dateFilter}`;
+        } else if (transactionType === "receita") {
+          header = `Suas receitas de ${dateFilter}`;
+        } else {
+          header = `Suas transações de ${dateFilter}`;
+        }
+      } else if (itemType === "task") {
+        header = `Suas tarefas pendentes`;
+      } else {
+        header = `Seus compromissos de ${dateFilter}`;
+      }
+
+      let reply = `📋 *${header}:*\n\n${items.join("\n")}`;
+
+      if (itemType === "transaction" && total > 0) {
+        reply += `\n\n💵 *Total: R$ ${total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}*`;
+      }
+
+      return reply;
     }
 
+    // -------------------------------------------------------
+    // QUERY GERAL
+    // -------------------------------------------------------
     case "general_query":
     default:
-      break;
+      return aiResponse || "Entendi! Como posso te ajudar? 😊";
   }
-
-  return reply;
 }
 
+// ============================================================
+// SERVE — FUNÇÃO PRINCIPAL
+// ============================================================
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -866,7 +1020,7 @@ serve(async (req) => {
     if (!profiles || profiles.length === 0) {
       await sendWhatsAppMessage(
         remotePhone,
-        "Desculpe, não encontrei seu cadastro. Por favor, registre-se na plataforma primeiro! 📱",
+        "Desculpe, não encontrei seu cadastro. Por favor, registre-se na plataforma primeiro! 📱\n\n👉 tuddo.pro",
       );
 
       return new Response(JSON.stringify({ status: "user_not_found" }), {
@@ -896,17 +1050,14 @@ serve(async (req) => {
       }
     }
 
+    // Interpretar a mensagem com IA
     const aiResult = await interpretMessage(text, new Date());
     const intent = aiResult.intent || "general_query";
-    const entities = isRecord(aiResult.data) ? aiResult.data : {};
-    let reply = aiResult.response || "Entendi! Mas não consegui processar. Tente novamente. 🤔";
 
-    if (intent !== "general_query") {
-      const actionReply = await executeIntentAction(supabase, userId, userPlan, intent, entities, text);
-      // Se a ação retornou uma resposta, use-a. Senão, use a da IA.
-      reply = actionReply.trim().length > 0 ? actionReply : aiResult.response;
-    }
+    // Executar a ação e obter a resposta REAL
+    const reply = await executeIntentAction(supabase, userId, userPlan, aiResult, text);
 
+    // Salvar no inbox
     const { error: inboxError } = await supabase.from("inbox_messages").insert({
       user_id: userId,
       message: text,
@@ -920,6 +1071,7 @@ serve(async (req) => {
       console.error("Inbox insert error:", inboxError);
     }
 
+    // Enviar resposta via WhatsApp
     await sendWhatsAppMessage(remotePhone, reply);
 
     return new Response(JSON.stringify({ status: "ok", intent }), {
