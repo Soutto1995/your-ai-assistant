@@ -279,21 +279,30 @@ export default function HomePage() {
             </div>
           </div>
           {/* Hero images */}
-          <div className="relative flex flex-col items-start">
-            <img
-              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/pbyrLhYwLqUCWCPi.png"
-              alt="iPhone com WhatsApp mostrando conversa com Tuddo"
-              className="w-[260px] md:w-[320px] h-auto relative z-[2] object-contain"
-              style={{ filter: "drop-shadow(0 24px 48px rgba(245, 166, 35, 0.2))" }}
-              loading="lazy"
-            />
-            <img
-              src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/qwvOhMoXEhLhyofM.png"
-              alt="Dashboard do Tuddo com gráficos financeiros"
-              className="hidden md:block w-[300px] md:w-[380px] h-auto relative z-[1] -mt-[60px] ml-[40px] rounded-2xl object-contain"
-              style={{ boxShadow: "0 20px 50px rgba(0,0,0,0.5)" }}
-              loading="lazy"
-            />
+          <div className="relative flex-1 flex items-center justify-center lg:justify-end">
+            <div className="relative flex items-center justify-center w-full max-w-2xl">
+              {/* iPhone 1: WhatsApp Chat */}
+              <img
+                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/pbyrLhYwLqUCWCPi.png"
+                alt="iPhone com conversa no WhatsApp com o Tuddo"
+                className="w-[240px] md:w-[280px] h-auto relative z-[2] object-contain -mr-16 md:-mr-24 animate-fade-in"
+                style={{ filter: "drop-shadow(0 24px 48px rgba(245, 166, 35, 0.15))" }}
+                loading="lazy"
+              />
+              {/* iPhone 2: Video Placeholder */}
+              <div
+                className="relative w-[240px] md:w-[280px] h-auto rounded-[44px] border-8 border-black overflow-hidden shadow-2xl animate-fade-in"
+                style={{ aspectRatio: "390 / 844" }}
+              >
+                <div className="w-full h-full flex flex-col items-center justify-center text-center bg-background p-4">
+                  <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                  </div>
+                  <p className="font-semibold text-sm text-foreground">Veja como funciona</p>
+                  <p className="text-xs text-muted-foreground mt-1">Gravação de tela em breve</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
