@@ -23,9 +23,9 @@ function getWhatsAppLink() {
   return isMobile ? WHATSAPP_MOBILE_LINK : WHATSAPP_WEB_LINK;
 }
 
-const PLAN_DAILY_LIMITS: Record<string, number> = {
-  FREE: 5,
-  STARTER: 50,
+const PLAN_MONTHLY_LIMITS: Record<string, number> = {
+  FREE: 20,
+  STARTER: 200,
   PRO: 99999,
 };
 
@@ -54,7 +54,7 @@ export default function Dashboard() {
   const whatsappConnected = !!profile?.phone;
   const whatsappLink = getWhatsAppLink();
 
-  const messagesLimit = PLAN_DAILY_LIMITS[planName] || PLAN_DAILY_LIMITS.FREE;
+  const messagesLimit = PLAN_MONTHLY_LIMITS[planName] || PLAN_MONTHLY_LIMITS.FREE;
   const isPro = planName === "PRO";
 
   const [pendingTasksCount, setPendingTasksCount] = useState(0);
@@ -145,7 +145,7 @@ export default function Dashboard() {
     const [tasksRes, txRes, inboxRes, recentInboxRes, pendingTasksRes] = await Promise.all([
       supabase.from("tasks").select("id", { count: "exact", head: true }).eq("status", "pendente"),
       supabase.from("transactions").select("amount, type").gte("transaction_date", startOfMonth.toISOString()),
-      supabase.from("inbox_messages").select("id", { count: "exact", head: true }).gte("created_at", twentyFourHoursAgo),
+      supabase.from("inbox_messages").select("id", { count: "exact", head: true }).gte("created_at", startOfMonth.toISOString()),
       supabase.from("inbox_messages").select("*").order("created_at", { ascending: false }).limit(5),
       supabase.from("tasks").select("*").eq("status", "pendente").order("created_at", { ascending: false }).limit(5),
     ]);
@@ -236,7 +236,7 @@ export default function Dashboard() {
           <div className="bg-card rounded-xl p-4 md:p-5 border border-border card-glow animate-fade-in">
             <div className="flex items-center justify-between mb-3">
               <span className="text-muted-foreground text-xs sm:text-sm flex items-center gap-1.5">
-                <MessageCircle className="w-4 h-4" />Mensagens (24h)
+                <MessageCircle className="w-4 h-4" />Mensagens (mês)
               </span>
               <span className="text-xs font-medium text-primary">{planName}</span>
             </div>
