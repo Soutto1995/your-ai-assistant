@@ -448,44 +448,70 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ─── FEATURES ─── */}
-      <section id="funcionalidades" className="py-16 md:py-24 bg-card/50 px-4">
-        <div className="max-w-5xl mx-auto space-y-10">
-          <h2 className="text-2xl md:text-3xl font-display font-bold text-center">
-            Ferramentas para sua <span className="gold-text">tranquilidade financeira.</span>
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              {
-                icon: <DollarSign className="w-8 h-8" />,
-                title: "Saiba exatamente para onde vai seu dinheiro",
-                desc: "Registre despesas e receitas sem sair do WhatsApp. Veja gráficos simples que mostram claramente seus hábitos de gastos.",
-              },
-              {
-                icon: <CheckSquare className="w-8 h-8" />,
-                title: "Nunca mais esqueça um pagamento ou compromisso",
-                desc: "Crie lembretes automáticos para contas, boletos e compromissos importantes. Tudo sincronizado com seu WhatsApp.",
-              },
-              {
-                icon: <Calendar className="w-8 h-8" />,
-                title: "Sua vida pessoal e profissional, sincronizada",
-                desc: "Agende reuniões, consultas e eventos diretamente do WhatsApp. Tudo integrado com sua agenda pessoal.",
-              },
-            ].map((f) => (
-              <div
-                key={f.title}
-                className="bg-card border border-border rounded-xl p-6 space-y-4 hover:border-primary/30 transition-colors"
-              >
-                <div className="w-14 h-14 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                  {f.icon}
-                </div>
-                <h3 className="font-display font-semibold text-lg text-foreground">{f.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
+      {/* ─── NOVAS FUNCIONALIDADES COM VÍDEOS ─── */}
+      <div id="funcionalidades" className="scroll-mt-16">
+        {[
+          {
+            title: "Registre tudo, sem esforço",
+            description: "Gastos, receitas, tarefas, lembretes e até reuniões. Envie uma mensagem de texto ou áudio e o Tuddo organiza tudo para você em segundos. É como ter um assistente pessoal no seu bolso, 24/7.",
+            features: ["Registro de transações financeiras", "Criação de tarefas e lembretes", "Agendamento de compromissos"],
+            videoPlaceholder: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/video_placeholder_1.mp4",
+          },
+          {
+            title: "Entenda para onde seu dinheiro vai",
+            description: "Com o Tuddo, você não apenas registra, mas visualiza seus hábitos. Gráficos simples e relatórios claros mostram suas maiores despesas, sua renda mensal e onde você pode economizar. Tenha clareza total, sem planilhas.",
+            features: ["Dashboard financeiro completo", "Relatórios de gastos por categoria", "Comparativo de receita vs. despesa"],
+            videoPlaceholder: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/video_placeholder_2.mp4",
+          },
+          {
+            title: "Nunca mais esqueça uma conta",
+            description: "'Pagar aluguel dia 10' ou 'Lembrete: comprar presente da Ana amanhã'. O Tuddo entende e te envia um lembrete no WhatsApp na data certa. Mantenha suas contas e compromissos em dia, sem estresse.",
+            features: ["Lembretes automáticos via WhatsApp", "Agendamento com datas flexíveis", "Notificações de contas a vencer"],
+            videoPlaceholder: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/video_placeholder_3.mp4",
+          },
+          {
+            title: "Sua vida, pessoal e profissional, em um só lugar",
+            description: "'Reunião com cliente terça 15h' ou 'Ligar para o dentista'. O Tuddo centraliza seus compromissos profissionais e pessoais, sincronizando tudo em um painel simples para que nada passe despercebido.",
+            features: ["Gestão de agenda pessoal e profissional", "Sincronização com seu calendário", "Visão unificada de tarefas e eventos"],
+            videoPlaceholder: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/video_placeholder_4.mp4",
+          },
+        ].map((section, index) => (
+          <section key={index} className="py-12 md:py-20 px-4">
+            <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 items-center gap-10 md:gap-16">
+              <div className={`space-y-5 ${index % 2 === 1 ? "md:order-2" : ""}`}>
+                <h2 className="text-2xl md:text-3xl font-display font-bold">
+                  {section.title}
+                </h2>
+                <p className="text-muted-foreground leading-relaxed">
+                  {section.description}
+                </p>
+                <ul className="space-y-2">
+                  {section.features.map((feature) => (
+                    <li key={feature} className="flex items-center gap-2 text-sm">
+                      <Check className="w-4 h-4 text-primary" />
+                      <span className="text-muted-foreground">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
+              <div className={`rounded-xl overflow-hidden shadow-2xl ${index % 2 === 1 ? "md:order-1" : ""}`}>
+                <div className="aspect-video bg-card border border-border flex items-center justify-center">
+                  <video
+                    src={section.videoPlaceholder}
+                    className="w-full h-full object-cover"
+                    controls
+                    muted
+                    loop
+                    playsInline
+                  >
+                    Seu navegador não suporta o vídeo.
+                  </video>
+                </div>
+              </div>
+            </div>
+          </section>
+        ))}
+      </div>
 
       {/* ─── DEPOIMENTOS ─── */}
       <section className="py-16 md:py-24 px-4">
