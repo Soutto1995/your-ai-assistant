@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Send, BarChart3, PartyPopper, ChevronRight, ChevronLeft, X } from "lucide-react";
+import { MessageCircle, Send, BarChart3, PartyPopper, CheckSquare, Zap, ChevronRight, ChevronLeft, X } from "lucide-react";
 
 interface TutorialStep {
   icon: React.ReactNode;
@@ -12,27 +12,38 @@ interface TutorialStep {
 
 const STEPS: TutorialStep[] = [
   {
+    icon: <PartyPopper className="w-6 h-6" />,
+    title: "Bem-vindo(a) ao Tuddo!",
+    description: "Vamos fazer um tour rápido de 1 minuto para você dominar suas finanças e produtividade.",
+  },
+  {
     icon: <MessageCircle className="w-6 h-6" />,
-    title: "Conecte seu WhatsApp",
-    description: "Clique no botão abaixo para conectar seu WhatsApp ao Tuddo. Basta enviar uma mensagem!",
+    title: "1. Conecte seu WhatsApp",
+    description: "O coração do Tuddo é o WhatsApp. Clique no botão destacado para enviar sua primeira mensagem e conectar sua conta. É por lá que a mágica acontece.",
     targetId: "whatsapp-connect-btn",
   },
   {
     icon: <Send className="w-6 h-6" />,
-    title: "Envie sua primeira transação",
-    description: "Envie uma mensagem pelo WhatsApp como:",
-    example: '"gastei 50 no mercado"',
+    title: "2. Registre um Gasto",
+    description: "Volte para o WhatsApp e envie uma mensagem de teste. Tente algo como:",
+    example: '"Comprei um café por 5 reais"',
+  },
+  {
+    icon: <CheckSquare className="w-6 h-6" />,
+    title: "3. Crie uma Tarefa",
+    description: "O Tuddo vai além das finanças. No WhatsApp, tente enviar:",
+    example: '"Lembrar de pagar o aluguel amanhã às 10h"',
   },
   {
     icon: <BarChart3 className="w-6 h-6" />,
-    title: "Veja seus resultados",
-    description: "Suas transações, tarefas e compromissos aparecem automaticamente aqui no dashboard, organizados pela IA.",
+    title: "4. Explore seu Dashboard",
+    description: "Volte para cá e veja! Tudo o que você envia aparece aqui, organizado automaticamente. Seus gastos, receitas e tarefas, tudo em um só lugar.",
     targetId: "dashboard-stats",
   },
   {
-    icon: <PartyPopper className="w-6 h-6" />,
-    title: "Parabéns! Você está pronto! 🎉",
-    description: "Agora é só continuar enviando mensagens pelo WhatsApp. O Tuddo cuida de tudo pra você!",
+    icon: <Zap className="w-6 h-6" />,
+    title: "Pronto! Você está no controle!",
+    description: "Agora você tem um assistente pessoal no seu bolso. Continue enviando suas atividades e veja sua vida financeira se transformar.",
   },
 ];
 
