@@ -39,13 +39,6 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
-const SAMPLE_TRANSACTIONS = [
-  { description: "Mercado Pão de Açúcar", amount: -89.50, type: "gasto", category: "Alimentação" },
-  { description: "Uber para o trabalho", amount: -22.00, type: "gasto", category: "Transporte" },
-  { description: "Cinema com amigos", amount: -35.00, type: "gasto", category: "Lazer" },
-  { description: "Almoço restaurante", amount: -42.00, type: "gasto", category: "Alimentação" },
-  { description: "Gasolina", amount: -150.00, type: "gasto", category: "Transporte" },
-];
 
 export default function Dashboard() {
   const { profile, signOut, user } = useAuth();
@@ -99,28 +92,9 @@ export default function Dashboard() {
     }
   };
 
-  const seedSampleData = async () => {
-    if (!user) return;
-    // Check if user already has transactions
-    const { count } = await supabase
-      .from("transactions")
-      .select("id", { count: "exact", head: true });
-    
-    if ((count || 0) === 0) {
-      const now = new Date();
-      const samples = SAMPLE_TRANSACTIONS.map((t, i) => ({
-        ...t,
-        user_id: user.id,
-        amount: Math.abs(t.amount),
-        transaction_date: new Date(now.getTime() - i * 86400000).toISOString(),
-      }));
-      await supabase.from("transactions").insert(samples);
-    }
-  };
 
   const handleStartTutorial = async () => {
     setShowOnboardingModal(false);
-    await seedSampleData();
     await fetchData();
     setShowTutorial(true);
   };
@@ -217,7 +191,7 @@ export default function Dashboard() {
             <p className="text-sm text-muted-foreground max-w-md mx-auto">
               Clique no botão abaixo para enviar sua primeira mensagem para o Tuddo e ativar seu assessor pessoal.
             </p>
-            <Button asChild size="sm" className="gap-2 gold-gradient text-primary-foreground">
+            <Button asChild size="lg" className="gap-2 gold-gradient text-primary-foreground animate-pulse">
               <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
                 <MessageCircle className="w-4 h-4" />
                 Conectar WhatsApp Agora

@@ -12,7 +12,7 @@ export interface PlanLimits {
 
 export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
   FREE: {
-    transactionsPerMonth: 50,
+    transactionsPerMonth: 20,
     categories: 5,
     budgets: 0,
     remindersPerMonth: 0,
