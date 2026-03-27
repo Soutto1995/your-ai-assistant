@@ -50,44 +50,59 @@ serve(async (req) => {
 
     const today = new Date().toISOString().split("T")[0];
 
-    const { data: events, error } = await supabase
-      .from("events")
-      .select("id, title, event_time, user_id")
-      .eq("event_date", today)
-      .eq("reminder_sent", false);
+    const { data: users, error: usersError } = await supabase
+      .from("profiles")
+      .select("id, phone");
 
-    if (error) {
-      console.error("Error fetching events:", error);
-      return new Response(JSON.stringify({ error: "fetch_failed" }), {
+    if (usersError) {
+      console.error("Error fetching users:", usersError);
+      return new Response(JSON.stringify({ error: "fetch_users_failed" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    if (!events || events.length === 0) {
-      return new Response(JSON.stringify({ status: "no_reminders" }), {
+    if (!users || users.length === 0) {
+      return new Response(JSON.stringify({ status: "no_users" }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     let sent = 0;
-    for (const event of events) {
-      // Fetch user phone from profiles
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("phone")
-        .eq("id", event.user_id)
-        .single();
 
-      const userPhone = profile?.phone;
-      if (userPhone) {
-        const timeStr = event.event_time ? ` às ${String(event.event_time).slice(0, 5)}` : "";
-        const message = `📅 Lembrete do Tuddo: Hoje você tem "${event.title}"${timeStr}. Tenha um ótimo dia! ✨`;
-        await sendWhatsAppMessage(userPhone, message);
-        await supabase.from("events").update({ reminder_sent: true }).eq("id", event.id);
-        sent++;
+    for (const user of users) {
+      if (!user.phone) continue;
+
+      const [eventsRes, tasksRes] = await Promise.all([
+        supabase.from("events").select("title, event_time").eq("user_id", user.id).eq("event_date", today),
+        supabase.from("tasks").select("title").eq("user_id", user.id).eq("status", "pendente"),
+      ]);
+
+      const events = eventsRes.data || [];
+      const tasks = tasksRes.data || [];
+
+      if (events.length === 0 && tasks.length === 0) continue;
+
+      let message = "*Resumo do seu dia no Tuddo:* ☀️\n";
+
+      if (events.length > 0) {
+        message += "\n*Compromissos:*\n";
+        events.forEach((e: any) => {
+          const time = e.event_time ? ` às ${e.event_time.slice(0, 5)}` : "";
+          message += `- ${e.title}${time}\n`;
+        });
       }
+
+      if (tasks.length > 0) {
+        message += "\n*Tarefas Pendentes:*\n";
+        tasks.forEach((t: any) => {
+          message += `- ${t.title}\n`;
+        });
+      }
+
+      await sendWhatsAppMessage(user.phone, message);
+      sent++;
     }
 
     return new Response(JSON.stringify({ status: "ok", reminders_sent: sent }), {

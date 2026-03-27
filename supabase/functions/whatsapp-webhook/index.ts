@@ -122,43 +122,36 @@ async function getSpendingComparison(supabase: any, userId: string, category: st
 
   return `\n\n📊 *Análise PRO:* Você já gastou R$ ${currentTotal.toLocaleString("pt-BR")} em ${category} este mês. Isso é ${Math.abs(percentChange).toFixed(0)}% ${direction} que sua média de R$ ${average.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}.`;
 }
-const SYSTEM_PROMPT = `Você é o "Tuddo", um assistente financeiro e de produtividade para WhatsApp. Sua única função é analisar a mensagem do usuário e retornar APENAS um objeto JSON, sem markdown, crases ou texto adicional. A data e hora atual (fuso America/Sao_Paulo) são: {{current_time}}.
+const SYSTEM_PROMPT = `Você é o "Tuddo", um assistente especialista em extrair dados de texto. Sua única função é analisar a mensagem do usuário e retornar APENAS um objeto JSON, sem markdown ou texto adicional. A data e hora atual no fuso America/Sao_Paulo são: {{current_time}}.
 
 **Estrutura JSON de Saída:**
 {"intent": "TIPO_DA_INTENCAO", "data": { ...DADOS... }, "response": "RESPOSTA_PARA_O_USUARIO"}
 
 **Tipos de Intenção (intent):**
-1. **create_transaction**: Qualquer registro de dinheiro entrando ou saindo (gastos, compras, despesas, pagamentos, vendas, salários, recebimentos).
+1. **create_transaction**: Qualquer registro de dinheiro (gastos, compras, pagamentos, vendas, salários, recebimentos).
 2. **create_task**: Tarefas, lembretes, coisas a fazer.
 3. **create_meeting**: Compromissos, reuniões, eventos com data e hora.
-4. **list_items**: Quando o usuário pede para ver ou listar algo (ex: "meus gastos de hoje", "minhas tarefas pendentes").
-5. **general_query**: Saudações, perguntas gerais, ou qualquer coisa que não se encaixe nas outras intenções.
+4. **list_items**: Quando o usuário pede para ver ou listar algo (ex: "meus gastos de hoje", "minhas tarefas pendentes", "compromissos de amanhã").
+5. **general_query**: Saudações ou qualquer coisa que não se encaixe nas outras intenções.
 
 **Extração de Dados (data):**
-* **description**: O que é a transação/tarefa/reunião. Seja detalhado.
-* **amount**: O valor numérico. Extraia mesmo sem "R$". Deve ser sempre um número positivo.
-* **type**: "gasto" ou "receita". Inferir de verbos como "gastei", "paguei", "comprei" (gasto) vs "recebi", "ganhei", "vendi" (receita).
-* **category**: Use uma das categorias disponíveis: ${Object.keys(categoryDictionary).join(", ")}. Se não tiver certeza, use "Geral".
-* **due_date** / **meeting_date**: Formato ISO 8601 UTC (YYYY-MM-DDTHH:mm:ss.sssZ). Se não houver data, use null. Se não houver hora, use 12:00:00 (meio-dia) do fuso local.
+* **description**: O que é o item. Seja detalhado.
+* **amount**: O valor numérico. Extraia mesmo sem "R$". Sempre positivo.
+* **type**: "gasto" ou "receita". Inferir de verbos como "gastei", "paguei" (gasto) vs "recebi", "vendi" (receita).
+* **category**: Use uma das categorias: ${Object.keys(categoryDictionary).join(", ")}. Se não tiver certeza, use "Geral".
+* **due_date** / **meeting_date**: Formato ISO 8601 **NO FUSO HORÁRIO DE SÃO PAULO (America/Sao_Paulo)**. Ex: "2026-03-28T14:00:00.000-03:00". Se não houver hora, use 12:00:00.
 * **item_type**: Para \`list_items\`, especifique o que listar: "transaction", "task", ou "meeting".
-* **date_filter**: Para \`list_items\`, especifique o período: "hoje", "ontem", "esta semana", "este mês".
+* **date_filter**: Para \`list_items\`, especifique o período: "hoje", "amanhã", "esta semana", "este mês", "próxima semana", "próximo mês".
 
 **Regras Críticas de Interpretação:**
-1. **Datas Relativas**: Interprete "hoje", "amanhã", "depois de amanhã", "próxima semana", "semana que vem", "mês que vem", "última sexta-feira" com base na data/hora atual fornecida.
-2. **Valores Monetários**: Reconheça valores mesmo sem o símbolo "R$" (ex: "gastei 50 no mercado").
-3. **Respostas Humanizadas**: A \`response\` deve ser curta, amigável e confirmar a ação com os dados principais (ex: "Anotado! Tarefa: Pagar aluguel para amanhã às 10h.", "Registrado! Gasto de R$ 50,00 em Mercado.").
+1. **Datas e Horas:** Seja CIRÚRGICO. "14h" significa 14:00. "Amanhã às 14h" significa 14:00 do dia seguinte. Use a data/hora atual para resolver todas as datas relativas.
+2. **Respostas Humanizadas**: A \`response\` deve ser curta e confirmar a ação. Para \`list_items\`, use "Claro! Buscando seus {item_type}s de {date_filter}..."
 
 **Exemplos:**
-* **Input**: "paguei 75 reais no almoço de hoje no restaurante"
-  **Output**: {"intent": "create_transaction", "data": {"description": "Almoço no restaurante", "amount": 75, "type": "gasto", "category": "Alimentação"}, "response": "Registrado! Gasto de R$ 75,00 em Alimentação."}
-* **Input**: "recebi 1500 de um freela"
-  **Output**: {"intent": "create_transaction", "data": {"description": "Freela", "amount": 1500, "type": "receita", "category": "Geral"}, "response": "Registrado! Receita de R$ 1.500,00."}
-* **Input**: "lembrete comprar ração do cachorro semana que vem"
-  **Output**: {"intent": "create_task", "data": {"title": "Comprar ração do cachorro", "due_date": "YYYY-MM-DDTHH:mm:ss.sssZ"}, "response": "Anotado! Lembrete: Comprar ração do cachorro para semana que vem."}
-* **Input**: "quais foram meus gastos de hoje?"
-  **Output**: {"intent": "list_items", "data": {"item_type": "transaction", "date_filter": "hoje"}, "response": "Claro! Buscando seus gastos de hoje..."}
-* **Input**: "bom dia tuddo"
-  **Output**: {"intent": "general_query", "data": {}, "response": "Bom dia! Como posso te ajudar a organizar seu dia?"}
+* **Input**: "reunião com cliente amanhã as 14h"
+  **Output**: {"intent": "create_meeting", "data": {"title": "Reunião com cliente", "meeting_date": "2026-03-28T14:00:00.000-03:00"}, "response": "Agendado! Reunião com cliente para amanhã às 14:00."}
+* **Input**: "quais meus compromissos de amanhã?"
+  **Output**: {"intent": "list_items", "data": {"item_type": "meeting", "date_filter": "amanhã"}, "response": "Claro! Buscando seus compromissos de amanhã..."}
 Retorne APENAS o objeto JSON.`;
 
 type JsonRecord = Record<string, unknown>;
@@ -478,8 +471,8 @@ async function interpretMessage(message: string, now: Date = new Date()): Promis
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4.1-nano",
-        temperature: 0.3,
+        model: "gpt-4.1-mini",
+        temperature: 0,
         messages: [
           { role: "system", content: SYSTEM_PROMPT + `\n\nDATA E HORA ATUAL (America/Sao_Paulo): ${now.toLocaleString("pt-BR", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "America/Sao_Paulo" })}. ISO UTC: ${now.toISOString()}. Use estas informações para interpretar referências relativas como "hoje", "amanhã", "próxima semana", etc. Retorne datas SEMPRE no formato ISO 8601 completo em UTC (YYYY-MM-DDTHH:mm:ss.sssZ).` },
           { role: "user", content: message },
@@ -663,27 +656,12 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
 
     case "create_meeting": {
       const meetingDate = typeof data.meeting_date === "string" ? data.meeting_date : null;
-      let eventDate: string | null = null;
-      let eventTime: string | null = null;
-      if (meetingDate) {
-        try {
-          const d = new Date(meetingDate);
-          if (!isNaN(d.getTime())) {
-            // Extract date in São Paulo timezone
-            const spDate = new Date(d.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-            eventDate = `${spDate.getFullYear()}-${String(spDate.getMonth() + 1).padStart(2, "0")}-${String(spDate.getDate()).padStart(2, "0")}`;
-            eventTime = `${String(spDate.getHours()).padStart(2, "0")}:${String(spDate.getMinutes()).padStart(2, "0")}`;
-          }
-        } catch {
-          console.error("Failed to parse meeting date:", meetingDate);
-        }
-      }
       const { error } = await supabase.from("events").insert({
         user_id: userId,
         title: typeof data.title === "string" && data.title.trim().length > 0 ? data.title : fallbackText,
         legacy_meeting_date: meetingDate,
-        event_date: eventDate,
-        event_time: eventTime,
+        event_date: meetingDate ? meetingDate.split("T")[0] : null,
+        event_time: meetingDate ? meetingDate.split("T")[1]?.slice(0, 5) : null,
         status: "agendada",
       });
 
@@ -693,6 +671,86 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
       }
 
       reply = fallbackText || "Agendado! Compromisso criado com sucesso ✅";
+      break;
+    }
+
+    case "list_items": {
+      const itemType = data.item_type as string;
+      const dateFilter = data.date_filter as string;
+
+      // Calculate date range based on filter
+      const now = new Date();
+      const spNow = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+      let startDate: string;
+      let endDate: string;
+
+      const formatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+      if (dateFilter === "amanhã") {
+        const tomorrow = new Date(spNow);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        startDate = formatDate(tomorrow);
+        endDate = startDate;
+      } else if (dateFilter === "esta semana") {
+        const dayOfWeek = spNow.getDay();
+        const startOfWeek = new Date(spNow);
+        startOfWeek.setDate(spNow.getDate() - dayOfWeek);
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        startDate = formatDate(startOfWeek);
+        endDate = formatDate(endOfWeek);
+      } else if (dateFilter === "este mês") {
+        startDate = `${spNow.getFullYear()}-${String(spNow.getMonth() + 1).padStart(2, "0")}-01`;
+        const lastDay = new Date(spNow.getFullYear(), spNow.getMonth() + 1, 0);
+        endDate = formatDate(lastDay);
+      } else {
+        // Default: hoje
+        startDate = formatDate(spNow);
+        endDate = startDate;
+      }
+
+      let items: string[] = [];
+
+      if (itemType === "transaction") {
+        const { data: txs } = await supabase
+          .from("transactions")
+          .select("description, amount, type, category")
+          .eq("user_id", userId)
+          .gte("transaction_date", `${startDate}T00:00:00`)
+          .lte("transaction_date", `${endDate}T23:59:59`);
+        if (txs && txs.length > 0) {
+          items = txs.map((t: any) => `- ${t.description}: R$ ${Number(t.amount).toLocaleString("pt-BR")} (${t.type})`);
+        }
+      } else if (itemType === "task") {
+        const { data: tasks } = await supabase
+          .from("tasks")
+          .select("title, status, due_date")
+          .eq("user_id", userId)
+          .eq("status", "pendente");
+        if (tasks && tasks.length > 0) {
+          items = tasks.map((t: any) => `- ${t.title}`);
+        }
+      } else if (itemType === "meeting") {
+        const { data: events } = await supabase
+          .from("events")
+          .select("title, event_time")
+          .eq("user_id", userId)
+          .gte("event_date", startDate)
+          .lte("event_date", endDate);
+        if (events && events.length > 0) {
+          items = events.map((e: any) => {
+            const time = e.event_time ? ` às ${e.event_time.slice(0, 5)}` : "";
+            return `- ${e.title}${time}`;
+          });
+        }
+      }
+
+      if (items.length === 0) {
+        reply = `Não encontrei nenhum registro de ${itemType === "transaction" ? "transações" : itemType === "task" ? "tarefas" : "compromissos"} para ${dateFilter || "hoje"}. 📭`;
+      } else {
+        const typeLabel = itemType === "transaction" ? "transações" : itemType === "task" ? "tarefas pendentes" : "compromissos";
+        reply = `📋 *Suas ${typeLabel} de ${dateFilter || "hoje"}:*\n\n${items.join("\n")}`;
+      }
       break;
     }
 
@@ -844,10 +902,9 @@ serve(async (req) => {
     let reply = aiResult.response || "Entendi! Mas não consegui processar. Tente novamente. 🤔";
 
     if (intent !== "general_query") {
-      reply = await executeIntentAction(supabase, userId, userPlan, intent, entities, text);
-      if (aiResult.response && aiResult.response.trim().length > 0) {
-        reply = aiResult.response;
-      }
+      const actionReply = await executeIntentAction(supabase, userId, userPlan, intent, entities, text);
+      // Se a ação retornou uma resposta, use-a. Senão, use a da IA.
+      reply = actionReply.trim().length > 0 ? actionReply : aiResult.response;
     }
 
     const { error: inboxError } = await supabase.from("inbox_messages").insert({
