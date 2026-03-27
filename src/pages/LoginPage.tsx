@@ -23,11 +23,20 @@ export default function LoginPage() {
 
     if (error) {
       console.error("Login error:", error.message);
-      toast({
-        title: "Erro ao entrar",
-        description: "E-mail ou senha inválidos. Tente novamente.",
-        variant: "destructive",
-      });
+      if (error.message.includes("Email not confirmed")) {
+        toast({
+          title: "Confirme seu e-mail",
+          description: "Enviamos um link de confirmação para o seu e-mail. Verifique sua caixa de entrada e spam para continuar.",
+          variant: "destructive",
+          duration: 9000,
+        });
+      } else {
+        toast({
+          title: "Erro ao entrar",
+          description: "E-mail ou senha inválidos. Tente novamente.",
+          variant: "destructive",
+        });
+      }
     } else {
       navigate("/dashboard");
     }

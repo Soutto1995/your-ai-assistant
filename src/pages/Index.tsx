@@ -209,6 +209,23 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {!whatsappConnected && onboardingChecked && (
+          <div className="bg-primary/10 border border-primary/30 rounded-xl p-4 md:p-6 card-glow animate-fade-in text-center space-y-3">
+            <h2 className="font-display font-semibold text-base md:text-lg text-foreground">
+              Passo final: Conecte seu WhatsApp!
+            </h2>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              Clique no botão abaixo para enviar sua primeira mensagem para o Tuddo e ativar seu assessor pessoal.
+            </p>
+            <Button asChild size="sm" className="gap-2 gold-gradient text-primary-foreground">
+              <a href={whatsappLink} target="_blank" rel="noopener noreferrer">
+                <MessageCircle className="w-4 h-4" />
+                Conectar WhatsApp Agora
+              </a>
+            </Button>
+          </div>
+        )}
+
         {isNewUser && !showTutorial && <OnboardingGuide whatsappLink={whatsappLink} />}
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4" id="dashboard-stats">
