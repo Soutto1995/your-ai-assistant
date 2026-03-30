@@ -469,7 +469,7 @@ export default function HomePage() {
             title: "Sua vida, pessoal e profissional, em um só lugar",
             description: "'Reunião com cliente terça 15h' ou 'Ligar para o dentista'. O Tuddo centraliza seus compromissos profissionais e pessoais, sincronizando tudo em um painel simples para que nada passe despercebido.",
             features: ["Gestão de agenda pessoal e profissional", "Sincronização com seu calendário", "Visão unificada de tarefas e eventos"],
-            videoPlaceholder: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/video_placeholder_4.mp4",
+            videoSrc: "/videos/vida-organizada.mp4",
           },
         ].map((section, index) => (
           <section key={index} className="py-12 md:py-20 px-4">
