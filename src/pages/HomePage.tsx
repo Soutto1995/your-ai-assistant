@@ -493,9 +493,9 @@ export default function HomePage() {
               <div className={`rounded-xl overflow-hidden shadow-2xl ${index % 2 === 1 ? "md:order-1" : ""}`}>
                 <div className="aspect-video bg-card border border-border flex items-center justify-center">
                   <video
-                    src={section.videoPlaceholder}
+                    src={section.videoSrc}
                     className="w-full h-full object-cover"
-                    controls
+                    autoPlay
                     muted
                     loop
                     playsInline
