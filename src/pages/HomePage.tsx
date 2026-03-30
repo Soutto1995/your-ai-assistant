@@ -457,7 +457,7 @@ export default function HomePage() {
             title: "Entenda para onde seu dinheiro vai",
             description: "Com o Tuddo, você não apenas registra, mas visualiza seus hábitos. Gráficos simples e relatórios claros mostram suas maiores despesas, sua renda mensal e onde você pode economizar. Tenha clareza total, sem planilhas.",
             features: ["Dashboard financeiro completo", "Relatórios de gastos por categoria", "Comparativo de receita vs. despesa"],
-            videoPlaceholder: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/video_placeholder_2.mp4",
+            videoSrc: "/videos/controle-financeiro.mp4",
           },
           {
             title: "Nunca mais esqueça uma conta",
