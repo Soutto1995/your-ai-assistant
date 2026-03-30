@@ -451,25 +451,25 @@ export default function HomePage() {
             title: "Registre tudo, sem esforço",
             description: "Gastos, receitas, tarefas, lembretes e até reuniões. Envie uma mensagem de texto e o Tuddo organiza tudo para você em segundos. É como ter um assistente pessoal no seu bolso, 24/7.",
             features: ["Registro de transações financeiras", "Criação de tarefas e lembretes", "Agendamento de compromissos"],
-            videoPlaceholder: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/video_placeholder_1.mp4",
+            videoSrc: "/videos/registre-tudo.mp4",
           },
           {
             title: "Entenda para onde seu dinheiro vai",
             description: "Com o Tuddo, você não apenas registra, mas visualiza seus hábitos. Gráficos simples e relatórios claros mostram suas maiores despesas, sua renda mensal e onde você pode economizar. Tenha clareza total, sem planilhas.",
             features: ["Dashboard financeiro completo", "Relatórios de gastos por categoria", "Comparativo de receita vs. despesa"],
-            videoPlaceholder: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/video_placeholder_2.mp4",
+            videoSrc: "/videos/controle-financeiro.mp4",
           },
           {
             title: "Nunca mais esqueça uma conta",
             description: "'Pagar aluguel dia 10' ou 'Lembrete: comprar presente da Ana amanhã'. O Tuddo entende e te envia um lembrete no WhatsApp na data certa. Mantenha suas contas e compromissos em dia, sem estresse.",
             features: ["Lembretes automáticos via WhatsApp", "Agendamento com datas flexíveis", "Notificações de contas a vencer"],
-            videoPlaceholder: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/video_placeholder_3.mp4",
+            videoSrc: "/videos/lembretes-contas.mp4",
           },
           {
             title: "Sua vida, pessoal e profissional, em um só lugar",
             description: "'Reunião com cliente terça 15h' ou 'Ligar para o dentista'. O Tuddo centraliza seus compromissos profissionais e pessoais, sincronizando tudo em um painel simples para que nada passe despercebido.",
             features: ["Gestão de agenda pessoal e profissional", "Sincronização com seu calendário", "Visão unificada de tarefas e eventos"],
-            videoPlaceholder: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/video_placeholder_4.mp4",
+            videoSrc: "/videos/vida-organizada.mp4",
           },
         ].map((section, index) => (
           <section key={index} className="py-12 md:py-20 px-4">
@@ -493,9 +493,9 @@ export default function HomePage() {
               <div className={`rounded-xl overflow-hidden shadow-2xl ${index % 2 === 1 ? "md:order-1" : ""}`}>
                 <div className="aspect-video bg-card border border-border flex items-center justify-center">
                   <video
-                    src={section.videoPlaceholder}
+                    src={section.videoSrc}
                     className="w-full h-full object-cover"
-                    controls
+                    autoPlay
                     muted
                     loop
                     playsInline
