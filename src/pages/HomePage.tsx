@@ -451,7 +451,7 @@ export default function HomePage() {
             title: "Registre tudo, sem esforço",
             description: "Gastos, receitas, tarefas, lembretes e até reuniões. Envie uma mensagem de texto e o Tuddo organiza tudo para você em segundos. É como ter um assistente pessoal no seu bolso, 24/7.",
             features: ["Registro de transações financeiras", "Criação de tarefas e lembretes", "Agendamento de compromissos"],
-            videoPlaceholder: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/video_placeholder_1.mp4",
+            videoSrc: "/videos/registre-tudo.mp4",
           },
           {
             title: "Entenda para onde seu dinheiro vai",
