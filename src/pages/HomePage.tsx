@@ -463,7 +463,7 @@ export default function HomePage() {
             title: "Nunca mais esqueça uma conta",
             description: "'Pagar aluguel dia 10' ou 'Lembrete: comprar presente da Ana amanhã'. O Tuddo entende e te envia um lembrete no WhatsApp na data certa. Mantenha suas contas e compromissos em dia, sem estresse.",
             features: ["Lembretes automáticos via WhatsApp", "Agendamento com datas flexíveis", "Notificações de contas a vencer"],
-            videoPlaceholder: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/video_placeholder_3.mp4",
+            videoSrc: "/videos/lembretes-contas.mp4",
           },
           {
             title: "Sua vida, pessoal e profissional, em um só lugar",
