@@ -35,8 +35,8 @@ import {
 /* ── Plan data ── */
 const STRIPE_LINK_STARTER_MONTHLY = 'https://buy.stripe.com/8x23cw0EM1hvddr1MIfEk04';
 const STRIPE_LINK_STARTER_YEARLY = 'https://buy.stripe.com/bJe8wQ3QY9O1a1fdvqfEk05';
-const STRIPE_LINK_PRO_MONTHLY = 'https://buy.stripe.com/test_14AeVe87Z2dDcEZ0AfbMQ02';
-const STRIPE_LINK_PRO_YEARLY = 'https://buy.stripe.com/test_dRm8wQ0Fxg4t48t82HbMQ03';
+const STRIPE_LINK_PRO_MONTHLY = 'https://buy.stripe.com/6oU5kE3QY5xLgpD4YUfEk00';
+const STRIPE_LINK_PRO_YEARLY = 'https://buy.stripe.com/bJedRa1IQf8l7T7bnifEk02';
 
 const plans = [
   {
