@@ -9,8 +9,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const PRICE_STARTER_MONTHLY = 'price_1TEcLALkc2YbZKCTTJ5PHokf';
-const PRICE_PRO_MONTHLY = 'price_11EcLALkc2YbZKCTXMpglSRQ';
+const PRICE_STARTER_MONTHLY = 'price_1TFaIZLKc2YbZKCT5qPuc1r7';
+const PRICE_PRO_MONTHLY = 'price_1TEcLALKc2YbZKCTXMpgISRQ';
 
 const plans = [
   {
@@ -32,14 +32,14 @@ const plans = [
   {
     name: "STARTER",
     icon: <Zap className="w-6 h-6" />,
-    monthly: 12.9,
-    annual: 123.9,
-    monthlyLabel: "R$ 12,90/mês",
-    annualLabel: "R$ 123,90/ano",
-    annualMonthly: "R$ 10,33/mês",
-    dailyCost: "R$ 0,43",
-    limit: "50 mensagens/dia",
-    features: ["50 mensagens por dia", "Tudo do plano Grátis", "Prioridade no suporte", "Relatórios semanais"],
+    monthly: 19.9,
+    annual: 199.9,
+    monthlyLabel: "R$ 19,90/mês",
+    annualLabel: "R$ 199,90/ano",
+    annualMonthly: "R$ 16,65/mês",
+    dailyCost: "R$ 0,66",
+    limit: "200 mensagens/mês",
+    features: ["200 mensagens por mês", "Tudo do plano Grátis", "Prioridade no suporte", "Relatórios semanais"],
     cta: "Quero o Plano Starter",
     highlight: true,
     priceId: PRICE_STARTER_MONTHLY,
