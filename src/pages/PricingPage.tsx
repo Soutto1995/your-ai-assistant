@@ -10,7 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const PRICE_STARTER_MONTHLY = 'price_1TZtTLPpu2ogE0DArUc286V7';
+const PRICE_STARTER_YEARLY = 'price_1TZtTOPpu2ogE0DAlT08sf53';
 const PRICE_PRO_MONTHLY = 'price_1TZtTQPpu2ogE0DACHSzeF2b';
+const PRICE_PRO_YEARLY = 'price_1TZtTTPpu2ogE0DAojmyQdPB';
 
 const plans = [
   {
@@ -43,6 +45,7 @@ const plans = [
     cta: "Quero o Plano Starter",
     highlight: false,
     priceId: PRICE_STARTER_MONTHLY,
+    yearlyPriceId: PRICE_STARTER_YEARLY,
     planKey: "STARTER",
   },
   {
@@ -59,6 +62,7 @@ const plans = [
     cta: "Quero o Plano PRO",
     highlight: true,
     priceId: PRICE_PRO_MONTHLY,
+    yearlyPriceId: PRICE_PRO_YEARLY,
     planKey: "PRO",
   },
 ];
@@ -211,7 +215,7 @@ export default function PricingPage() {
                       className="w-full"
                       variant={plan.highlight ? "default" : "outline"}
                       disabled={isLoading}
-                      onClick={() => handleCheckout(plan.priceId, plan.planKey)}
+                      onClick={() => handleCheckout(annual && (plan as any).yearlyPriceId ? (plan as any).yearlyPriceId : plan.priceId, plan.planKey)}
                     >
                       {isLoading ? (
                         <>
