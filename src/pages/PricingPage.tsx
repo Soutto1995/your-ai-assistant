@@ -215,7 +215,7 @@ export default function PricingPage() {
                       className="w-full"
                       variant={plan.highlight ? "default" : "outline"}
                       disabled={isLoading}
-                      onClick={() => handleCheckout(plan.priceId, plan.planKey)}
+                      onClick={() => handleCheckout(annual && (plan as any).yearlyPriceId ? (plan as any).yearlyPriceId : plan.priceId, plan.planKey)}
                     >
                       {isLoading ? (
                         <>
