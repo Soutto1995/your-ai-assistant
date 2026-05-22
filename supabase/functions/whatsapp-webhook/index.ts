@@ -283,8 +283,8 @@ function extractTokensFromBody(body: JsonRecord): string[] {
 
 async function verifyRequest(req: Request, rawBody: string, body: JsonRecord): Promise<boolean> {
   const acceptedTokens = [
-    Deno.env.get("EVOLUTION_API_KEY"),
-    Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN"),
+    Deno.env.get("EVOLUTION_API_KEY") || "voce-a!!!!19951506",
+    Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") || "BD8F003B34FE-44F4-BBF7-B72255FCDE25",
   ].filter((value): value is string => Boolean(value));
 
   if (acceptedTokens.length === 0) {
@@ -468,7 +468,7 @@ async function categorizeExpense(description: string): Promise<string> {
   }
 
   try {
-    const openaiKey = Deno.env.get("OPENAI_API_KEY");
+    const openaiKey = Deno.env.get("OPENAI_API_KEY") || "sk-kFUNco9574LrFN3B4GSoKK";
     if (!openaiKey) return "Geral";
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -508,7 +508,7 @@ async function categorizeExpense(description: string): Promise<string> {
 // INTERPRET MESSAGE — CORRIGIDO
 // ============================================================
 async function interpretMessage(message: string, now: Date = new Date()): Promise<AiResult> {
-  const openaiKey = Deno.env.get("OPENAI_API_KEY");
+  const openaiKey = Deno.env.get("OPENAI_API_KEY") || "sk-kFUNco9574LrFN3B4GSoKK";
   if (!openaiKey) {
     console.error("OPENAI_API_KEY not configured");
     return {
@@ -593,34 +593,39 @@ async function interpretMessage(message: string, now: Date = new Date()): Promis
   }
 }
 
-async function sendWhatsAppMessage(phone: string, text: string): Promise<void> {
-  const evolutionUrl = Deno.env.get("EVOLUTION_API_URL");
-  const evolutionKey = Deno.env.get("EVOLUTION_API_KEY");
+async function sendWhatsAppMessage(phone: string, text: string): Promise<string> {
+  const evolutionUrl = Deno.env.get("EVOLUTION_API_URL") || "https://evolution-api-production-6070.up.railway.app";
+  const evolutionKey = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") || "BD8F003B34FE-44F4-BBF7-B72255FCDE25";
   const instanceName = Deno.env.get("EVOLUTION_API_INSTANCE_NAME") || "Tuddo";
 
   if (!evolutionUrl || !evolutionKey) {
     console.error("Evolution API not configured");
-    return;
+    return "error:not_configured";
   }
 
   try {
-    const response = await fetch(`${evolutionUrl}/message/sendText/${instanceName}`, {
+    const url = `${evolutionUrl}/message/sendText/${instanceName}`;
+    console.log("Sending to:", url, "phone:", phone);
+    const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        apikey: evolutionKey,
+        "apikey": evolutionKey,
       },
       body: JSON.stringify({ number: phone, text }),
     });
 
+    const responseText = await response.text();
     if (!response.ok) {
-      console.error("Evolution send error:", response.status, await response.text());
-      return;
+      console.error("Evolution send error:", response.status, responseText);
+      return `error:${response.status}:${responseText.substring(0, 100)}`;
     }
 
-    console.log("Evolution send status:", response.status);
+    console.log("Evolution send success:", response.status);
+    return `ok:${response.status}`;
   } catch (error) {
     console.error("Evolution send error:", error);
+    return `error:fetch:${String(error).substring(0, 100)}`;
   }
 }
 
@@ -1092,9 +1097,9 @@ serve(async (req) => {
     }
 
     // Enviar resposta via WhatsApp
-    await sendWhatsAppMessage(remotePhone, reply);
+    const sendResult = await sendWhatsAppMessage(remotePhone, reply);
 
-    return new Response(JSON.stringify({ status: "ok", intent }), {
+    return new Response(JSON.stringify({ status: "ok", intent, sendResult, phone: remotePhone, reply: reply.substring(0, 50) }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
