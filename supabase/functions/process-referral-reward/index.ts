@@ -7,7 +7,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const REFERRAL_COUPON_ID = "d0DH6tw6"; // Cupom "Indicação Tuddo - 1 Mês Grátis" (100% off, once)
+const REFERRAL_COUPON_ID = "oGI9rKbZ"; // Cupom "Indicação Tuddo - 1 Mês Grátis" (100% off, once) - Conta CNPJ
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {

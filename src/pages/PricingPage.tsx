@@ -9,8 +9,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const PRICE_STARTER_MONTHLY = 'price_1TFaIZLKc2YbZKCT5qPuc1r7';
-const PRICE_PRO_MONTHLY = 'price_1TEcLALKc2YbZKCTXMpgISRQ';
+const PRICE_STARTER_MONTHLY = 'price_1TZtTLPpu2ogE0DArUc286V7';
+const PRICE_PRO_MONTHLY = 'price_1TZtTQPpu2ogE0DACHSzeF2b';
 
 const plans = [
   {
