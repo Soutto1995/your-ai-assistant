@@ -138,7 +138,7 @@ export default function InteractiveTutorial({ onComplete, onSkip }: InteractiveT
 
       {/* Tutorial card */}
       <div
-        className="absolute z-10 w-[90vw] max-w-md bg-card border border-border rounded-xl p-6 shadow-2xl animate-fade-in"
+        className="absolute z-10 w-[90vw] max-w-md bg-card border border-border rounded-xl p-6 shadow-2xl animate-fade-in max-h-[85vh] overflow-y-auto"
         style={{
           left: "50%",
           transform: "translateX(-50%)",
