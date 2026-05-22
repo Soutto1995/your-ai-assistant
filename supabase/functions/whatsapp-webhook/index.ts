@@ -362,14 +362,34 @@ function buildPhoneVariants(rawPhone: string): string[] {
 function extractPhoneFromKey(key: JsonRecord): string {
   const participant = typeof key.participant === "string" ? key.participant : "";
   const remoteJid = typeof key.remoteJid === "string" ? key.remoteJid : "";
+  const remoteJidAlt = typeof key.remoteJidAlt === "string" ? key.remoteJidAlt : "";
 
-  const base = participant || remoteJid;
+  // Prefer remoteJidAlt (contains real phone when LID addressing is used)
+  // Then participant, then remoteJid
+  let base = "";
+
+  // Check if remoteJidAlt has a valid phone number format
+  if (remoteJidAlt && remoteJidAlt.includes("@s.whatsapp.net")) {
+    base = remoteJidAlt;
+  } else if (participant && !participant.endsWith("@lid")) {
+    base = participant;
+  } else if (remoteJid && !remoteJid.endsWith("@lid")) {
+    base = remoteJid;
+  } else if (remoteJidAlt) {
+    base = remoteJidAlt;
+  } else if (participant) {
+    base = participant;
+  } else {
+    base = remoteJid;
+  }
+
   if (!base) return "";
 
   return base
     .replace(/:\d+/g, "")
     .replace(/@s\.whatsapp\.net$/i, "")
     .replace(/@g\.us$/i, "")
+    .replace(/@lid$/i, "")
     .trim();
 }
 
