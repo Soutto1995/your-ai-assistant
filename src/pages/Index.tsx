@@ -42,6 +42,7 @@ function clamp(n: number, min: number, max: number) {
 
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const { profile, signOut, user } = useAuth();
   const userName = profile?.full_name || "Usuário";
   const planName = (profile?.plan || "FREE").toUpperCase();
