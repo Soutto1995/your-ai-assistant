@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
         const plan = session.metadata?.plan;
 
         if (userId && plan) {
+          // 1. Atualizar o perfil do usuário com o plano pago
           await supabase
             .from("profiles")
             .update({
@@ -67,6 +68,43 @@ Deno.serve(async (req) => {
               status: "active",
             })
             .eq("id", userId);
+
+          // 2. Verificar se este usuário foi indicado por alguém
+          const { data: referral } = await supabase
+            .from("referrals")
+            .select("*")
+            .eq("referred_id", userId)
+            .eq("status", "cadastrado")
+            .maybeSingle();
+
+          if (referral) {
+            // Atualizar status para "pago"
+            await supabase
+              .from("referrals")
+              .update({ status: "pago" })
+              .eq("id", referral.id);
+
+            console.log(`Referral ${referral.id} updated to 'pago'. Triggering reward for referrer ${referral.referrer_id}`);
+
+            // 3. Disparar a recompensa para o referrer
+            try {
+              const rewardResponse = await fetch(
+                `${SUPABASE_URL}/functions/v1/process-referral-reward`,
+                {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+                  },
+                  body: JSON.stringify({ referred_user_id: userId }),
+                }
+              );
+              const rewardResult = await rewardResponse.json();
+              console.log("Referral reward result:", rewardResult);
+            } catch (rewardErr) {
+              console.error("Failed to process referral reward:", rewardErr);
+            }
+          }
         }
         break;
       }

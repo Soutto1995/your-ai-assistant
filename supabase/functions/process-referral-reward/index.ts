@@ -1,10 +1,13 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import Stripe from "https://esm.sh/stripe@14.21.0?target=deno";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+const REFERRAL_COUPON_ID = "d0DH6tw6"; // Cupom "Indicação Tuddo - 1 Mês Grátis" (100% off, once)
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -22,6 +25,7 @@ Deno.serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const STRIPE_SECRET_KEY = Deno.env.get("STRIPE_SECRET_KEY");
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Find referral for this referred user with status "pago"
@@ -39,10 +43,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check referrer is still a paid user
+    // Get referrer profile
     const { data: referrerProfile } = await supabase
       .from("profiles")
-      .select("plan, phone, full_name, subscription_date")
+      .select("plan, phone, full_name, stripe_subscription_id, stripe_customer_id")
       .eq("id", referral.referrer_id)
       .single();
 
@@ -53,25 +57,62 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Extend subscription by 1 month
-    const currentSubDate = referrerProfile.subscription_date
-      ? new Date(referrerProfile.subscription_date)
-      : new Date();
-    // We don't actually extend subscription_date (that's purchase date).
-    // Instead we mark reward and could create Stripe credit in production.
+    // Apply coupon to referrer's subscription in Stripe
+    let couponApplied = false;
+    if (STRIPE_SECRET_KEY && referrerProfile.stripe_subscription_id) {
+      try {
+        const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2023-10-16" });
 
-    // Update referral status
+        // Apply the coupon to the subscription (100% off next invoice)
+        await stripe.subscriptions.update(referrerProfile.stripe_subscription_id, {
+          coupon: REFERRAL_COUPON_ID,
+        });
+
+        couponApplied = true;
+        console.log(`Coupon ${REFERRAL_COUPON_ID} applied to subscription ${referrerProfile.stripe_subscription_id}`);
+      } catch (stripeErr) {
+        console.error("Failed to apply Stripe coupon:", stripeErr);
+        // Even if Stripe fails, still mark as rewarded and notify
+      }
+    } else if (STRIPE_SECRET_KEY && referrerProfile.stripe_customer_id) {
+      // Fallback: apply coupon to customer (will apply on next invoice)
+      try {
+        const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2023-10-16" });
+
+        // Find active subscription for this customer
+        const subscriptions = await stripe.subscriptions.list({
+          customer: referrerProfile.stripe_customer_id,
+          status: "active",
+          limit: 1,
+        });
+
+        if (subscriptions.data.length > 0) {
+          await stripe.subscriptions.update(subscriptions.data[0].id, {
+            coupon: REFERRAL_COUPON_ID,
+          });
+          couponApplied = true;
+          console.log(`Coupon applied via customer lookup to subscription ${subscriptions.data[0].id}`);
+        }
+      } catch (stripeErr) {
+        console.error("Failed to apply Stripe coupon via customer:", stripeErr);
+      }
+    }
+
+    // Update referral status to "recompensado"
     await supabase
       .from("referrals")
-      .update({ status: "recompensado", reward_applied_at: new Date().toISOString() })
+      .update({
+        status: "recompensado",
+        reward_applied_at: new Date().toISOString(),
+      })
       .eq("id", referral.id);
 
     // Send WhatsApp notification to referrer
-    const evolutionApiUrl = Deno.env.get("EVOLUTION_API_URL");
-    const instanceName = Deno.env.get("EVOLUTION_API_INSTANCE_NAME");
-    const instanceToken = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN");
+    const evolutionApiUrl = Deno.env.get("EVOLUTION_API_URL") || "https://evolution-api-production-6070.up.railway.app";
+    const instanceName = Deno.env.get("EVOLUTION_API_INSTANCE_NAME") || "Tuddo";
+    const instanceToken = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") || "BD8F003B34FE-44F4-BBF7-B72255FCDE25";
 
-    if (evolutionApiUrl && instanceName && instanceToken && referrerProfile.phone) {
+    if (referrerProfile.phone) {
       const { data: referredProfile } = await supabase
         .from("profiles")
         .select("full_name")
@@ -79,7 +120,11 @@ Deno.serve(async (req) => {
         .single();
 
       const referredName = referredProfile?.full_name || "Um amigo";
-      const message = `🎉 Parabéns! ${referredName} assinou o Tuddo e você ganhou 1 mês grátis do seu plano ${referrerProfile.plan}! Continue indicando para ganhar mais!`;
+      const couponMsg = couponApplied
+        ? "O desconto de 100% já foi aplicado na sua próxima fatura!"
+        : "Sua recompensa será aplicada em breve.";
+
+      const message = `🎉 Parabéns! ${referredName} assinou o Tuddo e você ganhou 1 mês grátis do seu plano ${referrerProfile.plan}! ${couponMsg}\n\nContinue indicando para ganhar mais meses! 🚀`;
 
       try {
         await fetch(`${evolutionApiUrl}/message/sendText/${instanceName}`, {
@@ -93,15 +138,24 @@ Deno.serve(async (req) => {
             text: message,
           }),
         });
+        console.log(`WhatsApp notification sent to ${referrerProfile.phone}`);
       } catch (e) {
         console.error("Failed to send WhatsApp notification:", e);
       }
     }
 
-    return new Response(JSON.stringify({ success: true, message: "Reward applied" }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: "Reward applied",
+        coupon_applied: couponApplied,
+        referrer_id: referral.referrer_id,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
   } catch (err) {
     console.error("Error:", err);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
