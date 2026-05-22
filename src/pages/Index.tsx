@@ -205,9 +205,10 @@ export default function Dashboard() {
         {isNewUser && !showTutorial && <OnboardingGuide whatsappLink={whatsappLink} />}
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4" id="dashboard-stats">
-          <StatCard icon={<CheckSquare className="w-5 h-5" />} label="Tarefas Pendentes" value={String(pendingTasksCount)} />
-          <StatCard icon={<DollarSign className="w-5 h-5" />} label="Gastos do Mês" value={`R$ ${monthExpenses.toLocaleString("pt-BR")}`} />
-          <StatCard icon={<TrendingUp className="w-5 h-5" />} label="Receita do Mês" value={`R$ ${monthIncome.toLocaleString("pt-BR")}`} />
+          <StatCard icon={<CheckSquare className="w-5 h-5" />} label="Tarefas Pendentes" value={String(pendingTasksCount)} onClick={() => navigate("/tarefas")} />
+          <StatCard icon={<DollarSign className="w-5 h-5" />} label="Gastos do Mês" value={`R$ ${monthExpenses.toLocaleString("pt-BR")}`} onClick={() => navigate("/financas?filter=gasto")} />
+          <StatCard icon={<TrendingUp className="w-5 h-5" />} label="Receita do Mês" value={`R$ ${monthIncome.toLocaleString("pt-BR")}`} onClick={() => navigate("/financas?filter=receita")} />
+
 
           <div className="bg-card rounded-xl p-4 md:p-5 border border-border card-glow animate-fade-in">
             <div className="flex items-center justify-between mb-3">
