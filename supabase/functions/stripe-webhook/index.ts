@@ -6,6 +6,18 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
 };
 
+// Mapeamento de price IDs para planos
+const PRICE_TO_PLAN: Record<string, string> = {
+  // Subscription prices
+  "price_1TZtTLPpu2ogE0DArUc286V7": "STARTER", // Starter Mensal
+  "price_1TZtTOPpu2ogE0DAlT08sf53": "STARTER", // Starter Anual
+  "price_1TZtTQPpu2ogE0DACHSzeF2b": "PRO",     // PRO Mensal
+  "price_1TZtTTPpu2ogE0DAojmyQdPB": "PRO",     // PRO Anual
+  // One-time prices (para Pix/Boleto futuro)
+  "price_1TZw5mPpu2ogE0DARkfRUIGt": "STARTER", // Starter Anual (one-time)
+  "price_1TZw5oPpu2ogE0DAiO4YFJdb": "PRO",     // PRO Anual (one-time)
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -17,6 +29,7 @@ Deno.serve(async (req) => {
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
   if (!STRIPE_SECRET_KEY || !STRIPE_WEBHOOK_SECRET) {
+    console.error("Missing STRIPE_SECRET_KEY or STRIPE_WEBHOOK_SECRET");
     return new Response(JSON.stringify({ error: "Stripe não configurado" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -28,6 +41,7 @@ Deno.serve(async (req) => {
 
   const signature = req.headers.get("stripe-signature");
   if (!signature) {
+    console.error("No stripe-signature header");
     return new Response(JSON.stringify({ error: "Sem assinatura" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -47,29 +61,102 @@ Deno.serve(async (req) => {
     });
   }
 
+  console.log(`Processing event: ${event.type} (${event.id})`);
+
   try {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        const userId = session.metadata?.userId;
-        const plan = session.metadata?.plan;
+        
+        console.log(`Checkout completed. Mode: ${session.mode}, Payment status: ${session.payment_status}`);
+        console.log(`Metadata: ${JSON.stringify(session.metadata)}`);
+        console.log(`Customer email: ${session.customer_details?.email}`);
+
+        // Determinar userId e plan
+        let userId = session.metadata?.userId;
+        let plan = session.metadata?.plan;
+
+        // Se não tem metadata (Payment Link), identificar pelo email e price
+        if (!userId || !plan) {
+          const customerEmail = session.customer_details?.email;
+          console.log(`No metadata found. Trying to find user by email: ${customerEmail}`);
+
+          if (customerEmail) {
+            // Buscar usuário pelo email
+            const { data: userByEmail } = await supabase
+              .from("profiles")
+              .select("id")
+              .eq("email", customerEmail)
+              .maybeSingle();
+
+            if (userByEmail) {
+              userId = userByEmail.id;
+            } else {
+              // Tentar buscar na auth.users
+              const { data: { users } } = await supabase.auth.admin.listUsers();
+              const authUser = users?.find(u => u.email === customerEmail);
+              if (authUser) {
+                userId = authUser.id;
+              }
+            }
+          }
+
+          // Determinar o plano pelo line_items/price
+          if (!plan) {
+            try {
+              const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
+              if (lineItems.data.length > 0) {
+                const priceId = lineItems.data[0].price?.id;
+                if (priceId && PRICE_TO_PLAN[priceId]) {
+                  plan = PRICE_TO_PLAN[priceId];
+                  console.log(`Determined plan from price ${priceId}: ${plan}`);
+                }
+              }
+            } catch (lineErr) {
+              console.error("Error fetching line items:", lineErr);
+            }
+          }
+        }
+
+        console.log(`Final: userId=${userId}, plan=${plan}`);
 
         if (userId && plan) {
-          // 1. Atualizar o perfil do usuário com o plano pago
-          await supabase
-            .from("profiles")
-            .update({
-              plan,
-              stripe_customer_id: typeof session.customer === "string" ? session.customer : null,
-              stripe_subscription_id:
-                typeof session.subscription === "string" ? session.subscription : null,
-              subscription_date: new Date().toISOString(),
-              last_payment_date: new Date().toISOString(),
-              status: "active",
-            })
-            .eq("id", userId);
+          // Usar a RPC para atualizar o plano (bypassa triggers de proteção)
+          const customerId = typeof session.customer === "string" ? session.customer : null;
+          const subscriptionId = typeof session.subscription === "string" ? session.subscription : null;
 
-          // 2. Verificar se este usuário foi indicado por alguém
+          const { error: rpcError } = await supabase.rpc("update_user_plan", {
+            p_user_id: userId,
+            p_plan: plan,
+            p_stripe_customer_id: customerId,
+            p_stripe_subscription_id: subscriptionId,
+          });
+
+          if (rpcError) {
+            console.error("RPC update_user_plan error:", rpcError);
+            // Fallback: tentar update direto
+            const { error: updateError } = await supabase
+              .from("profiles")
+              .update({
+                plan,
+                stripe_customer_id: customerId,
+                stripe_subscription_id: subscriptionId,
+                subscription_date: new Date().toISOString(),
+                last_payment_date: new Date().toISOString(),
+                status: "active",
+              })
+              .eq("id", userId);
+
+            if (updateError) {
+              console.error("Fallback update also failed:", updateError);
+            } else {
+              console.log(`Fallback update succeeded for user ${userId} -> plan ${plan}`);
+            }
+          } else {
+            console.log(`Successfully updated user ${userId} to plan ${plan} via RPC`);
+          }
+
+          // Verificar se este usuário foi indicado por alguém
           const { data: referral } = await supabase
             .from("referrals")
             .select("*")
@@ -78,7 +165,6 @@ Deno.serve(async (req) => {
             .maybeSingle();
 
           if (referral) {
-            // Atualizar status para "pago"
             await supabase
               .from("referrals")
               .update({ status: "pago" })
@@ -86,7 +172,6 @@ Deno.serve(async (req) => {
 
             console.log(`Referral ${referral.id} updated to 'pago'. Triggering reward for referrer ${referral.referrer_id}`);
 
-            // 3. Disparar a recompensa para o referrer
             try {
               const rewardResponse = await fetch(
                 `${SUPABASE_URL}/functions/v1/process-referral-reward`,
@@ -105,6 +190,8 @@ Deno.serve(async (req) => {
               console.error("Failed to process referral reward:", rewardErr);
             }
           }
+        } else {
+          console.error(`Could not determine userId (${userId}) or plan (${plan}). Skipping update.`);
         }
         break;
       }
@@ -113,29 +200,43 @@ Deno.serve(async (req) => {
         const sub = event.data.object as Stripe.Subscription;
         const userId = sub.metadata?.userId;
 
+        console.log(`Subscription deleted. userId from metadata: ${userId}, customer: ${sub.customer}`);
+
         if (userId) {
-          await supabase
-            .from("profiles")
-            .update({
-              plan: "FREE",
-              stripe_subscription_id: null,
-              status: "canceled",
-            })
-            .eq("id", userId);
+          const { error } = await supabase.rpc("update_user_plan", {
+            p_user_id: userId,
+            p_plan: "FREE",
+            p_stripe_customer_id: null,
+            p_stripe_subscription_id: null,
+          });
+          if (error) {
+            console.error("RPC error on subscription deleted:", error);
+          }
         } else if (typeof sub.customer === "string") {
-          await supabase
+          // Buscar por stripe_customer_id
+          const { data: profile } = await supabase
             .from("profiles")
-            .update({
-              plan: "FREE",
-              stripe_subscription_id: null,
-              status: "canceled",
-            })
-            .eq("stripe_customer_id", sub.customer);
+            .select("id")
+            .eq("stripe_customer_id", sub.customer)
+            .maybeSingle();
+
+          if (profile) {
+            const { error } = await supabase.rpc("update_user_plan", {
+              p_user_id: profile.id,
+              p_plan: "FREE",
+              p_stripe_customer_id: null,
+              p_stripe_subscription_id: null,
+            });
+            if (error) {
+              console.error("RPC error on subscription deleted (by customer):", error);
+            }
+          }
         }
         break;
       }
 
       default:
+        console.log(`Unhandled event type: ${event.type}`);
         break;
     }
 
