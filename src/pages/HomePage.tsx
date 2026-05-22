@@ -277,18 +277,10 @@ export default function HomePage() {
           </div>
           {/* Hero images */}
           <div className="relative flex-1 flex items-center justify-center lg:justify-end">
-            <div className="relative flex items-center justify-center w-full max-w-2xl">
-              {/* iPhone 1: WhatsApp Chat */}
-              <img
-                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/pbyrLhYwLqUCWCPi.png"
-                alt="iPhone com conversa no WhatsApp com o Tuddo"
-                className="w-[220px] md:w-[260px] h-auto relative z-[2] object-contain -mr-16 md:-mr-24 animate-fade-in"
-                style={{ filter: "drop-shadow(0 24px 48px rgba(245, 166, 35, 0.15))" }}
-                loading="lazy"
-              />
-              {/* iPhone 2: Demo Video */}
+            <div className="relative flex items-center justify-center w-full max-w-md">
+              {/* iPhone: Demo Video */}
               <div
-                className="relative w-[240px] md:w-[280px] h-auto rounded-[44px] border-8 border-black overflow-hidden shadow-2xl animate-fade-in"
+                className="relative w-[260px] md:w-[300px] h-auto rounded-[44px] border-8 border-black overflow-hidden shadow-2xl animate-fade-in"
                 style={{ aspectRatio: "390 / 844" }}
               >
                 <video
