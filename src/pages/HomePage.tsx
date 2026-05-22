@@ -33,10 +33,10 @@ import {
 } from "lucide-react";
 
 /* ── Plan data ── */
-const STRIPE_LINK_STARTER_MONTHLY = 'https://buy.stripe.com/8x23cw0EM1hvddr1MIfEk04';
-const STRIPE_LINK_STARTER_YEARLY = 'https://buy.stripe.com/bJe8wQ3QY9O1a1fdvqfEk05';
-const STRIPE_LINK_PRO_MONTHLY = 'https://buy.stripe.com/6oU5kE3QY5xLgpD4YUfEk00';
-const STRIPE_LINK_PRO_YEARLY = 'https://buy.stripe.com/bJedRa1IQf8l7T7bnifEk02';
+const STRIPE_LINK_STARTER_MONTHLY = 'https://buy.stripe.com/7sYdRbaYRcWtedc9ZsefC00';
+const STRIPE_LINK_STARTER_YEARLY = 'https://buy.stripe.com/eVqeVfff7e0x9WWb3wefC01';
+const STRIPE_LINK_PRO_MONTHLY = 'https://buy.stripe.com/fZudRbaYRbSpedcb3wefC02';
+const STRIPE_LINK_PRO_YEARLY = 'https://buy.stripe.com/dRm4gB5Exf4B9WW7RkefC03';
 
 const plans = [
   {

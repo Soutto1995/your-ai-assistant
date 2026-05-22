@@ -23,12 +23,12 @@ const PLAN_LIMITS: Record<string, { limit: number; message: string }> = {
   FREE: {
     limit: 20,
     message:
-      "Você atingiu o limite de 20 mensagens mensais do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por R$ 19,90 e tenha 200 mensagens/mês! 🚀\n\n👉 tuddo.pro/planos",
+      "Você atingiu o limite de 20 mensagens mensais do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por R$ 19,90 e tenha 200 mensagens/mês! 🚀\n\n👉 tudd0.vercel.app/planos",
   },
   STARTER: {
     limit: 200,
     message:
-      "Você atingiu o seu limite de 200 mensagens mensais. Para ter mais liberdade, faça o upgrade para o plano PRO com mensagens ilimitadas! 💎\n\n👉 tuddo.pro/planos",
+      "Você atingiu o seu limite de 200 mensagens mensais. Para ter mais liberdade, faça o upgrade para o plano PRO com mensagens ilimitadas! 💎\n\n👉 tudd0.vercel.app/planos",
   },
   PRO: {
     limit: Infinity,
@@ -56,21 +56,21 @@ async function checkFeatureLimit(supabase: any, userId: string, plan: string, fe
       .eq("user_id", userId)
       .gte("transaction_date", monthStart.toISOString());
     if ((count ?? 0) >= limits.transactionsPerMonth) {
-      return `Você atingiu o limite de ${limits.transactionsPerMonth} transações/mês do seu plano. Faça upgrade para continuar! 🚀\n\n👉 tuddo.pro/planos`;
+      return `Você atingiu o limite de ${limits.transactionsPerMonth} transações/mês do seu plano. Faça upgrade para continuar! 🚀\n\n👉 tudd0.vercel.app/planos`;
     }
   }
 
   if (feature === "budget") {
     if (limits.budgets === Infinity) return null;
     if (limits.budgets === 0) {
-      return "O controle de orçamento está disponível a partir do plano Starter. Faça upgrade! 🚀\n\n👉 tuddo.pro/planos";
+      return "O controle de orçamento está disponível a partir do plano Starter. Faça upgrade! 🚀\n\n👉 tudd0.vercel.app/planos";
     }
     const { count } = await supabase
       .from("budgets")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId);
     if ((count ?? 0) >= limits.budgets) {
-      return `Você atingiu o limite de ${limits.budgets} orçamentos do seu plano. Faça upgrade para mais! 🚀\n\n👉 tuddo.pro/planos`;
+      return `Você atingiu o limite de ${limits.budgets} orçamentos do seu plano. Faça upgrade para mais! 🚀\n\n👉 tudd0.vercel.app/planos`;
     }
   }
 
@@ -158,7 +158,7 @@ Para create_meeting:
 Para list_items:
 - data.item_type: "transaction", "task" ou "meeting"
 - data.transaction_type: APENAS para transações — "gasto" (gastos/despesas) ou "receita" (ganhos/receitas). Se pediu "transações" ou "tudo", OMITIR este campo.
-- data.date_filter: "hoje", "ontem", "amanhã", "esta semana", "este mês"
+- data.date_filter: "hoje", "ontem", "amanhã", "esta semana", "este mês", "próximo mês", "janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"
 
 REGRAS CRÍTICAS DE INTERPRETAÇÃO:
 1. HORÁRIOS: "14h" = 14:00:00. "9h" = 09:00:00. "3 da tarde" = 15:00:00. "20h" = 20:00:00. "meio-dia" = 12:00:00. NUNCA converta para UTC.
@@ -194,6 +194,9 @@ Output: {"intent":"list_items","data":{"item_type":"transaction","transaction_ty
 
 Input: "quais meus compromissos de amanhã?"
 Output: {"intent":"list_items","data":{"item_type":"meeting","date_filter":"amanhã"},"response":"Buscando seus compromissos de amanhã..."}
+
+Input: "compromissos para junho"
+Output: {"intent":"list_items","data":{"item_type":"meeting","date_filter":"junho"},"response":"Buscando seus compromissos de junho..."}
 
 Input: "minhas tarefas"
 Output: {"intent":"list_items","data":{"item_type":"task","date_filter":"hoje"},"response":"Buscando suas tarefas pendentes..."}
@@ -1013,9 +1016,32 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
           endDate = formatDate(lastDay);
           break;
         }
+        case "próximo mês": {
+          const nextMonth = new Date(spNow.getFullYear(), spNow.getMonth() + 1, 1);
+          startDate = formatDate(nextMonth);
+          const lastDayNext = new Date(spNow.getFullYear(), spNow.getMonth() + 2, 0);
+          endDate = formatDate(lastDayNext);
+          break;
+        }
         default: {
-          startDate = formatDate(spNow);
-          endDate = startDate;
+          // Verificar se é um nome de mês
+          const monthNames: Record<string, number> = {
+            "janeiro": 0, "fevereiro": 1, "março": 2, "abril": 3,
+            "maio": 4, "junho": 5, "julho": 6, "agosto": 7,
+            "setembro": 8, "outubro": 9, "novembro": 10, "dezembro": 11
+          };
+          const monthIndex = monthNames[dateFilter.toLowerCase()];
+          if (monthIndex !== undefined) {
+            let year = spNow.getFullYear();
+            // Se o mês já passou, assume próximo ano
+            if (monthIndex < spNow.getMonth()) year++;
+            startDate = `${year}-${String(monthIndex + 1).padStart(2, "0")}-01`;
+            const lastDayMonth = new Date(year, monthIndex + 1, 0);
+            endDate = formatDate(lastDayMonth);
+          } else {
+            startDate = formatDate(spNow);
+            endDate = startDate;
+          }
           break;
         }
       }
@@ -1059,6 +1085,7 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
           });
         }
       } else if (itemType === "meeting") {
+        // Buscar eventos/compromissos
         const { data: events } = await supabase
           .from("events")
           .select("title, event_time, event_date")
@@ -1070,8 +1097,28 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
         if (events && events.length > 0) {
           items = events.map((e: any) => {
             const time = e.event_time ? ` às ${String(e.event_time).slice(0, 5)}` : "";
-            return `📅 ${e.title}${time}`;
+            const dateStr = e.event_date ? ` (${new Date(e.event_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })})` : "";
+            return `📅 ${e.title}${time}${dateStr}`;
           });
+        }
+
+        // Também buscar tarefas com due_date no período (são compromissos implícitos)
+        const { data: tasksWithDate } = await supabase
+          .from("tasks")
+          .select("title, due_date")
+          .eq("user_id", userId)
+          .eq("status", "pendente")
+          .gte("due_date", `${startDate}T00:00:00`)
+          .lte("due_date", `${endDate}T23:59:59`)
+          .order("due_date", { ascending: true });
+
+        if (tasksWithDate && tasksWithDate.length > 0) {
+          const taskItems = tasksWithDate.map((t: any) => {
+            const d = new Date(t.due_date);
+            const dateStr = ` (${d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" })})`;
+            return `📌 ${t.title}${dateStr}`;
+          });
+          items = items.concat(taskItems);
         }
       }
 
