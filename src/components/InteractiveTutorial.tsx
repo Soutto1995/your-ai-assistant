@@ -187,6 +187,36 @@ export default function InteractiveTutorial({ onComplete, onSkip }: InteractiveT
                 <code className="text-sm text-primary">{step.example}</code>
               </div>
             )}
+            {step.installGuide && (
+              <div className="mt-3 space-y-3">
+                <div className="rounded-lg border border-border bg-secondary/40 p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Apple className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-semibold text-foreground">iPhone (Safari)</span>
+                  </div>
+                  <ol className="list-decimal pl-5 space-y-1 text-xs text-muted-foreground">
+                    <li>Abra o Safari e acesse <code className="text-primary">tudd0.vercel.app</code></li>
+                    <li>Toque no ícone de <strong>compartilhar</strong> (quadrado com seta para cima) na barra inferior</li>
+                    <li>Role para baixo e toque em <strong>"Adicionar à Tela de Início"</strong></li>
+                    <li>Dê o nome <strong>"Tuddo"</strong> e toque em <strong>"Adicionar"</strong></li>
+                    <li>Pronto! 🎉 O Tuddo aparecerá como um app na sua tela inicial</li>
+                  </ol>
+                </div>
+                <div className="rounded-lg border border-border bg-secondary/40 p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Smartphone className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-semibold text-foreground">Android (Chrome)</span>
+                  </div>
+                  <ol className="list-decimal pl-5 space-y-1 text-xs text-muted-foreground">
+                    <li>Abra o Chrome e acesse <code className="text-primary">tudd0.vercel.app</code></li>
+                    <li>Toque nos <strong>3 pontinhos (⋮)</strong> no canto superior direito</li>
+                    <li>Toque em <strong>"Adicionar à tela inicial"</strong> ou <strong>"Instalar app"</strong></li>
+                    <li>Confirme tocando em <strong>"Adicionar"</strong></li>
+                    <li>Pronto! 🎉 O Tuddo aparecerá como um app na sua tela inicial</li>
+                  </ol>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
