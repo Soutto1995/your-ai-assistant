@@ -125,7 +125,7 @@ async function getSpendingComparison(supabase: any, userId: string, category: st
 // ============================================================
 // SYSTEM PROMPT — REESCRITO PARA PRECISÃO CIRÚRGICA
 // ============================================================
-const SYSTEM_PROMPT = `Você é o "Tuddo", um assistente de produtividade e finanças para WhatsApp. Analise a mensagem do usuário e retorne APENAS um objeto JSON válido, sem markdown, crases ou texto extra.
+const SYSTEM_PROMPT = `Você é o "Tuddo", um assistente pessoal inteligente de produtividade e finanças via WhatsApp. Sua função é interpretar com precisão cirúrgica o que o usuário deseja e retornar APENAS um objeto JSON válido, sem markdown, crases ou texto extra.
 
 DATA/HORA ATUAL (America/Sao_Paulo): {{current_time}}
 
@@ -133,46 +133,61 @@ ESTRUTURA DE SAÍDA:
 {"intent":"TIPO","data":{...},"response":"TEXTO"}
 
 INTENTS DISPONÍVEIS:
-1. create_transaction — registrar gasto ou receita
-2. create_task — criar tarefa ou lembrete
-3. create_meeting — agendar compromisso/reunião/evento
-4. list_items — listar/consultar itens existentes
-5. general_query — saudações ou perguntas gerais
+1. create_transaction — registrar gasto ou receita (inclui compras, pagamentos, boletos, pix, salário)
+2. create_task — criar tarefa, lembrete ou to-do
+3. create_meeting — agendar compromisso, reunião, consulta ou evento
+4. list_items — listar/consultar itens existentes (gastos, receitas, tarefas, compromissos)
+5. general_query — saudações, perguntas gerais ou qualquer coisa que não se encaixe acima
 
 REGRAS DE EXTRAÇÃO DE DADOS:
 
 Para create_transaction:
-- data.description: descrição curta (ex: "Almoço no restaurante")
-- data.amount: valor numérico positivo (extrair mesmo sem "R$")
-- data.type: "gasto" (gastei, paguei, comprei) ou "receita" (recebi, ganhei, vendi)
+- data.description: descrição curta e clara (ex: "Almoço no restaurante", "Supermercado Bistek")
+- data.amount: valor numérico positivo (extrair mesmo sem "R$". "50 reais" = 50. "12,90" = 12.90)
+- data.type: "gasto" (gastei, paguei, comprei, boleto, conta) ou "receita" (recebi, ganhei, vendi, salário, freelance)
 - data.category: uma das categorias [${Object.keys(categoryDictionary).join(", ")}]. Default: "Geral"
 
 Para create_task:
-- data.description: título conciso da tarefa
-- data.due_date: data no formato "YYYY-MM-DDTHH:mm:ss" (horário local São Paulo, SEM sufixo Z ou offset)
+- data.description: título conciso e claro da tarefa (ex: "Fazer INSS da Luciana", "Comprar leite")
+- data.due_date: data no formato "YYYY-MM-DDTHH:mm:ss" (horário local São Paulo, SEM sufixo Z ou offset). Se não houver data específica, usar null.
 
 Para create_meeting:
-- data.description: título conciso do compromisso (NÃO repita a mensagem inteira, extraia apenas o assunto. Ex: "marcar consulta para amanhã" → "Consulta")
-- data.meeting_date: data no formato "YYYY-MM-DDTHH:mm:ss" (horário local São Paulo, SEM sufixo Z ou offset). Se não houver hora, use 12:00:00
+- data.description: título conciso do compromisso (NUNCA repita a mensagem inteira. Ex: "consulta com Luciana 20h quinta" → "Consulta com Luciana")
+- data.meeting_date: data no formato "YYYY-MM-DDTHH:mm:ss" (horário local São Paulo, SEM sufixo Z ou offset). Se não houver hora explícita, use 12:00:00.
 
 Para list_items:
 - data.item_type: "transaction", "task" ou "meeting"
-- data.transaction_type: APENAS para transações — "gasto" (se pediu gastos/despesas) ou "receita" (se pediu ganhos/receitas). Se pediu "transações" ou "tudo", omitir este campo
+- data.transaction_type: APENAS para transações — "gasto" (gastos/despesas) ou "receita" (ganhos/receitas). Se pediu "transações" ou "tudo", OMITIR este campo.
 - data.date_filter: "hoje", "ontem", "amanhã", "esta semana", "este mês"
 
-REGRAS CRÍTICAS:
-1. HORÁRIOS: "14h" = 14:00:00. "9h" = 09:00:00. "3 da tarde" = 15:00:00. NUNCA converta para UTC.
-2. DATAS RELATIVAS: Use a data/hora atual fornecida. "Amanhã" = dia seguinte. "Semana que vem" = próxima segunda-feira.
-3. TÍTULOS: Extraia títulos CONCISOS. "marcar consulta para amanhã às 14h" → description: "Consulta". "reunião com João segunda" → description: "Reunião com João".
-4. PORTUGUÊS: Toda response DEVE começar com letra maiúscula. Use concordância correta (seus compromissos, suas tarefas, seus gastos).
-5. RESPONSE: Seja breve e confirme a ação. Para create_meeting: "Agendado! {título} para {data} às {hora}.". Para list_items: não precisa de response elaborada.
+REGRAS CRÍTICAS DE INTERPRETAÇÃO:
+1. HORÁRIOS: "14h" = 14:00:00. "9h" = 09:00:00. "3 da tarde" = 15:00:00. "20h" = 20:00:00. "meio-dia" = 12:00:00. NUNCA converta para UTC.
+2. DATAS RELATIVAS: Use a data/hora atual fornecida. "Amanhã" = dia seguinte. "Quinta" = próxima quinta-feira. "Semana que vem" = próxima segunda.
+3. TÍTULOS CONCISOS: Extraia APENAS o assunto. "marcar consulta Luciana 20h quinta" → "Consulta com Luciana". "fazer INSS da Luciana" → "Fazer INSS da Luciana". "reuniao com João segunda" → "Reunião com João".
+4. MENSAGENS CURTAS: Se o usuário mandar apenas palavras-chave como "INSS da Luciana fazer" ou "Protocolos pacientes", interprete como TAREFA (create_task).
+5. FOTOS ANALISADAS: Quando a mensagem começar com "[Foto enviada - análise: ...]", significa que o usuário enviou uma foto e a IA já extraiu os dados. Use essas informações para criar a transação automaticamente.
+6. GRAMÁTICA E ORTOGRAFIA: Toda response DEVE começar com letra maiúscula. Use acentuação correta. Use concordância verbal e nominal perfeita.
+7. RESPONSE: Seja breve, direto e confirme a ação realizada. Use emojis com moderação (✅, 💰, 📅, 📌).
+8. DIFERENÇA GASTOS vs RECEITAS vs TRANSAÇÕES: "Quanto gastei" = só gastos. "Quanto ganhei" = só receitas. "Minhas transações" = ambos.
 
 EXEMPLOS:
-Input: "marcar consulta para amanhã as 14h"
-Output: {"intent":"create_meeting","data":{"description":"Consulta","meeting_date":"2026-03-28T14:00:00"},"response":"Agendado! Consulta para amanhã às 14:00."}
+Input: "Consulta Luciana 20h quinta feira"
+Output: {"intent":"create_meeting","data":{"description":"Consulta com Luciana","meeting_date":"2026-05-22T20:00:00"},"response":"Agendado! Consulta com Luciana para quinta-feira às 20:00. 📅"}
+
+Input: "INSS da luciana fazer"
+Output: {"intent":"create_task","data":{"description":"Fazer INSS da Luciana","due_date":null},"response":"Anotado! Tarefa criada: Fazer INSS da Luciana. ✅"}
 
 Input: "gastei 50 no mercado"
-Output: {"intent":"create_transaction","data":{"description":"Mercado","amount":50,"type":"gasto","category":"Mercado"},"response":"Registrado! Gasto de R$ 50,00 em Mercado."}
+Output: {"intent":"create_transaction","data":{"description":"Mercado","amount":50,"type":"gasto","category":"Mercado"},"response":"Registrado! Gasto de R$ 50,00 em Mercado. 💸"}
+
+Input: "recebi 3500 de salario"
+Output: {"intent":"create_transaction","data":{"description":"Salário","amount":3500,"type":"receita","category":"Outros"},"response":"Registrado! Receita de R$ 3.500,00 (Salário). 💰"}
+
+Input: "[Foto enviada - análise: Compra no Supermercado Bistek: R$ 127,45 - carnes, frutas, laticínios]"
+Output: {"intent":"create_transaction","data":{"description":"Supermercado Bistek","amount":127.45,"type":"gasto","category":"Mercado"},"response":"Registrado pela foto! Gasto de R$ 127,45 no Supermercado Bistek. 📸✅"}
+
+Input: "[Foto enviada - análise: Boleto Celesc Energia: R$ 189,30 - vence 25/05/2026]"
+Output: {"intent":"create_transaction","data":{"description":"Conta de energia Celesc","amount":189.30,"type":"gasto","category":"Moradia"},"response":"Registrado pela foto! Conta de energia Celesc: R$ 189,30 (vence 25/05). ⚡✅"}
 
 Input: "quanto eu gastei hoje?"
 Output: {"intent":"list_items","data":{"item_type":"transaction","transaction_type":"gasto","date_filter":"hoje"},"response":"Buscando seus gastos de hoje..."}
@@ -180,11 +195,14 @@ Output: {"intent":"list_items","data":{"item_type":"transaction","transaction_ty
 Input: "quais meus compromissos de amanhã?"
 Output: {"intent":"list_items","data":{"item_type":"meeting","date_filter":"amanhã"},"response":"Buscando seus compromissos de amanhã..."}
 
-Input: "minhas transações deste mês"
-Output: {"intent":"list_items","data":{"item_type":"transaction","date_filter":"este mês"},"response":"Buscando suas transações deste mês..."}
+Input: "minhas tarefas"
+Output: {"intent":"list_items","data":{"item_type":"task","date_filter":"hoje"},"response":"Buscando suas tarefas pendentes..."}
 
 Input: "quanto eu ganhei este mês?"
 Output: {"intent":"list_items","data":{"item_type":"transaction","transaction_type":"receita","date_filter":"este mês"},"response":"Buscando suas receitas deste mês..."}
+
+Input: "oi"
+Output: {"intent":"general_query","data":{},"response":"Olá! Sou o Tuddo, seu assistente pessoal. Posso te ajudar com tarefas, compromissos e finanças. O que precisa? 😊"}
 
 Retorne APENAS o JSON.`;
 
@@ -630,6 +648,165 @@ async function sendWhatsAppMessage(phone: string, text: string): Promise<string>
 }
 
 // ============================================================
+// MEDIA PROCESSING — IMAGEM (OCR/Vision) E ÁUDIO (Whisper)
+// ============================================================
+
+async function getMediaBase64(messageKey: JsonRecord, message: JsonRecord): Promise<string | null> {
+  const evolutionUrl = Deno.env.get("EVOLUTION_API_URL") || "https://evolution-api-production-6070.up.railway.app";
+  const evolutionKey = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") || "BD8F003B34FE-44F4-BBF7-B72255FCDE25";
+  const instanceName = Deno.env.get("EVOLUTION_API_INSTANCE_NAME") || "Tuddo";
+
+  try {
+    const url = `${evolutionUrl}/chat/getBase64FromMediaMessage/${instanceName}`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "apikey": evolutionKey,
+      },
+      body: JSON.stringify({ message: { key: messageKey, message } }),
+    });
+
+    if (!response.ok) {
+      console.error("getBase64 error:", response.status, await response.text());
+      return null;
+    }
+
+    const result = await response.json();
+    // Evolution API v2 returns { base64: "..." }
+    if (typeof result === "string") return result;
+    if (isRecord(result) && typeof result.base64 === "string") return result.base64;
+    return null;
+  } catch (error) {
+    console.error("getMediaBase64 error:", error);
+    return null;
+  }
+}
+
+async function analyzeImageWithVision(base64: string, mimetype: string, caption?: string): Promise<string> {
+  const openaiKey = Deno.env.get("OPENAI_API_KEY") || "sk-kFUNco9574LrFN3B4GSoKK";
+
+  const imagePrompt = `Você é o Tuddo, assistente financeiro e de produtividade. Analise esta imagem e extraia as informações relevantes.
+
+Se for um RECIBO, NOTA FISCAL ou COMPROVANTE DE COMPRA:
+- Extraia: estabelecimento, valor total, data, itens principais
+- Responda no formato: "Compra no [estabelecimento]: R$ [valor] - [itens principais]"
+
+Se for um BOLETO ou CONTA:
+- Extraia: empresa/serviço, valor, data de vencimento
+- Responda no formato: "Boleto [empresa]: R$ [valor] - vence [data]"
+
+Se for um COMPROVANTE DE PAGAMENTO/PIX:
+- Extraia: destinatário, valor, data
+- Responda no formato: "Pagamento para [destinatário]: R$ [valor] em [data]"
+
+Se for QUALQUER OUTRA IMAGEM:
+- Descreva brevemente o conteúdo relevante
+
+Responda APENAS com a informação extraída de forma concisa, sem explicações adicionais.${caption ? `\n\nO usuário enviou junto a legenda: "${caption}"` : ""}`;
+
+  try {
+    const dataUrl = `data:${mimetype || "image/jpeg"};base64,${base64}`;
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openaiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4.1-mini",
+        temperature: 0,
+        max_tokens: 500,
+        messages: [
+          { role: "user", content: [
+            { type: "text", text: imagePrompt },
+            { type: "image_url", image_url: { url: dataUrl, detail: "high" } },
+          ]},
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Vision API error:", response.status, await response.text());
+      return "";
+    }
+
+    const payload = await response.json();
+    return payload?.choices?.[0]?.message?.content?.trim() || "";
+  } catch (error) {
+    console.error("analyzeImageWithVision error:", error);
+    return "";
+  }
+}
+
+async function transcribeAudio(base64: string, mimetype: string): Promise<string> {
+  const openaiKey = Deno.env.get("OPENAI_API_KEY") || "sk-kFUNco9574LrFN3B4GSoKK";
+
+  try {
+    // Convert base64 to binary
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    // Determine file extension from mimetype
+    let ext = "ogg";
+    if (mimetype?.includes("mp4")) ext = "mp4";
+    else if (mimetype?.includes("mpeg")) ext = "mp3";
+    else if (mimetype?.includes("wav")) ext = "wav";
+    else if (mimetype?.includes("webm")) ext = "webm";
+
+    // Create form data with the audio file
+    const formData = new FormData();
+    const blob = new Blob([bytes], { type: mimetype || "audio/ogg" });
+    formData.append("file", blob, `audio.${ext}`);
+    formData.append("model", "gpt-4o-mini-transcribe");
+    formData.append("language", "pt");
+
+    const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openaiKey}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      console.error("Whisper API error:", response.status, await response.text());
+      return "";
+    }
+
+    const result = await response.json();
+    return result?.text?.trim() || "";
+  } catch (error) {
+    console.error("transcribeAudio error:", error);
+    return "";
+  }
+}
+
+function detectMediaType(message: JsonRecord): "image" | "audio" | "document" | null {
+  if (isRecord(message.imageMessage)) return "image";
+  if (isRecord(message.audioMessage)) return "audio";
+  if (isRecord(message.documentMessage)) return "document";
+  return null;
+}
+
+function getMediaMimetype(message: JsonRecord): string {
+  if (isRecord(message.imageMessage)) return String(message.imageMessage.mimetype || "image/jpeg");
+  if (isRecord(message.audioMessage)) return String(message.audioMessage.mimetype || "audio/ogg");
+  if (isRecord(message.documentMessage)) return String(message.documentMessage.mimetype || "application/pdf");
+  return "";
+}
+
+function getMediaCaption(message: JsonRecord): string {
+  if (isRecord(message.imageMessage) && typeof message.imageMessage.caption === "string") {
+    return message.imageMessage.caption;
+  }
+  return "";
+}
+
+// ============================================================
 // EXECUTE INTENT ACTION — TOTALMENTE REESCRITO
 // ============================================================
 async function executeIntentAction(supabase: any, userId: string, userPlan: string, aiResult: AiResult, fallbackText: string): Promise<string> {
@@ -1000,6 +1177,51 @@ serve(async (req) => {
 
     const message = isRecord(data.message) ? data.message : {};
     let text = extractTextMessage(message).trim();
+
+    // Detectar mídia (imagem ou áudio)
+    const mediaType = detectMediaType(message);
+    let mediaProcessed = false;
+
+    if (mediaType === "image" || mediaType === "audio") {
+      // Buscar o base64 da mídia via Evolution API
+      const messageKey = {
+        id: typeof key.id === "string" ? key.id : "",
+        remoteJid: typeof key.remoteJid === "string" ? key.remoteJid : "",
+        fromMe: key.fromMe || false,
+      };
+
+      const base64 = await getMediaBase64(messageKey, message);
+
+      if (base64) {
+        const mimetype = getMediaMimetype(message);
+
+        if (mediaType === "image") {
+          const caption = getMediaCaption(message);
+          const imageAnalysis = await analyzeImageWithVision(base64, mimetype, caption || text);
+          if (imageAnalysis) {
+            // Combinar a análise da imagem com qualquer texto/legenda
+            text = caption
+              ? `[Foto enviada - análise: ${imageAnalysis}] Legenda do usuário: ${caption}`
+              : `[Foto enviada - análise: ${imageAnalysis}]`;
+            mediaProcessed = true;
+          }
+        } else if (mediaType === "audio") {
+          const transcription = await transcribeAudio(base64, mimetype);
+          if (transcription) {
+            text = transcription;
+            mediaProcessed = true;
+          }
+        }
+      }
+
+      // Se não conseguiu processar a mídia e não tem texto
+      if (!mediaProcessed && !text) {
+        return new Response(JSON.stringify({ status: "media_processing_failed" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     if (!text) {
       return new Response(JSON.stringify({ status: "ignored_non_text" }), {
