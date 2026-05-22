@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Send, BarChart3, PartyPopper, CheckSquare, Zap, ChevronRight, ChevronLeft, X } from "lucide-react";
+import { MessageCircle, Send, BarChart3, PartyPopper, CheckSquare, Zap, ChevronRight, ChevronLeft, X, Smartphone, Apple } from "lucide-react";
 
 interface TutorialStep {
   icon: React.ReactNode;
@@ -8,6 +8,7 @@ interface TutorialStep {
   description: string;
   targetId?: string;
   example?: string;
+  installGuide?: boolean;
 }
 
 const STEPS: TutorialStep[] = [
@@ -17,26 +18,32 @@ const STEPS: TutorialStep[] = [
     description: "Vamos fazer um tour rápido de 1 minuto para você dominar suas finanças e produtividade.",
   },
   {
+    icon: <Smartphone className="w-6 h-6" />,
+    title: "1. Adicione o Tuddo à sua tela inicial",
+    description: "Tenha o Tuddo a um toque de distância, como um app de verdade. Siga o passo a passo do seu celular:",
+    installGuide: true,
+  },
+  {
     icon: <MessageCircle className="w-6 h-6" />,
-    title: "1. Conecte seu WhatsApp",
+    title: "2. Conecte seu WhatsApp",
     description: "O coração do Tuddo é o WhatsApp. Clique no botão destacado para enviar sua primeira mensagem e conectar sua conta. É por lá que a mágica acontece.",
     targetId: "whatsapp-connect-btn",
   },
   {
     icon: <Send className="w-6 h-6" />,
-    title: "2. Registre um Gasto",
+    title: "3. Registre um Gasto",
     description: "Volte para o WhatsApp e envie uma mensagem de teste. Tente algo como:",
     example: '"Comprei um café por 5 reais"',
   },
   {
     icon: <CheckSquare className="w-6 h-6" />,
-    title: "3. Crie uma Tarefa",
+    title: "4. Crie uma Tarefa",
     description: "O Tuddo vai além das finanças. No WhatsApp, tente enviar:",
     example: '"Lembrar de pagar o aluguel amanhã às 10h"',
   },
   {
     icon: <BarChart3 className="w-6 h-6" />,
-    title: "4. Explore seu Dashboard",
+    title: "5. Explore seu Dashboard",
     description: "Volte para cá e veja! Tudo o que você envia aparece aqui, organizado automaticamente. Seus gastos, receitas e tarefas, tudo em um só lugar.",
     targetId: "dashboard-stats",
   },
