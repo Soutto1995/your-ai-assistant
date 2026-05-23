@@ -116,6 +116,59 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_payments: {
+        Row: {
+          amount_paid: number | null
+          claimed: boolean | null
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string | null
+          customer_name: string | null
+          email: string
+          id: string
+          plan: string
+          stripe_customer_id: string | null
+          stripe_session_id: string | null
+          stripe_subscription_id: string | null
+        }
+        Insert: {
+          amount_paid?: number | null
+          claimed?: boolean | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string | null
+          customer_name?: string | null
+          email: string
+          id?: string
+          plan: string
+          stripe_customer_id?: string | null
+          stripe_session_id?: string | null
+          stripe_subscription_id?: string | null
+        }
+        Update: {
+          amount_paid?: number | null
+          claimed?: boolean | null
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string | null
+          customer_name?: string | null
+          email?: string
+          id?: string
+          plan?: string
+          stripe_customer_id?: string | null
+          stripe_session_id?: string | null
+          stripe_subscription_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_payments_claimed_by_fkey"
+            columns: ["claimed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -333,7 +386,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      update_user_plan: {
+        Args: {
+          p_plan: string
+          p_stripe_customer_id?: string
+          p_stripe_subscription_id?: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
