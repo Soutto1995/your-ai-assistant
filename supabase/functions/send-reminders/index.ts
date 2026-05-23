@@ -42,10 +42,14 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // --- AUTENTICAÇÃO: Apenas chamadas com service_role key são permitidas ---
+  // --- AUTENTICAÇÃO: Aceita service_role key OU anon key (cron interno do Supabase) ---
   const authHeader = req.headers.get("Authorization");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!authHeader || authHeader !== `Bearer ${serviceRoleKey}`) {
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const token = authHeader?.replace("Bearer ", "");
+
+  const isAuthorized = token && (token === serviceRoleKey || token === anonKey);
+  if (!isAuthorized) {
     console.error("Unauthorized call to send-reminders");
     return new Response(JSON.stringify({ error: "Não autorizado" }), {
       status: 401,

@@ -198,11 +198,10 @@ export default function HomePage() {
 
   useEffect(() => {
     const fetchSpots = async () => {
-      const { count } = await supabase
-        .from("profiles")
-        .select("*", { count: "exact", head: true })
-        .neq("plan", "FREE");
-      setRemainingSpots(Math.max(0, 500 - (count ?? 0)));
+      const { data, error } = await supabase.rpc("get_remaining_spots");
+      if (!error && data !== null) {
+        setRemainingSpots(data);
+      }
     };
     fetchSpots();
   }, []);
