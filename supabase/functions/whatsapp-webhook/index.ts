@@ -23,12 +23,12 @@ const PLAN_LIMITS: Record<string, { limit: number; message: string }> = {
   FREE: {
     limit: 20,
     message:
-      "Você atingiu o limite de 20 mensagens mensais do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por R$ 19,90 e tenha 200 mensagens/mês! 🚀\n\n👉 tudd0.vercel.app/planos",
+      "Você atingiu o limite de 20 mensagens mensais do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por R$ 19,90 e tenha 200 mensagens/mês! 🚀\n\n👉 tuddo.lovable.app/planos",
   },
   STARTER: {
     limit: 200,
     message:
-      "Você atingiu o seu limite de 200 mensagens mensais. Para ter mais liberdade, faça o upgrade para o plano PRO com mensagens ilimitadas! 💎\n\n👉 tudd0.vercel.app/planos",
+      "Você atingiu o seu limite de 200 mensagens mensais. Para ter mais liberdade, faça o upgrade para o plano PRO com mensagens ilimitadas! 💎\n\n👉 tuddo.lovable.app/planos",
   },
   PRO: {
     limit: Infinity,
@@ -56,21 +56,21 @@ async function checkFeatureLimit(supabase: any, userId: string, plan: string, fe
       .eq("user_id", userId)
       .gte("transaction_date", monthStart.toISOString());
     if ((count ?? 0) >= limits.transactionsPerMonth) {
-      return `Você atingiu o limite de ${limits.transactionsPerMonth} transações/mês do seu plano. Faça upgrade para continuar! 🚀\n\n👉 tudd0.vercel.app/planos`;
+      return `Você atingiu o limite de ${limits.transactionsPerMonth} transações/mês do seu plano. Faça upgrade para continuar! 🚀\n\n👉 tuddo.lovable.app/planos`;
     }
   }
 
   if (feature === "budget") {
     if (limits.budgets === Infinity) return null;
     if (limits.budgets === 0) {
-      return "O controle de orçamento está disponível a partir do plano Starter. Faça upgrade! 🚀\n\n👉 tudd0.vercel.app/planos";
+      return "O controle de orçamento está disponível a partir do plano Starter. Faça upgrade! 🚀\n\n👉 tuddo.lovable.app/planos";
     }
     const { count } = await supabase
       .from("budgets")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId);
     if ((count ?? 0) >= limits.budgets) {
-      return `Você atingiu o limite de ${limits.budgets} orçamentos do seu plano. Faça upgrade para mais! 🚀\n\n👉 tudd0.vercel.app/planos`;
+      return `Você atingiu o limite de ${limits.budgets} orçamentos do seu plano. Faça upgrade para mais! 🚀\n\n👉 tuddo.lovable.app/planos`;
     }
   }
 
@@ -1314,7 +1314,7 @@ serve(async (req) => {
     if (!profiles || profiles.length === 0) {
       await sendWhatsAppMessage(
         remotePhone,
-        "Desculpe, não encontrei seu cadastro. Por favor, registre-se na plataforma primeiro! 📱\n\n👉 tuddo.pro",
+        "Desculpe, não encontrei seu cadastro. Por favor, registre-se na plataforma primeiro! 📱\n\n👉 tuddo.lovable.app",
       );
 
       return new Response(JSON.stringify({ status: "user_not_found" }), {
