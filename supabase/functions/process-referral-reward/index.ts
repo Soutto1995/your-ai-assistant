@@ -14,6 +14,16 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Require service-role auth (called server-to-server from stripe-webhook)
+  const authHeader = req.headers.get("Authorization");
+  const expectedToken = `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""}`;
+  if (!authHeader || authHeader !== expectedToken) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const { referred_user_id } = await req.json();
     if (!referred_user_id) {
@@ -110,7 +120,7 @@ Deno.serve(async (req) => {
     // Send WhatsApp notification to referrer
     const evolutionApiUrl = Deno.env.get("EVOLUTION_API_URL") || "https://evolution-api-production-6070.up.railway.app";
     const instanceName = Deno.env.get("EVOLUTION_API_INSTANCE_NAME") || "Tuddo";
-    const instanceToken = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") || "BD8F003B34FE-44F4-BBF7-B72255FCDE25";
+    const instanceToken = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN");
 
     if (referrerProfile.phone) {
       const { data: referredProfile } = await supabase

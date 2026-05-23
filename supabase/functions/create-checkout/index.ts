@@ -92,7 +92,7 @@ Deno.serve(async (req) => {
     });
   } catch (err) {
     console.error("create-checkout error:", err);
-    return new Response(JSON.stringify({ error: (err as Error).message ?? "internal_error" }), {
+    return new Response(JSON.stringify({ error: "Erro ao processar checkout. Tente novamente." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

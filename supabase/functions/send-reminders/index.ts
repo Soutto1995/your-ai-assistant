@@ -9,7 +9,7 @@ const corsHeaders = {
 
 async function sendWhatsAppMessage(phone: string, text: string): Promise<void> {
   const evolutionUrl = Deno.env.get("EVOLUTION_API_URL") || "https://evolution-api-production-6070.up.railway.app";
-  const evolutionKey = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") || "BD8F003B34FE-44F4-BBF7-B72255FCDE25";
+  const evolutionKey = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN");
   const instanceName = Deno.env.get("EVOLUTION_API_INSTANCE_NAME") || "Tuddo";
 
   if (!evolutionUrl || !evolutionKey) {
@@ -40,6 +40,16 @@ async function sendWhatsAppMessage(phone: string, text: string): Promise<void> {
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // Require service-role auth (intended to be called by scheduler/cron)
+  const authHeader = req.headers.get("Authorization");
+  const expectedToken = `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""}`;
+  if (!authHeader || authHeader !== expectedToken) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
