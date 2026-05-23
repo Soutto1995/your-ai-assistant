@@ -71,18 +71,35 @@ Deno.serve(async (req) => {
         console.log(`Checkout completed. Mode: ${session.mode}, Payment status: ${session.payment_status}`);
         console.log(`Metadata: ${JSON.stringify(session.metadata)}`);
         console.log(`Customer email: ${session.customer_details?.email}`);
+        console.log(`Customer name: ${session.customer_details?.name}`);
 
         // Determinar userId e plan
         let userId = session.metadata?.userId;
         let plan = session.metadata?.plan;
 
-        // Se não tem metadata (Payment Link), identificar pelo email e price
-        if (!userId || !plan) {
+        // Determinar o plano pelo line_items/price (sempre, como fallback)
+        if (!plan) {
+          try {
+            const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
+            if (lineItems.data.length > 0) {
+              const priceId = lineItems.data[0].price?.id;
+              if (priceId && PRICE_TO_PLAN[priceId]) {
+                plan = PRICE_TO_PLAN[priceId];
+                console.log(`Determined plan from price ${priceId}: ${plan}`);
+              }
+            }
+          } catch (lineErr) {
+            console.error("Error fetching line items:", lineErr);
+          }
+        }
+
+        // Se não tem userId no metadata, buscar pelo email
+        if (!userId) {
           const customerEmail = session.customer_details?.email;
-          console.log(`No metadata found. Trying to find user by email: ${customerEmail}`);
+          console.log(`No userId in metadata. Trying to find user by email: ${customerEmail}`);
 
           if (customerEmail) {
-            // Buscar usuário pelo email
+            // Buscar usuário pelo email na tabela profiles
             const { data: userByEmail } = await supabase
               .from("profiles")
               .select("id")
@@ -91,40 +108,26 @@ Deno.serve(async (req) => {
 
             if (userByEmail) {
               userId = userByEmail.id;
+              console.log(`Found user by email in profiles: ${userId}`);
             } else {
               // Tentar buscar na auth.users
               const { data: { users } } = await supabase.auth.admin.listUsers();
               const authUser = users?.find(u => u.email === customerEmail);
               if (authUser) {
                 userId = authUser.id;
+                console.log(`Found user by email in auth.users: ${userId}`);
               }
-            }
-          }
-
-          // Determinar o plano pelo line_items/price
-          if (!plan) {
-            try {
-              const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
-              if (lineItems.data.length > 0) {
-                const priceId = lineItems.data[0].price?.id;
-                if (priceId && PRICE_TO_PLAN[priceId]) {
-                  plan = PRICE_TO_PLAN[priceId];
-                  console.log(`Determined plan from price ${priceId}: ${plan}`);
-                }
-              }
-            } catch (lineErr) {
-              console.error("Error fetching line items:", lineErr);
             }
           }
         }
 
+        const customerId = typeof session.customer === "string" ? session.customer : null;
+        const subscriptionId = typeof session.subscription === "string" ? session.subscription : null;
+
         console.log(`Final: userId=${userId}, plan=${plan}`);
 
         if (userId && plan) {
-          // Usar a RPC para atualizar o plano (bypassa triggers de proteção)
-          const customerId = typeof session.customer === "string" ? session.customer : null;
-          const subscriptionId = typeof session.subscription === "string" ? session.subscription : null;
-
+          // CASO 1: Usuário encontrado -> ativar plano imediatamente
           const { error: rpcError } = await supabase.rpc("update_user_plan", {
             p_user_id: userId,
             p_plan: plan,
@@ -170,7 +173,7 @@ Deno.serve(async (req) => {
               .update({ status: "pago" })
               .eq("id", referral.id);
 
-            console.log(`Referral ${referral.id} updated to 'pago'. Triggering reward for referrer ${referral.referrer_id}`);
+            console.log(`Referral ${referral.id} updated to 'pago'.`);
 
             try {
               const rewardResponse = await fetch(
@@ -190,8 +193,35 @@ Deno.serve(async (req) => {
               console.error("Failed to process referral reward:", rewardErr);
             }
           }
+        } else if (plan) {
+          // CASO 2: Usuário NÃO encontrado mas pagou -> salvar em pending_payments
+          // Quando o cliente se cadastrar com o mesmo email, o trigger ativa o plano automaticamente
+          const customerEmail = session.customer_details?.email;
+          const customerName = session.customer_details?.name;
+
+          if (customerEmail) {
+            const { error: pendingError } = await supabase
+              .from("pending_payments")
+              .insert({
+                email: customerEmail,
+                customer_name: customerName,
+                plan,
+                stripe_customer_id: customerId,
+                stripe_subscription_id: subscriptionId,
+                stripe_session_id: session.id,
+                amount_paid: session.amount_total,
+              });
+
+            if (pendingError) {
+              console.error("Error saving pending payment:", pendingError);
+            } else {
+              console.log(`PENDING PAYMENT saved: ${customerEmail} -> ${plan}. Will activate when user signs up.`);
+            }
+          } else {
+            console.error("No email and no userId. Cannot process this payment.");
+          }
         } else {
-          console.error(`Could not determine userId (${userId}) or plan (${plan}). Skipping update.`);
+          console.error(`Could not determine plan. Skipping. userId=${userId}`);
         }
         break;
       }
