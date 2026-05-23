@@ -14,6 +14,17 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // --- AUTENTICAÇÃO: Apenas chamadas com service_role key são permitidas ---
+  const authHeader = req.headers.get("Authorization");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!authHeader || authHeader !== `Bearer ${serviceRoleKey}`) {
+    console.error("Unauthorized call to process-referral-reward");
+    return new Response(JSON.stringify({ error: "Não autorizado" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const { referred_user_id } = await req.json();
     if (!referred_user_id) {
@@ -72,14 +83,11 @@ Deno.serve(async (req) => {
         console.log(`Coupon ${REFERRAL_COUPON_ID} applied to subscription ${referrerProfile.stripe_subscription_id}`);
       } catch (stripeErr) {
         console.error("Failed to apply Stripe coupon:", stripeErr);
-        // Even if Stripe fails, still mark as rewarded and notify
       }
     } else if (STRIPE_SECRET_KEY && referrerProfile.stripe_customer_id) {
-      // Fallback: apply coupon to customer (will apply on next invoice)
       try {
         const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2023-10-16" });
 
-        // Find active subscription for this customer
         const subscriptions = await stripe.subscriptions.list({
           customer: referrerProfile.stripe_customer_id,
           status: "active",
@@ -108,11 +116,11 @@ Deno.serve(async (req) => {
       .eq("id", referral.id);
 
     // Send WhatsApp notification to referrer
-    const evolutionApiUrl = Deno.env.get("EVOLUTION_API_URL") || "https://evolution-api-production-6070.up.railway.app";
-    const instanceName = Deno.env.get("EVOLUTION_API_INSTANCE_NAME") || "Tuddo";
-    const instanceToken = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") || "BD8F003B34FE-44F4-BBF7-B72255FCDE25";
+    const evolutionApiUrl = Deno.env.get("EVOLUTION_API_URL");
+    const instanceName = Deno.env.get("EVOLUTION_API_INSTANCE_NAME");
+    const instanceToken = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN");
 
-    if (referrerProfile.phone) {
+    if (referrerProfile.phone && evolutionApiUrl && instanceToken && instanceName) {
       const { data: referredProfile } = await supabase
         .from("profiles")
         .select("full_name")
@@ -158,7 +166,7 @@ Deno.serve(async (req) => {
     );
   } catch (err) {
     console.error("Error:", err);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
+    return new Response(JSON.stringify({ error: "Erro interno do servidor" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

@@ -8,12 +8,12 @@ const corsHeaders = {
 };
 
 async function sendWhatsAppMessage(phone: string, text: string): Promise<void> {
-  const evolutionUrl = Deno.env.get("EVOLUTION_API_URL") || "https://evolution-api-production-6070.up.railway.app";
-  const evolutionKey = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") || "BD8F003B34FE-44F4-BBF7-B72255FCDE25";
-  const instanceName = Deno.env.get("EVOLUTION_API_INSTANCE_NAME") || "Tuddo";
+  const evolutionUrl = Deno.env.get("EVOLUTION_API_URL");
+  const evolutionKey = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN");
+  const instanceName = Deno.env.get("EVOLUTION_API_INSTANCE_NAME");
 
-  if (!evolutionUrl || !evolutionKey) {
-    console.error("Evolution API not configured");
+  if (!evolutionUrl || !evolutionKey || !instanceName) {
+    console.error("Evolution API not configured - missing env vars");
     return;
   }
 
@@ -40,6 +40,17 @@ async function sendWhatsAppMessage(phone: string, text: string): Promise<void> {
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  // --- AUTENTICAÇÃO: Apenas chamadas com service_role key são permitidas ---
+  const authHeader = req.headers.get("Authorization");
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!authHeader || authHeader !== `Bearer ${serviceRoleKey}`) {
+    console.error("Unauthorized call to send-reminders");
+    return new Response(JSON.stringify({ error: "Não autorizado" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
@@ -111,7 +122,7 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error("Reminder error:", error);
-    return new Response(JSON.stringify({ error: "internal_error" }), {
+    return new Response(JSON.stringify({ error: "Erro interno do servidor" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

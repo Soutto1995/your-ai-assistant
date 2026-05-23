@@ -304,8 +304,8 @@ function extractTokensFromBody(body: JsonRecord): string[] {
 
 async function verifyRequest(req: Request, rawBody: string, body: JsonRecord): Promise<boolean> {
   const acceptedTokens = [
-    Deno.env.get("EVOLUTION_API_KEY") || "voce-a!!!!19951506",
-    Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") || "BD8F003B34FE-44F4-BBF7-B72255FCDE25",
+    Deno.env.get("EVOLUTION_API_KEY") ?? "",
+    Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") ?? "",
   ].filter((value): value is string => Boolean(value));
 
   if (acceptedTokens.length === 0) {
@@ -489,7 +489,7 @@ async function categorizeExpense(description: string): Promise<string> {
   }
 
   try {
-    const openaiKey = Deno.env.get("OPENAI_API_KEY") || "sk-kFUNco9574LrFN3B4GSoKK";
+    const openaiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
     if (!openaiKey) return "Geral";
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -529,7 +529,7 @@ async function categorizeExpense(description: string): Promise<string> {
 // INTERPRET MESSAGE — CORRIGIDO
 // ============================================================
 async function interpretMessage(message: string, now: Date = new Date()): Promise<AiResult> {
-  const openaiKey = Deno.env.get("OPENAI_API_KEY") || "sk-kFUNco9574LrFN3B4GSoKK";
+  const openaiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
   if (!openaiKey) {
     console.error("OPENAI_API_KEY not configured");
     return {
@@ -615,8 +615,8 @@ async function interpretMessage(message: string, now: Date = new Date()): Promis
 }
 
 async function sendWhatsAppMessage(phone: string, text: string): Promise<string> {
-  const evolutionUrl = Deno.env.get("EVOLUTION_API_URL") || "https://evolution-api-production-6070.up.railway.app";
-  const evolutionKey = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") || "BD8F003B34FE-44F4-BBF7-B72255FCDE25";
+  const evolutionUrl = Deno.env.get("EVOLUTION_API_URL") ?? "";
+  const evolutionKey = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") ?? "";
   const instanceName = Deno.env.get("EVOLUTION_API_INSTANCE_NAME") || "Tuddo";
 
   if (!evolutionUrl || !evolutionKey) {
@@ -655,8 +655,8 @@ async function sendWhatsAppMessage(phone: string, text: string): Promise<string>
 // ============================================================
 
 async function getMediaBase64(messageKey: JsonRecord, message: JsonRecord): Promise<string | null> {
-  const evolutionUrl = Deno.env.get("EVOLUTION_API_URL") || "https://evolution-api-production-6070.up.railway.app";
-  const evolutionKey = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") || "BD8F003B34FE-44F4-BBF7-B72255FCDE25";
+  const evolutionUrl = Deno.env.get("EVOLUTION_API_URL") ?? "";
+  const evolutionKey = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") ?? "";
   const instanceName = Deno.env.get("EVOLUTION_API_INSTANCE_NAME") || "Tuddo";
 
   try {
@@ -687,7 +687,7 @@ async function getMediaBase64(messageKey: JsonRecord, message: JsonRecord): Prom
 }
 
 async function analyzeImageWithVision(base64: string, mimetype: string, caption?: string): Promise<string> {
-  const openaiKey = Deno.env.get("OPENAI_API_KEY") || "sk-kFUNco9574LrFN3B4GSoKK";
+  const openaiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
 
   const imagePrompt = `Você é o Tuddo, assistente financeiro e de produtividade. Analise esta imagem e extraia as informações relevantes.
 
@@ -743,7 +743,7 @@ Responda APENAS com a informação extraída de forma concisa, sem explicações
 }
 
 async function transcribeAudio(base64: string, mimetype: string): Promise<string> {
-  const openaiKey = Deno.env.get("OPENAI_API_KEY") || "sk-kFUNco9574LrFN3B4GSoKK";
+  const openaiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
 
   try {
     // Convert base64 to binary
