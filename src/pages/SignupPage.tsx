@@ -123,12 +123,15 @@ export default function SignupPage() {
             <Input
               id="phone"
               type="tel"
-              placeholder="(11) 99999-9999"
+              placeholder="(47) 99999-9999"
               value={phone}
               onChange={(e) => setPhone(formatPhone(e.target.value))}
               required
+              inputMode="numeric"
             />
+            <p className="text-xs text-muted-foreground">Mesmo número que você usa no WhatsApp</p>
           </div>
+
 
           <div className="space-y-2">
             <Label htmlFor="password">Senha</Label>
