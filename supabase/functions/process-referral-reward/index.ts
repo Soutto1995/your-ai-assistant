@@ -14,6 +14,16 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Require service-role auth (called server-to-server from stripe-webhook)
+  const authHeader = req.headers.get("Authorization");
+  const expectedToken = `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""}`;
+  if (!authHeader || authHeader !== expectedToken) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const { referred_user_id } = await req.json();
     if (!referred_user_id) {

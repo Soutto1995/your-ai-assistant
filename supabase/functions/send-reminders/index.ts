@@ -42,6 +42,16 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Require service-role auth (intended to be called by scheduler/cron)
+  const authHeader = req.headers.get("Authorization");
+  const expectedToken = `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""}`;
+  if (!authHeader || authHeader !== expectedToken) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
