@@ -445,8 +445,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_family_members: {
+        Args: { p_family_id: string }
+        Returns: {
+          email: string
+          full_name: string
+          joined_at: string
+          phone: string
+          role: string
+          user_id: string
+        }[]
+      }
       get_family_owner_id: { Args: { member_user_id: string }; Returns: string }
       get_remaining_spots: { Args: never; Returns: number }
+      invite_family_member: {
+        Args: { p_contact: string; p_family_id: string }
+        Returns: Json
+      }
       update_user_plan: {
         Args: {
           p_plan: string
