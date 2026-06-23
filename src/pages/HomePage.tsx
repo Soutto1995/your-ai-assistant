@@ -687,6 +687,114 @@ export default function HomePage() {
               </div>
             ))}
           </div>
+
+          {/* ─── Family Plans ─── */}
+          <div className="pt-12 space-y-6">
+            <div className="text-center space-y-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
+                <Users className="w-3.5 h-3.5" />
+                PARA FAMÍLIAS
+              </div>
+              <h2 className="text-2xl md:text-3xl font-display font-bold">
+                Planos <span className="gold-text">Familiares</span>
+              </h2>
+              <p className="text-muted-foreground text-sm max-w-2xl mx-auto">
+                Compartilhe com quem você ama. Todos os membros acessam os mesmos dados financeiros e tarefas.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+              {[
+                {
+                  name: "Familiar Casal",
+                  members: 2,
+                  monthlyLabel: "R$ 34,90/mês",
+                  annualMonthly: "R$ 29,90/mês",
+                  annualLabel: "R$ 358,80/ano",
+                  savings: "Economize ~R$ 60/mês vs. 2 planos PRO",
+                  linkMonthly: "https://buy.stripe.com/6oU00k9bi6BP7T7ajefEk06",
+                  linkYearly: "https://buy.stripe.com/7sY5kEcnu6BP4GV8b6fEk07",
+                  highlight: false,
+                },
+                {
+                  name: "Familiar 3",
+                  members: 3,
+                  monthlyLabel: "R$ 44,90/mês",
+                  annualMonthly: "R$ 37,90/mês",
+                  annualLabel: "R$ 454,80/ano",
+                  savings: "Economize ~R$ 100/mês vs. 3 planos PRO",
+                  linkMonthly: "https://buy.stripe.com/5kQ4gA87e2lzddrgHCfEk08",
+                  linkYearly: "https://buy.stripe.com/9B628s87e7FTa1f0IEfEk09",
+                  highlight: true,
+                },
+                {
+                  name: "Familiar 4",
+                  members: 4,
+                  monthlyLabel: "R$ 54,90/mês",
+                  annualMonthly: "R$ 44,90/mês",
+                  annualLabel: "R$ 538,80/ano",
+                  savings: "Economize ~R$ 144/mês vs. 4 planos PRO",
+                  linkMonthly: "https://buy.stripe.com/aFa3cwbjq4tH0qFgHCfEk0a",
+                  linkYearly: "https://buy.stripe.com/28E4gA5Z6gcp6P3bnifEk0b",
+                  highlight: false,
+                },
+              ].map((plan) => (
+                <div
+                  key={plan.name}
+                  className={`relative flex flex-col bg-card border rounded-xl p-6 ${
+                    plan.highlight ? "border-primary card-glow" : "border-border"
+                  }`}
+                >
+                  {plan.highlight && (
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-xs font-semibold gold-gradient text-primary-foreground">
+                      Mais escolhido
+                    </div>
+                  )}
+                  <div className="text-center space-y-3 mb-6">
+                    <div className="mx-auto w-12 h-12 rounded-xl flex items-center justify-center bg-primary/10 text-primary">
+                      <Users className="w-6 h-6" />
+                    </div>
+                    <h3 className="font-display font-semibold text-lg">{plan.name}</h3>
+                    {annual ? (
+                      <>
+                        <p className="text-3xl font-bold text-foreground">{plan.annualMonthly}</p>
+                        <p className="text-xs text-muted-foreground">{plan.annualLabel}</p>
+                      </>
+                    ) : (
+                      <p className="text-3xl font-bold text-foreground">{plan.monthlyLabel}</p>
+                    )}
+                    <p className="text-sm text-muted-foreground">{plan.members} pessoas · WhatsApp individual</p>
+                    <div className="inline-block text-[10px] font-semibold uppercase tracking-wider text-primary bg-primary/10 rounded-full px-2 py-1">
+                      {plan.savings}
+                    </div>
+                  </div>
+                  <ul className="space-y-2 flex-1 mb-6">
+                    {[
+                      "Tudo do plano PRO",
+                      `${plan.members} números de WhatsApp`,
+                      "Dashboard compartilhado",
+                      "Cada membro registra pelo seu WhatsApp",
+                      "Relatórios consolidados da família",
+                    ].map((f) => (
+                      <li key={f} className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Check className="w-4 h-4 text-primary shrink-0" />
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <a
+                    href={annual ? plan.linkYearly : plan.linkMonthly}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button className="w-full" variant={plan.highlight ? "default" : "outline"}>
+                      Quero o {plan.name}
+                    </Button>
+                  </a>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
