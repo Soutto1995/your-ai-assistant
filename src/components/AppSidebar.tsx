@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { isFamilyPlan } from "@/lib/planLimits";
 import {
   LayoutDashboard,
   Inbox,
@@ -16,9 +17,10 @@ import {
   Search,
   LogOut,
   Gift,
+  Users,
 } from "lucide-react";
 
-const navItems = [
+const baseNavItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
   { icon: Inbox, label: "Inbox", path: "/inbox" },
   { icon: CheckSquare, label: "Tarefas", path: "/tarefas" },
@@ -34,6 +36,10 @@ export default function AppSidebar({ onNavigate }: { onNavigate?: () => void } =
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const { profile, signOut } = useAuth();
+
+  const navItems = isFamilyPlan(profile?.plan)
+    ? [...baseNavItems, { icon: Users, label: "Família", path: "/family" }]
+    : baseNavItems;
 
   return (
     <aside
