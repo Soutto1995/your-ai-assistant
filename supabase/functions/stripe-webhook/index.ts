@@ -16,6 +16,13 @@ const PRICE_TO_PLAN: Record<string, string> = {
   // One-time prices (para Pix/Boleto futuro)
   "price_1TZw5mPpu2ogE0DARkfRUIGt": "STARTER", // Starter Anual (one-time)
   "price_1TZw5oPpu2ogE0DAiO4YFJdb": "PRO",     // PRO Anual (one-time)
+  // Planos Familiares
+  "price_1TlbK4LKc2YbZKCT1NOAflvQ": "FAMILY_2", // Familiar 2 Mensal
+  "price_1TlbKCLKc2YbZKCT2nRNLta0": "FAMILY_2", // Familiar 2 Anual
+  "price_1TlbKJLKc2YbZKCTtJ1doKK2": "FAMILY_3", // Familiar 3 Mensal
+  "price_1TlbKQLKc2YbZKCTiGnPVHOf": "FAMILY_3", // Familiar 3 Anual
+  "price_1TlbKXLKc2YbZKCTidQuFTyz": "FAMILY_4", // Familiar 4 Mensal
+  "price_1TlbKeLKc2YbZKCTANYMCONf": "FAMILY_4", // Familiar 4 Anual
 };
 
 Deno.serve(async (req) => {
@@ -157,6 +164,50 @@ Deno.serve(async (req) => {
             }
           } else {
             console.log(`Successfully updated user ${userId} to plan ${plan} via RPC`);
+          }
+
+          // Se é plano familiar, criar o family_group automaticamente
+          if (plan && plan.startsWith("FAMILY_")) {
+            const maxMembers = parseInt(plan.split("_")[1]) || 2;
+            // Verificar se já existe um family_group para este owner
+            const { data: existingGroup } = await supabase
+              .from("family_groups")
+              .select("id")
+              .eq("owner_id", userId)
+              .maybeSingle();
+
+            if (!existingGroup) {
+              // Criar novo grupo familiar
+              const { data: newGroup, error: groupError } = await supabase
+                .from("family_groups")
+                .insert({
+                  owner_id: userId,
+                  plan: plan,
+                  max_members: maxMembers,
+                  stripe_subscription_id: subscriptionId,
+                })
+                .select("id")
+                .single();
+
+              if (newGroup) {
+                // Adicionar o owner como membro com role 'owner'
+                await supabase.from("family_members").insert({
+                  family_id: newGroup.id,
+                  user_id: userId,
+                  role: "owner",
+                });
+                console.log(`Created family group ${newGroup.id} for user ${userId} with max ${maxMembers} members`);
+              } else {
+                console.error("Error creating family group:", groupError);
+              }
+            } else {
+              // Atualizar grupo existente (pode ter feito upgrade)
+              await supabase
+                .from("family_groups")
+                .update({ plan: plan, max_members: maxMembers, stripe_subscription_id: subscriptionId })
+                .eq("id", existingGroup.id);
+              console.log(`Updated existing family group ${existingGroup.id} to ${plan}`);
+            }
           }
 
           // Verificar se este usuário foi indicado por alguém
