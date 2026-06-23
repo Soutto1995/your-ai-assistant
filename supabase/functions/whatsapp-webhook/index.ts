@@ -8,15 +8,16 @@ const corsHeaders = {
 };
 
 const categoryDictionary: Record<string, string[]> = {
-  "Alimentação": ["restaurante", "almoço", "jantar", "café", "lanche", "pizza", "hambúrguer", "açaí", "sushi", "padaria", "ifood"],
-  "Mercado": ["supermercado", "compras", "mercado", "sacolão", "hortifruti", "carne", "pão", "leite"],
-  "Transporte": ["gasolina", "combustível", "uber", "99", "táxi", "metrô", "ônibus", "passagem", "estacionamento"],
-  "Moradia": ["aluguel", "condomínio", "iptu", "água", "luz", "energia", "gás", "internet", "telefone"],
-  "Saúde": ["farmácia", "remédio", "medicamento", "consulta", "médico", "dentista", "terapia", "plano de saúde"],
-  "Lazer": ["cinema", "show", "bar", "festa", "viagem", "hotel", "passeio", "streaming", "netflix", "spotify"],
-  "Pessoal": ["roupa", "tênis", "sapato", "perfume", "cabelo", "barbeiro", "salão", "academia", "presente"],
-  "Educação": ["curso", "livro", "faculdade", "escola", "material escolar"],
-  "Outros": ["taxa", "imposto", "doação", "pet"],
+  "Alimentação": ["restaurante", "almoço", "jantar", "café", "lanche", "pizza", "hambúrguer", "açaí", "sushi", "padaria", "ifood", "rappi", "mcdonald", "burger", "subway", "starbucks", "comida", "marmita", "delivery", "churrasco"],
+  "Mercado": ["supermercado", "compras", "mercado", "sacolão", "hortifruti", "carne", "pão", "leite", "bistek", "angeloni", "big", "atacadão", "assai", "assaí", "frutas", "verduras", "feira", "açougue"],
+  "Transporte": ["gasolina", "combustível", "uber", "99", "táxi", "metrô", "ônibus", "passagem", "estacionamento", "diesel", "etanol", "álcool", "shell", "ipiranga", "br", "posto", "pedagio", "pedágio", "seguro carro", "mecânico", "oficina", "pneu", "lav. carro", "lavagem"],
+  "Moradia": ["aluguel", "condomínio", "iptu", "água", "luz", "energia", "gás", "internet", "telefone", "celesc", "casan", "sanepar", "copel", "cpfl", "vivo", "claro", "tim", "oi", "conta"],
+  "Saúde": ["farmácia", "remédio", "medicamento", "consulta", "médico", "dentista", "terapia", "plano de saúde", "unimed", "drogasil", "panvel", "droga raia", "hospital", "exame", "vacina", "psicólogo"],
+  "Lazer": ["cinema", "show", "bar", "festa", "viagem", "hotel", "passeio", "streaming", "netflix", "spotify", "disney", "hbo", "amazon prime", "game", "jogo", "ingresso", "parque", "praia", "cerveja", "chopp"],
+  "Pessoal": ["roupa", "tênis", "sapato", "perfume", "cabelo", "barbeiro", "salão", "academia", "presente", "cosmético", "maquiagem", "smartfit", "smart fit", "shein", "renner", "riachuelo", "c&a", "zara"],
+  "Educação": ["curso", "livro", "faculdade", "escola", "material escolar", "mensalidade", "apostila", "udemy", "alura"],
+  "Contas": ["boleto", "fatura", "cartão", "crédito", "parcela", "financiamento", "empréstimo", "juros", "multa", "itau", "itaú", "bradesco", "nubank", "inter", "santander", "bb", "caixa", "sicoob", "sicredi"],
+  "Outros": ["taxa", "imposto", "doação", "pet", "veterinario", "veterinário", "ração"],
 };
 
 const PLAN_LIMITS: Record<string, { limit: number; message: string }> = {
@@ -171,6 +172,8 @@ REGRAS CRÍTICAS DE INTERPRETAÇÃO:
 8. DIFERENÇA GASTOS vs RECEITAS vs TRANSAÇÕES: "Quanto gastei" = só gastos. "Quanto ganhei" = só receitas. "Minhas transações" = ambos.
 9. PAGAMENTOS FUTUROS vs REALIZADOS: Se o usuário diz "Pagar X dia Y" ou "Pagar X no dia Y" com uma DATA FUTURA, é um LEMBRETE (create_task com due_date). Se diz "Paguei X" ou "Gastei X" (passado), é uma transação já realizada (create_transaction). REGRA: verbo no INFINITIVO + data futura = create_task. Verbo no PASSADO = create_transaction.
 10. CONTAS A VENCER: "Conta de luz dia 15", "Boleto dia 20", "Pagar aluguel dia 10" → SEMPRE create_task com due_date, pois são lembretes de pagamentos futuros.
+11. PARCELAMENTOS: Se o usuário mencionar "em Xx", "parcelado", "em X vezes", "X parcelas", adicione data.installments (número de parcelas) e data.installment_amount (valor de cada parcela = valor total / parcelas). Ex: "Comprei TV 2000 em 10x" → amount: 2000, installments: 10, installment_amount: 200. O intent continua sendo create_transaction.
+12. CATEGORIZAÇÃO INTELIGENTE: Sempre tente inferir a categoria pelo contexto. "Bistek" = Mercado. "Shell" = Transporte. "Farmácia" = Saúde. "Netflix" = Lazer. Se não souber, use "Geral".
 
 EXEMPLOS:
 Input: "Consulta Luciana 20h quinta feira"
@@ -199,6 +202,12 @@ Output: {"intent":"create_task","data":{"description":"Pagar aluguel","due_date"
 
 Input: "Paguei 342 no Itau"
 Output: {"intent":"create_transaction","data":{"description":"Pagamento Itaú","amount":342,"type":"gasto","category":"Contas"},"response":"Registrado! Gasto de R$ 342,00 — Pagamento Itaú. 💸"}
+
+Input: "Comprei uma TV de 2000 em 10x"
+Output: {"intent":"create_transaction","data":{"description":"TV","amount":2000,"type":"gasto","category":"Pessoal","installments":10,"installment_amount":200},"response":"Registrado! Compra de TV: R$ 2.000,00 em 10x de R$ 200,00. Vou registrar as parcelas mensais automaticamente. 💳"}
+
+Input: "gastei 600 em roupas em 3x"
+Output: {"intent":"create_transaction","data":{"description":"Roupas","amount":600,"type":"gasto","category":"Pessoal","installments":3,"installment_amount":200},"response":"Registrado! Compra de Roupas: R$ 600,00 em 3x de R$ 200,00. Parcelas registradas! 💳"}
 
 Input: "quanto eu gastei hoje?"
 Output: {"intent":"list_items","data":{"item_type":"transaction","transaction_type":"gasto","date_filter":"hoje"},"response":"Buscando seus gastos de hoje..."}
@@ -510,7 +519,7 @@ async function categorizeExpense(description: string): Promise<string> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4.1-nano",
+        model: "gpt-4.1",
         temperature: 0,
         messages: [
           {
@@ -572,7 +581,7 @@ async function interpretMessage(message: string, now: Date = new Date()): Promis
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4.1-mini",
+        model: "gpt-4.1",
         temperature: 0,
         messages: [
           { role: "system", content: systemPromptWithTime },
@@ -728,7 +737,7 @@ Responda APENAS com a informação extraída de forma concisa, sem explicações
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4.1-mini",
+        model: "gpt-4.1",
         temperature: 0,
         max_tokens: 500,
         messages: [
@@ -864,8 +873,34 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
           : fallbackText;
       const category = await categorizeExpense(description);
       const transactionType = typeof data.type === "string" && data.type.trim().length > 0 ? data.type : "gasto";
-      const amount = Math.abs(Number(data.amount) || 0);
+      const totalAmount = Math.abs(Number(data.amount) || 0);
+      const installments = Number(data.installments) || 0;
+      const installmentAmount = Number(data.installment_amount) || 0;
 
+      // Se é parcelamento, criar múltiplas transações
+      if (installments > 1 && installmentAmount > 0) {
+        const now = new Date();
+        const transactions = [];
+        for (let i = 0; i < installments; i++) {
+          const txDate = new Date(now.getFullYear(), now.getMonth() + i, now.getDate());
+          transactions.push({
+            user_id: userId,
+            description: `${description} (${i + 1}/${installments})`,
+            amount: installmentAmount,
+            type: transactionType,
+            category,
+            transaction_date: txDate.toISOString(),
+          });
+        }
+        const { error: installError } = await supabase.from("transactions").insert(transactions);
+        if (installError) {
+          console.error("Installment insert error:", installError);
+          return "Ops, não consegui registrar as parcelas. Tente novamente! 😅";
+        }
+        return aiResult.response || `Registrado! ${description}: R$ ${totalAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} em ${installments}x de R$ ${installmentAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}. Parcelas registradas nos próximos ${installments} meses! 💳`;
+      }
+
+      const amount = totalAmount;
       const { error } = await supabase.from("transactions").insert({
         user_id: userId,
         description,
@@ -1334,8 +1369,35 @@ serve(async (req) => {
       });
     }
 
-    const userId = profiles[0].id;
-    const userPlan = String(profiles[0].plan || "FREE").toUpperCase();
+    let userId = profiles[0].id;
+    let userPlan = String(profiles[0].plan || "FREE").toUpperCase();
+
+    // Verificar se o usuário é membro de um plano familiar
+    // Se for, usar o owner_id da família para compartilhar dados
+    try {
+      const { data: familyMember } = await supabase
+        .from("family_members")
+        .select("family_id, role, family_groups(owner_id, plan)")
+        .eq("user_id", userId)
+        .limit(1)
+        .single();
+
+      if (familyMember && familyMember.family_groups) {
+        // Membro familiar: dados vão para a conta do owner
+        const familyOwnerId = (familyMember.family_groups as any).owner_id;
+        const familyPlan = (familyMember.family_groups as any).plan || "FAMILY_2";
+        // Usar o owner como userId para que os dados sejam compartilhados
+        if (familyMember.role === "member") {
+          userId = familyOwnerId;
+        }
+        // Plano familiar = PRO (acesso completo)
+        userPlan = "PRO";
+      }
+    } catch (familyErr) {
+      // Se não é membro de família, continua normal
+      console.log("Not a family member or no family found");
+    }
+
     const adminPhones = (Deno.env.get("ADMIN_PHONES") || "")
       .split(",")
       .map((p) => p.trim())

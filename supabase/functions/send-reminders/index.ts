@@ -150,6 +150,8 @@ serve(async (req) => {
         });
       }
 
+      message += "\n---\n";
+      message += "\n💡 *Dica:* Se você já concluiu alguma dessas tarefas, acesse o aplicativo, vá em *Tarefas* e conclua no botão verde! Assim seu controle fica sempre atualizado. ✅\n";
       message += "\n_Responda aqui para registrar algo novo!_";
 
       await sendWhatsAppMessage(user.phone, message);
