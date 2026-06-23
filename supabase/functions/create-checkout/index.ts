@@ -7,13 +7,20 @@ const corsHeaders = {
 };
 
 // Server-side authoritative mapping. Plan is derived from priceId, NEVER from the client body.
-const PRICE_TO_PLAN: Record<string, "STARTER" | "PRO"> = {
-  "price_1TZtTLPpu2ogE0DArUc286V7": "STARTER", // Starter Mensal
-  "price_1TZtTOPpu2ogE0DAlT08sf53": "STARTER", // Starter Anual
-  "price_1TZtTQPpu2ogE0DACHSzeF2b": "PRO",     // PRO Mensal
-  "price_1TZtTTPpu2ogE0DAojmyQdPB": "PRO",     // PRO Anual
-  "price_1TZw5mPpu2ogE0DARkfRUIGt": "STARTER", // Starter Anual (one-time)
-  "price_1TZw5oPpu2ogE0DAiO4YFJdb": "PRO",     // PRO Anual (one-time)
+const PRICE_TO_PLAN: Record<string, "STARTER" | "PRO" | "FAMILY_2" | "FAMILY_3" | "FAMILY_4"> = {
+  "price_1TZtTLPpu2ogE0DArUc286V7": "STARTER",
+  "price_1TZtTOPpu2ogE0DAlT08sf53": "STARTER",
+  "price_1TZtTQPpu2ogE0DACHSzeF2b": "PRO",
+  "price_1TZtTTPpu2ogE0DAojmyQdPB": "PRO",
+  "price_1TZw5mPpu2ogE0DARkfRUIGt": "STARTER",
+  "price_1TZw5oPpu2ogE0DAiO4YFJdb": "PRO",
+  // Family plans
+  "price_1TlbK4LKc2YbZKCT1NOAflvQ": "FAMILY_2", // Family 2 Mensal
+  "price_1TlbKCLKc2YbZKCT2nRNLta0": "FAMILY_2", // Family 2 Anual
+  "price_1TlbKJLKc2YbZKCTtJ1doKK2": "FAMILY_3", // Family 3 Mensal
+  "price_1TlbKQLKc2YbZKCTiGnPVHOf": "FAMILY_3", // Family 3 Anual
+  "price_1TlbKXLKc2YbZKCTidQuFTyz": "FAMILY_4", // Family 4 Mensal
+  "price_1TlbKeLKc2YbZKCTANYMCONf": "FAMILY_4", // Family 4 Anual
 };
 
 Deno.serve(async (req) => {
