@@ -83,6 +83,65 @@ export type Database = {
         }
         Relationships: []
       }
+      family_groups: {
+        Row: {
+          created_at: string | null
+          id: string
+          max_members: number
+          owner_id: string
+          plan: string
+          stripe_subscription_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          max_members?: number
+          owner_id: string
+          plan?: string
+          stripe_subscription_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          max_members?: number
+          owner_id?: string
+          plan?: string
+          stripe_subscription_id?: string | null
+        }
+        Relationships: []
+      }
+      family_members: {
+        Row: {
+          family_id: string
+          id: string
+          joined_at: string | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          family_id: string
+          id?: string
+          joined_at?: string | null
+          role?: string
+          user_id: string
+        }
+        Update: {
+          family_id?: string
+          id?: string
+          joined_at?: string | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_members_family_id_fkey"
+            columns: ["family_id"]
+            isOneToOne: false
+            referencedRelation: "family_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inbox_messages: {
         Row: {
           created_at: string
@@ -386,6 +445,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_family_owner_id: { Args: { member_user_id: string }; Returns: string }
       get_remaining_spots: { Args: never; Returns: number }
       update_user_plan: {
         Args: {
