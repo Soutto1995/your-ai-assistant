@@ -42,13 +42,17 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // --- AUTENTICAÇÃO: Aceita service_role key OU anon key (cron interno do Supabase) ---
+  // --- AUTENTICAÇÃO: somente service_role key OU CRON_SECRET (header x-cron-secret) ---
   const authHeader = req.headers.get("Authorization");
+  const cronSecretHeader = req.headers.get("x-cron-secret");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  const cronSecret = Deno.env.get("CRON_SECRET");
   const token = authHeader?.replace("Bearer ", "");
 
-  const isAuthorized = token && (token === serviceRoleKey || token === anonKey);
+  const isAuthorized =
+    (token && serviceRoleKey && token === serviceRoleKey) ||
+    (cronSecret && cronSecretHeader === cronSecret);
+
   if (!isAuthorized) {
     console.error("Unauthorized call to send-reminders");
     return new Response(JSON.stringify({ error: "Não autorizado" }), {

@@ -386,6 +386,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_remaining_spots: { Args: never; Returns: number }
       update_user_plan: {
         Args: {
           p_plan: string
