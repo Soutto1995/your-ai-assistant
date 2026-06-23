@@ -64,10 +64,13 @@ serve(async (req) => {
     );
 
     const today = new Date().toISOString().split("T")[0];
+    // Início e fim do dia para filtrar tasks por due_date
+    const todayStart = `${today}T00:00:00`;
+    const todayEnd = `${today}T23:59:59`;
 
     const { data: users, error: usersError } = await supabase
       .from("profiles")
-      .select("id, phone");
+      .select("id, phone, full_name");
 
     if (usersError) {
       console.error("Error fetching users:", usersError);
@@ -89,35 +92,73 @@ serve(async (req) => {
     for (const user of users) {
       if (!user.phone) continue;
 
-      const [eventsRes, tasksRes] = await Promise.all([
-        supabase.from("events").select("title, event_time").eq("user_id", user.id).eq("event_date", today),
-        supabase.from("tasks").select("title").eq("user_id", user.id).eq("status", "pendente"),
+      // Buscar events do dia E tasks com due_date de hoje
+      const [eventsRes, tasksWithDateRes, tasksNoDateRes] = await Promise.all([
+        supabase
+          .from("events")
+          .select("id, title, event_time")
+          .eq("user_id", user.id)
+          .eq("event_date", today),
+        supabase
+          .from("tasks")
+          .select("id, title, due_date")
+          .eq("user_id", user.id)
+          .eq("status", "pendente")
+          .gte("due_date", todayStart)
+          .lte("due_date", todayEnd),
+        supabase
+          .from("tasks")
+          .select("id, title")
+          .eq("user_id", user.id)
+          .eq("status", "pendente")
+          .is("due_date", null),
       ]);
 
       const events = eventsRes.data || [];
-      const tasks = tasksRes.data || [];
+      const tasksToday = tasksWithDateRes.data || [];
+      const tasksNoDate = tasksNoDateRes.data || [];
 
-      if (events.length === 0 && tasks.length === 0) continue;
+      // Só envia se tiver algo relevante para o dia
+      if (events.length === 0 && tasksToday.length === 0 && tasksNoDate.length === 0) continue;
 
-      let message = "*Resumo do seu dia no Tuddo:* ☀️\n";
+      const firstName = user.full_name ? user.full_name.split(" ")[0] : "";
+      let message = `*Bom dia${firstName ? `, ${firstName}` : ""}! Resumo do seu dia:* ☀️\n`;
 
       if (events.length > 0) {
-        message += "\n*Compromissos:*\n";
+        message += "\n📅 *Compromissos de hoje:*\n";
         events.forEach((e: any) => {
           const time = e.event_time ? ` às ${e.event_time.slice(0, 5)}` : "";
-          message += `- ${e.title}${time}\n`;
+          message += `  • ${e.title}${time}\n`;
         });
       }
 
-      if (tasks.length > 0) {
-        message += "\n*Tarefas Pendentes:*\n";
-        tasks.forEach((t: any) => {
-          message += `- ${t.title}\n`;
+      if (tasksToday.length > 0) {
+        message += "\n📌 *Lembretes para hoje:*\n";
+        tasksToday.forEach((t: any) => {
+          message += `  • ${t.title}\n`;
         });
       }
+
+      if (tasksNoDate.length > 0) {
+        message += "\n✅ *Tarefas pendentes:*\n";
+        tasksNoDate.forEach((t: any) => {
+          message += `  • ${t.title}\n`;
+        });
+      }
+
+      message += "\n_Responda aqui para registrar algo novo!_";
 
       await sendWhatsAppMessage(user.phone, message);
       sent++;
+
+      // Marcar events como reminder_sent = true
+      if (events.length > 0) {
+        const eventIds = events.map((e: any) => e.id);
+        await supabase
+          .from("events")
+          .update({ reminder_sent: true })
+          .in("id", eventIds);
+      }
     }
 
     return new Response(JSON.stringify({ status: "ok", reminders_sent: sent }), {

@@ -169,6 +169,8 @@ REGRAS CRÍTICAS DE INTERPRETAÇÃO:
 6. GRAMÁTICA E ORTOGRAFIA: Toda response DEVE começar com letra maiúscula. Use acentuação correta. Use concordância verbal e nominal perfeita.
 7. RESPONSE: Seja breve, direto e confirme a ação realizada. Use emojis com moderação (✅, 💰, 📅, 📌).
 8. DIFERENÇA GASTOS vs RECEITAS vs TRANSAÇÕES: "Quanto gastei" = só gastos. "Quanto ganhei" = só receitas. "Minhas transações" = ambos.
+9. PAGAMENTOS FUTUROS vs REALIZADOS: Se o usuário diz "Pagar X dia Y" ou "Pagar X no dia Y" com uma DATA FUTURA, é um LEMBRETE (create_task com due_date). Se diz "Paguei X" ou "Gastei X" (passado), é uma transação já realizada (create_transaction). REGRA: verbo no INFINITIVO + data futura = create_task. Verbo no PASSADO = create_transaction.
+10. CONTAS A VENCER: "Conta de luz dia 15", "Boleto dia 20", "Pagar aluguel dia 10" → SEMPRE create_task com due_date, pois são lembretes de pagamentos futuros.
 
 EXEMPLOS:
 Input: "Consulta Luciana 20h quinta feira"
@@ -188,6 +190,15 @@ Output: {"intent":"create_transaction","data":{"description":"Supermercado Biste
 
 Input: "[Foto enviada - análise: Boleto Celesc Energia: R$ 189,30 - vence 25/05/2026]"
 Output: {"intent":"create_transaction","data":{"description":"Conta de energia Celesc","amount":189.30,"type":"gasto","category":"Moradia"},"response":"Registrado pela foto! Conta de energia Celesc: R$ 189,30 (vence 25/05). ⚡✅"}
+
+Input: "Pagar 342 Itau dia 25"
+Output: {"intent":"create_task","data":{"description":"Pagar Itaú R$ 342","due_date":"2026-05-25T09:00:00"},"response":"Lembrete criado! Pagar Itaú R$ 342,00 no dia 25. Vou te avisar na data. 📌"}
+
+Input: "Pagar aluguel dia 10"
+Output: {"intent":"create_task","data":{"description":"Pagar aluguel","due_date":"2026-06-10T09:00:00"},"response":"Lembrete criado! Pagar aluguel no dia 10. Vou te avisar na data. 📌"}
+
+Input: "Paguei 342 no Itau"
+Output: {"intent":"create_transaction","data":{"description":"Pagamento Itaú","amount":342,"type":"gasto","category":"Contas"},"response":"Registrado! Gasto de R$ 342,00 — Pagamento Itaú. 💸"}
 
 Input: "quanto eu gastei hoje?"
 Output: {"intent":"list_items","data":{"item_type":"transaction","transaction_type":"gasto","date_filter":"hoje"},"response":"Buscando seus gastos de hoje..."}
