@@ -6,6 +6,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Server-side authoritative mapping. Plan is derived from priceId, NEVER from the client body.
+const PRICE_TO_PLAN: Record<string, "STARTER" | "PRO"> = {
+  "price_1TZtTLPpu2ogE0DArUc286V7": "STARTER", // Starter Mensal
+  "price_1TZtTOPpu2ogE0DAlT08sf53": "STARTER", // Starter Anual
+  "price_1TZtTQPpu2ogE0DACHSzeF2b": "PRO",     // PRO Mensal
+  "price_1TZtTTPpu2ogE0DAojmyQdPB": "PRO",     // PRO Anual
+  "price_1TZw5mPpu2ogE0DARkfRUIGt": "STARTER", // Starter Anual (one-time)
+  "price_1TZw5oPpu2ogE0DAiO4YFJdb": "PRO",     // PRO Anual (one-time)
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -42,9 +52,18 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { priceId, plan, email } = body ?? {};
-    if (!priceId || !plan) {
+    const { priceId, email } = body ?? {};
+    if (!priceId || typeof priceId !== "string") {
       return new Response(JSON.stringify({ error: "Parâmetros inválidos" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Authoritative: derive plan from priceId, never trust client.
+    const resolvedPlan = PRICE_TO_PLAN[priceId];
+    if (!resolvedPlan) {
+      return new Response(JSON.stringify({ error: "Plano inválido" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -52,7 +71,6 @@ Deno.serve(async (req) => {
 
     const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: "2023-10-16" });
 
-    // Reuse existing customer if any
     const { data: profile } = await supabase
       .from("profiles")
       .select("stripe_customer_id")
@@ -76,12 +94,12 @@ Deno.serve(async (req) => {
       cancel_url: `${origin}/pricing`,
       metadata: {
         userId: user.id,
-        plan,
+        plan: resolvedPlan,
       },
       subscription_data: {
         metadata: {
           userId: user.id,
-          plan,
+          plan: resolvedPlan,
         },
       },
     });
