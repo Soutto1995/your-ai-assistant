@@ -22,6 +22,7 @@ import PricingPage from "./pages/PricingPage";
 import RefundPage from "./pages/RefundPage";
 import ReferralsPage from "./pages/ReferralsPage";
 import SuccessPage from "./pages/SuccessPage";
+import FamilyPage from "./pages/FamilyPage";
 import NotFound from "./pages/NotFound";
 import InstallPrompt from "./components/InstallPrompt";
 
@@ -52,6 +53,7 @@ const App = () => (
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/reembolso" element={<ProtectedRoute><RefundPage /></ProtectedRoute>} />
             <Route path="/indicacoes" element={<ProtectedRoute><ReferralsPage /></ProtectedRoute>} />
+            <Route path="/family" element={<ProtectedRoute><FamilyPage /></ProtectedRoute>} />
             <Route path="/success" element={<SuccessPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

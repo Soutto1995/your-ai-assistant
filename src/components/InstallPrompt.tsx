@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Download, X, Share } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Download, X, Share, HelpCircle } from "lucide-react";
+import InstallGuide from "@/components/InstallGuide";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -12,6 +14,7 @@ export default function InstallPrompt() {
   const [showBanner, setShowBanner] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
     const standalone = window.matchMedia("(display-mode: standalone)").matches
@@ -56,37 +59,64 @@ export default function InstallPrompt() {
     localStorage.setItem("tuddo-install-dismissed", "true");
   };
 
-  if (isStandalone || !showBanner) return null;
+  if (isStandalone) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[100] bg-card border-t border-border p-4 shadow-lg animate-in slide-in-from-bottom">
-      <div className="max-w-lg mx-auto flex items-center gap-3">
-        <div className="flex-1">
-          {isIOS ? (
-            <p className="text-sm text-foreground">
-              Instale o <strong>Tuddo</strong>: toque em{" "}
-              <Share className="inline w-4 h-4 text-primary" /> e depois em{" "}
-              <em>"Adicionar à Tela de Início"</em>.
-            </p>
-          ) : (
-            <>
-              <p className="text-sm font-medium text-foreground">Instalar Tuddo</p>
-              <p className="text-xs text-muted-foreground">Acesse rápido pela tela inicial</p>
-            </>
-          )}
+    <>
+      {showBanner && (
+        <div className="fixed bottom-0 left-0 right-0 z-[100] bg-card border-t border-border p-4 shadow-lg animate-in slide-in-from-bottom">
+          <div className="max-w-lg mx-auto flex items-center gap-3">
+            <div className="flex-1">
+              {isIOS ? (
+                <p className="text-sm text-foreground">
+                  Instale o <strong>Tuddo</strong>: toque em{" "}
+                  <Share className="inline w-4 h-4 text-primary" /> e depois em{" "}
+                  <em>"Adicionar à Tela de Início"</em>.
+                </p>
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-foreground">Instalar Tuddo</p>
+                  <p className="text-xs text-muted-foreground">Acesse rápido pela tela inicial</p>
+                </>
+              )}
+            </div>
+
+            {!isIOS && (
+              <Button size="sm" onClick={handleInstall} className="gap-1.5">
+                <Download className="w-4 h-4" />
+                Instalar
+              </Button>
+            )}
+
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowGuide(true)}
+              className="gap-1.5"
+              title="Como instalar"
+            >
+              <HelpCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Como instalar</span>
+            </Button>
+
+            <button onClick={handleDismiss} className="text-muted-foreground hover:text-foreground">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
+      )}
 
-        {!isIOS && (
-          <Button size="sm" onClick={handleInstall} className="gap-1.5">
-            <Download className="w-4 h-4" />
-            Instalar
-          </Button>
-        )}
-
-        <button onClick={handleDismiss} className="text-muted-foreground hover:text-foreground">
-          <X className="w-5 h-5" />
-        </button>
-      </div>
-    </div>
+      <Dialog open={showGuide} onOpenChange={setShowGuide}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Como instalar o Tuddo no seu celular</DialogTitle>
+            <DialogDescription>
+              Siga os passos abaixo para adicionar o Tuddo à tela inicial e acessá-lo como um app.
+            </DialogDescription>
+          </DialogHeader>
+          <InstallGuide />
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
