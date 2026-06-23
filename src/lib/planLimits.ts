@@ -1,4 +1,4 @@
-export type PlanName = "FREE" | "STARTER" | "PRO";
+export type PlanName = "FREE" | "STARTER" | "PRO" | "FAMILY_2" | "FAMILY_3" | "FAMILY_4";
 
 export interface PlanLimits {
   transactionsPerMonth: number;
@@ -8,7 +8,18 @@ export interface PlanLimits {
   exportFormats: string[];
   historyMonths: number;
   hasComparison: boolean;
+  familyMembers?: number;
 }
+
+const PRO_LIMITS: PlanLimits = {
+  transactionsPerMonth: Infinity,
+  categories: Infinity,
+  budgets: Infinity,
+  remindersPerMonth: Infinity,
+  exportFormats: ["PDF", "Excel", "CSV"],
+  historyMonths: Infinity,
+  hasComparison: true,
+};
 
 export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
   FREE: {
@@ -29,15 +40,10 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
     historyMonths: 6,
     hasComparison: false,
   },
-  PRO: {
-    transactionsPerMonth: Infinity,
-    categories: Infinity,
-    budgets: Infinity,
-    remindersPerMonth: Infinity,
-    exportFormats: ["PDF", "Excel", "CSV"],
-    historyMonths: Infinity,
-    hasComparison: true,
-  },
+  PRO: PRO_LIMITS,
+  FAMILY_2: { ...PRO_LIMITS, familyMembers: 2 },
+  FAMILY_3: { ...PRO_LIMITS, familyMembers: 3 },
+  FAMILY_4: { ...PRO_LIMITS, familyMembers: 4 },
 };
 
 export function getPlanLimits(plan: string): PlanLimits {
@@ -50,6 +56,13 @@ export function getPlanLabel(plan: string): string {
     FREE: "Grátis",
     STARTER: "Starter",
     PRO: "Pro",
+    FAMILY_2: "Familiar Casal",
+    FAMILY_3: "Familiar 3",
+    FAMILY_4: "Familiar 4",
   };
   return labels[(plan || "FREE").toUpperCase()] || "Grátis";
+}
+
+export function isFamilyPlan(plan?: string | null): boolean {
+  return !!plan && plan.toUpperCase().startsWith("FAMILY");
 }
