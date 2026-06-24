@@ -1012,6 +1012,33 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
         return "Ops, não consegui agendar esse compromisso. Tente novamente! 😅";
       }
 
+      // Sincronizar com Google Calendar (se o usuário tiver conectado)
+      try {
+        const gcalResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/google-calendar-sync`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""}`,
+          },
+          body: JSON.stringify({
+            action: "create",
+            userId,
+            eventData: {
+              title,
+              event_date: eventDate,
+              event_time: eventTime,
+              description: `Criado pelo Tuddo via WhatsApp`,
+            },
+          }),
+        });
+        const gcalResult = await gcalResponse.json();
+        if (gcalResult.success) {
+          console.log(`Event synced to Google Calendar for user ${userId}`);
+        }
+      } catch (gcalErr) {
+        console.error("Google Calendar sync error (non-fatal):", gcalErr);
+      }
+
       const timeStr = eventTime ? ` às ${eventTime}` : "";
       return aiResponse || `Agendado! "${title}"${timeStr} ✅`;
     }
