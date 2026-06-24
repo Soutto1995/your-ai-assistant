@@ -138,7 +138,9 @@ INTENTS DISPONÍVEIS:
 2. create_task — criar tarefa, lembrete ou to-do
 3. create_meeting — agendar compromisso, reunião, consulta ou evento
 4. list_items — listar/consultar itens existentes (gastos, receitas, tarefas, compromissos)
-5. general_query — saudações, perguntas gerais ou qualquer coisa que não se encaixe acima
+5. create_goal — criar uma meta financeira (ex: "quero juntar 5000 para viagem", "meta de economizar 1000 por mês")
+6. list_goals — listar metas financeiras ativas
+7. general_query — saudações, perguntas gerais ou qualquer coisa que não se encaixe acima
 
 REGRAS DE EXTRAÇÃO DE DADOS:
 
@@ -156,6 +158,16 @@ Para create_meeting:
 - data.description: título conciso do compromisso (NUNCA repita a mensagem inteira. Ex: "consulta com Luciana 20h quinta" → "Consulta com Luciana")
 - data.meeting_date: data no formato "YYYY-MM-DDTHH:mm:ss" (horário local São Paulo, SEM sufixo Z ou offset). Se não houver hora explícita, use 12:00:00.
 
+Para create_goal:
+- data.title: título da meta (ex: "Viagem para Europa", "Reserva de emergência")
+- data.target_amount: valor alvo da meta (numérico)
+- data.current_amount: valor já economizado (padrão 0 se não informado)
+- data.deadline: prazo no formato "YYYY-MM-DD" (null se não informado)
+- data.category: categoria da meta (ex: "viagem", "emergência", "casa", "carro", "educação", "outros")
+
+Para list_goals:
+- (sem campos adicionais — lista todas as metas ativas do usuário)
+
 Para list_items:
 - data.item_type: "transaction", "task" ou "meeting"
 - data.transaction_type: APENAS para transações — "gasto" (gastos/despesas) ou "receita" (ganhos/receitas). Se pediu "transações" ou "tudo", OMITIR este campo.
@@ -170,10 +182,11 @@ REGRAS CRÍTICAS DE INTERPRETAÇÃO:
 6. GRAMÁTICA E ORTOGRAFIA: Toda response DEVE começar com letra maiúscula. Use acentuação correta. Use concordância verbal e nominal perfeita.
 7. RESPONSE: Seja breve, direto e confirme a ação realizada. Use emojis com moderação (✅, 💰, 📅, 📌).
 8. DIFERENÇA GASTOS vs RECEITAS vs TRANSAÇÕES: "Quanto gastei" = só gastos. "Quanto ganhei" = só receitas. "Minhas transações" = ambos.
-9. PAGAMENTOS FUTUROS vs REALIZADOS: Se o usuário diz "Pagar X dia Y" ou "Pagar X no dia Y" com uma DATA FUTURA, é um LEMBRETE (create_task com due_date). Se diz "Paguei X" ou "Gastei X" (passado), é uma transação já realizada (create_transaction). REGRA: verbo no INFINITIVO + data futura = create_task. Verbo no PASSADO = create_transaction.
-10. CONTAS A VENCER: "Conta de luz dia 15", "Boleto dia 20", "Pagar aluguel dia 10" → SEMPRE create_task com due_date, pois são lembretes de pagamentos futuros.
-11. PARCELAMENTOS: Se o usuário mencionar "em Xx", "parcelado", "em X vezes", "X parcelas", adicione data.installments (número de parcelas) e data.installment_amount (valor de cada parcela = valor total / parcelas). Ex: "Comprei TV 2000 em 10x" → amount: 2000, installments: 10, installment_amount: 200. O intent continua sendo create_transaction.
-12. CATEGORIZAÇÃO INTELIGENTE: Sempre tente inferir a categoria pelo contexto. "Bistek" = Mercado. "Shell" = Transporte. "Farmácia" = Saúde. "Netflix" = Lazer. Se não souber, use "Geral".
+9. METAS FINANCEIRAS: "Quero juntar X para Y", "Meta de economizar X", "Estou guardando para X", "Minha meta é X" → create_goal. "Minhas metas", "Ver metas", "Quanto falta para X" → list_goals.
+10. PAGAMENTOS FUTUROS vs REALIZADOS: Se o usuário diz "Pagar X dia Y" ou "Pagar X no dia Y" com uma DATA FUTURA, é um LEMBRETE (create_task com due_date). Se diz "Paguei X" ou "Gastei X" (passado), é uma transação já realizada (create_transaction). REGRA: verbo no INFINITIVO + data futura = create_task. Verbo no PASSADO = create_transaction.
+11. CONTAS A VENCER: "Conta de luz dia 15", "Boleto dia 20", "Pagar aluguel dia 10" → SEMPRE create_task com due_date, pois são lembretes de pagamentos futuros.
+12. PARCELAMENTOS: Se o usuário mencionar "em Xx", "parcelado", "em X vezes", "X parcelas", adicione data.installments (número de parcelas) e data.installment_amount (valor de cada parcela = valor total / parcelas). Ex: "Comprei TV 2000 em 10x" → amount: 2000, installments: 10, installment_amount: 200. O intent continua sendo create_transaction.
+13. CATEGORIZAÇÃO INTELIGENTE: Sempre tente inferir a categoria pelo contexto. "Bistek" = Mercado. "Shell" = Transporte. "Farmácia" = Saúde. "Netflix" = Lazer. Se não souber, use "Geral".
 
 EXEMPLOS:
 Input: "Consulta Luciana 20h quinta feira"
@@ -224,6 +237,12 @@ Output: {"intent":"list_items","data":{"item_type":"task","date_filter":"hoje"},
 Input: "quanto eu ganhei este mês?"
 Output: {"intent":"list_items","data":{"item_type":"transaction","transaction_type":"receita","date_filter":"este mês"},"response":"Buscando suas receitas deste mês..."}
 
+Input: "Quero juntar 5000 para uma viagem em dezembro"
+Output: {"intent":"create_goal","data":{"title":"Viagem","target_amount":5000,"current_amount":0,"deadline":"2026-12-31","category":"viagem"},"response":"Meta criada! 🎯 Você quer juntar R$ 5.000,00 para Viagem até dezembro. Vou acompanhar seu progresso!"}
+
+Input: "minhas metas"
+Output: {"intent":"list_goals","data":{},"response":"Buscando suas metas financeiras..."}
+
 Input: "oi"
 Output: {"intent":"general_query","data":{},"response":"Olá! Sou o Tuddo, seu assistente pessoal. Posso te ajudar com tarefas, compromissos e finanças. O que precisa? 😊"}
 
@@ -232,7 +251,7 @@ Retorne APENAS o JSON.`;
 type JsonRecord = Record<string, unknown>;
 
 type AiResult = {
-  intent: "create_task" | "create_transaction" | "create_meeting" | "list_items" | "general_query";
+  intent: "create_task" | "create_transaction" | "create_meeting" | "list_items" | "create_goal" | "list_goals" | "general_query";
   data: JsonRecord;
   response: string;
 };
@@ -459,7 +478,7 @@ function extractAiJson(content: string): AiResult | null {
     const data = isRecord(parsed.data) ? parsed.data : {};
 
     return {
-      intent: ["create_task", "create_transaction", "create_meeting", "list_items", "general_query"].includes(intent)
+      intent: ["create_task", "create_transaction", "create_meeting", "list_items", "create_goal", "list_goals", "general_query"].includes(intent)
         ? (intent as AiResult["intent"])
         : "general_query",
       data,
@@ -1224,6 +1243,67 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
       }
 
       return reply;
+    }
+
+    // -------------------------------------------------------
+    // CRIAR META FINANCEIRA
+    // -------------------------------------------------------
+    case "create_goal": {
+      const goalTitle = typeof data.title === "string" && data.title.trim().length > 0
+        ? data.title
+        : fallbackText;
+      const targetAmount = Math.abs(Number(data.target_amount) || 0);
+      const currentAmount = Math.abs(Number(data.current_amount) || 0);
+      const goalDeadline = typeof data.deadline === "string" && data.deadline ? data.deadline : null;
+      const goalCategory = typeof data.category === "string" && data.category ? data.category : "outros";
+
+      if (targetAmount === 0) {
+        return "Para criar uma meta, preciso saber o valor alvo. Ex: \"Quero juntar R$ 5.000 para viagem\". 🎯";
+      }
+
+      const { error: goalError } = await supabase.from("goals").insert({
+        user_id: userId,
+        title: goalTitle,
+        target_amount: targetAmount,
+        current_amount: currentAmount,
+        deadline: goalDeadline,
+        category: goalCategory,
+        status: "active",
+      });
+
+      if (goalError) {
+        console.error("Goal insert error:", goalError);
+        return "Ops, não consegui criar a meta. Tente novamente! 😅";
+      }
+
+      const progressPct = targetAmount > 0 ? ((currentAmount / targetAmount) * 100).toFixed(0) : "0";
+      const deadlineStr = goalDeadline ? ` até ${new Date(goalDeadline + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}` : "";
+      return aiResponse || `Meta criada! 🎯 *${goalTitle}*: R$ ${targetAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}${deadlineStr}. Progresso atual: ${progressPct}%.`;
+    }
+
+    // -------------------------------------------------------
+    // LISTAR METAS
+    // -------------------------------------------------------
+    case "list_goals": {
+      const { data: goals } = await supabase
+        .from("goals")
+        .select("title, target_amount, current_amount, deadline, category, status")
+        .eq("user_id", userId)
+        .eq("status", "active")
+        .order("created_at", { ascending: false });
+
+      if (!goals || goals.length === 0) {
+        return "Você ainda não tem metas financeiras. Para criar uma, diga: \"Quero juntar R$ 5.000 para viagem em dezembro\". 🎯";
+      }
+
+      const goalLines = goals.map((g: any) => {
+        const progress = g.target_amount > 0 ? ((g.current_amount / g.target_amount) * 100).toFixed(0) : "0";
+        const bar = Number(progress) >= 100 ? "✅" : Number(progress) >= 50 ? "🟡" : "🔴";
+        const deadlineStr = g.deadline ? ` | Prazo: ${new Date(g.deadline + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}` : "";
+        return `${bar} *${g.title}*\nR$ ${Number(g.current_amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} / R$ ${Number(g.target_amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} (${progress}%)${deadlineStr}`;
+      });
+
+      return `🎯 *Suas metas financeiras:*\n\n${goalLines.join("\n\n")}`;
     }
 
     // -------------------------------------------------------
