@@ -140,7 +140,10 @@ INTENTS DISPONÍVEIS:
 4. list_items — listar/consultar itens existentes (gastos, receitas, tarefas, compromissos)
 5. create_goal — criar uma meta financeira (ex: "quero juntar 5000 para viagem", "meta de economizar 1000 por mês")
 6. list_goals — listar metas financeiras ativas
-7. general_query — saudações, perguntas gerais ou qualquer coisa que não se encaixe acima
+7. create_folder — criar uma pasta/categoria personalizada para organizar gastos (ex: "cria pasta Casa", "quero organizar em pastas", "1-Casa 2-Granja 3-Consultório")
+8. list_folders — listar pastas do usuário (ex: "minhas pastas", "ver categorias")
+9. assign_folder — associar um gasto existente a uma pasta (ex: "coloca na pasta Casa", "esse vai pra Granja")
+10. general_query — saudações, perguntas gerais ou qualquer coisa que não se encaixe acima
 
 REGRAS DE EXTRAÇÃO DE DADOS:
 
@@ -168,6 +171,17 @@ Para create_goal:
 Para list_goals:
 - (sem campos adicionais — lista todas as metas ativas do usuário)
 
+Para create_folder:
+- data.folders: array de objetos com {name, emoji}. Se o usuário listar várias pastas (ex: "1-Casa 2-Granja 3-Consultório"), crie todas. Emoji é opcional — escolha um emoji adequado ao nome.
+- Exemplos: "cria pasta Casa" → [{name:"Casa", emoji:"🏠"}]. "1-Casa 2-Granja 3-Consultório" → [{name:"Casa",emoji:"🏠"},{name:"Granja",emoji:"🌾"},{name:"Consultório",emoji:"🏥"}]
+
+Para list_folders:
+- (sem campos adicionais — lista todas as pastas do usuário)
+
+Para assign_folder:
+- data.folder_name: nome da pasta onde colocar o gasto
+- data.transaction_description: descrição do gasto a ser associado (se mencionado)
+
 Para list_items:
 - data.item_type: "transaction", "task" ou "meeting"
 - data.transaction_type: APENAS para transações — "gasto" (gastos/despesas) ou "receita" (ganhos/receitas). Se pediu "transações" ou "tudo", OMITIR este campo.
@@ -183,6 +197,8 @@ REGRAS CRÍTICAS DE INTERPRETAÇÃO:
 7. RESPONSE: Seja breve, direto e confirme a ação realizada. Use emojis com moderação (✅, 💰, 📅, 📌).
 8. DIFERENÇA GASTOS vs RECEITAS vs TRANSAÇÕES: "Quanto gastei" = só gastos. "Quanto ganhei" = só receitas. "Minhas transações" = ambos.
 9. METAS FINANCEIRAS: "Quero juntar X para Y", "Meta de economizar X", "Estou guardando para X", "Minha meta é X" → create_goal. "Minhas metas", "Ver metas", "Quanto falta para X" → list_goals.
+14. PASTAS/CATEGORIAS PERSONALIZADAS: "Quero organizar em pastas", "Criar pasta Casa", "1-Casa 2-Granja 3-Consultório", "Minhas pastas" → create_folder ou list_folders. Quando o usuário registrar um gasto E tiver pastas cadastradas, PERGUNTE em qual pasta colocar (inclua a lista numerada das pastas na response). Se o contexto já indicar claramente a pasta (ex: "gastei 50 na granja"), associe automaticamente adicionando data.folder_name.
+15. COMPORTAMENTO CONVERSACIONAL: Seja natural e empático. Quando o usuário quiser organizar suas finanças, CONVERSE com ele — pergunte como ele quer organizar, sugira pastas baseadas no que ele já gasta. Não seja robótico. Aprenda com o cliente.
 10. PAGAMENTOS FUTUROS vs REALIZADOS: Se o usuário diz "Pagar X dia Y" ou "Pagar X no dia Y" com uma DATA FUTURA, é um LEMBRETE (create_task com due_date). Se diz "Paguei X" ou "Gastei X" (passado), é uma transação já realizada (create_transaction). REGRA: verbo no INFINITIVO + data futura = create_task. Verbo no PASSADO = create_transaction.
 11. CONTAS A VENCER: "Conta de luz dia 15", "Boleto dia 20", "Pagar aluguel dia 10" → SEMPRE create_task com due_date, pois são lembretes de pagamentos futuros.
 12. PARCELAMENTOS: Se o usuário mencionar "em Xx", "parcelado", "em X vezes", "X parcelas", adicione data.installments (número de parcelas) e data.installment_amount (valor de cada parcela = valor total / parcelas). Ex: "Comprei TV 2000 em 10x" → amount: 2000, installments: 10, installment_amount: 200. O intent continua sendo create_transaction.
@@ -246,12 +262,24 @@ Output: {"intent":"list_goals","data":{},"response":"Buscando suas metas finance
 Input: "oi"
 Output: {"intent":"general_query","data":{},"response":"Olá! Sou o Tuddo, seu assistente pessoal. Posso te ajudar com tarefas, compromissos e finanças. O que precisa? 😊"}
 
+Input: "quero organizar meus gastos em pastas"
+Output: {"intent":"general_query","data":{},"response":"Ótima ideia! Organizar seus gastos em pastas facilita muito o controle. 📁\n\nVocê pode criar pastas como: Casa, Carro, Consultório, Granja, Pessoa Física, CNPJ...\n\nMe diz: quais pastas fazem sentido pra sua vida? Pode listar assim:\n1 - Casa\n2 - Granja\n3 - Consultório\n\nOu me conta como você divide seus gastos que eu te ajudo a montar!"}
+
+Input: "1-Casa 2-Granja 3-Consultório"
+Output: {"intent":"create_folder","data":{"folders":[{"name":"Casa","emoji":"🏠"},{"name":"Granja","emoji":"🌾"},{"name":"Consultório","emoji":"🏥"}]},"response":"Pronto! Criei suas pastas:\n\n🏠 Casa\n🌾 Granja\n🏥 Consultório\n\nAgora, quando registrar um gasto, vou te perguntar em qual pasta colocar. Assim você sabe exatamente onde seu dinheiro está indo! 💪"}
+
+Input: "gastei 200 de ração" (usuário tem pastas: Casa, Granja, Consultório)
+Output: {"intent":"create_transaction","data":{"description":"Ração","amount":200,"type":"gasto","category":"Outros","folder_name":"Granja"},"response":"Registrado! Gasto de R$ 200,00 em Ração. 💸\nColoquei na pasta 🌾 Granja. Certinho?"}
+
+Input: "minhas pastas"
+Output: {"intent":"list_folders","data":{},"response":"Buscando suas pastas..."}
+
 Retorne APENAS o JSON.`;
 
 type JsonRecord = Record<string, unknown>;
 
 type AiResult = {
-  intent: "create_task" | "create_transaction" | "create_meeting" | "list_items" | "create_goal" | "list_goals" | "general_query";
+  intent: "create_task" | "create_transaction" | "create_meeting" | "list_items" | "create_goal" | "list_goals" | "create_folder" | "list_folders" | "assign_folder" | "general_query";
   data: JsonRecord;
   response: string;
 };
@@ -478,7 +506,7 @@ function extractAiJson(content: string): AiResult | null {
     const data = isRecord(parsed.data) ? parsed.data : {};
 
     return {
-      intent: ["create_task", "create_transaction", "create_meeting", "list_items", "create_goal", "list_goals", "general_query"].includes(intent)
+      intent: ["create_task", "create_transaction", "create_meeting", "list_items", "create_goal", "list_goals", "create_folder", "list_folders", "assign_folder", "general_query"].includes(intent)
         ? (intent as AiResult["intent"])
         : "general_query",
       data,
@@ -896,6 +924,26 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
       const installments = Number(data.installments) || 0;
       const installmentAmount = Number(data.installment_amount) || 0;
 
+      // Resolver pasta (folder) se o usuário tiver pastas cadastradas
+      let folderId: string | null = null;
+      let folderLabel = "";
+      const folderNameFromAI = typeof data.folder_name === "string" ? data.folder_name.trim() : "";
+
+      if (folderNameFromAI) {
+        // IA identificou a pasta pelo contexto
+        const { data: matchedFolder } = await supabase
+          .from("folders")
+          .select("id, name, emoji")
+          .eq("user_id", userId)
+          .ilike("name", folderNameFromAI)
+          .single();
+
+        if (matchedFolder) {
+          folderId = matchedFolder.id;
+          folderLabel = `${matchedFolder.emoji} ${matchedFolder.name}`;
+        }
+      }
+
       // Se é parcelamento, criar múltiplas transações
       if (installments > 1 && installmentAmount > 0) {
         const now = new Date();
@@ -908,6 +956,7 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
             amount: installmentAmount,
             type: transactionType,
             category,
+            folder_id: folderId,
             transaction_date: txDate.toISOString(),
           });
         }
@@ -916,7 +965,9 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
           console.error("Installment insert error:", installError);
           return "Ops, não consegui registrar as parcelas. Tente novamente! 😅";
         }
-        return aiResult.response || `Registrado! ${description}: R$ ${totalAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} em ${installments}x de R$ ${installmentAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}. Parcelas registradas nos próximos ${installments} meses! 💳`;
+        let installReply = aiResult.response || `Registrado! ${description}: R$ ${totalAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} em ${installments}x de R$ ${installmentAmount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}. Parcelas registradas nos próximos ${installments} meses! 💳`;
+        if (folderLabel) installReply += `\nPasta: ${folderLabel}`;
+        return installReply;
       }
 
       const amount = totalAmount;
@@ -926,6 +977,7 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
         amount,
         type: transactionType,
         category,
+        folder_id: folderId,
       });
 
       if (error) {
@@ -934,6 +986,27 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
       }
 
       let reply = aiResponse || `Registrado! ${transactionType === "receita" ? "Receita" : "Gasto"} de R$ ${amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} em ${category} ✅`;
+
+      // Se tem pasta associada, informar
+      if (folderLabel) {
+        reply += `\nPasta: ${folderLabel}`;
+      } else if (transactionType === "gasto") {
+        // Verificar se o usuário tem pastas cadastradas e perguntar
+        try {
+          const { data: userFoldersCheck } = await supabase
+            .from("folders")
+            .select("name, emoji")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: true });
+
+          if (userFoldersCheck && userFoldersCheck.length > 0) {
+            const folderList = userFoldersCheck.map((f: any, i: number) => `${i + 1}. ${f.emoji} ${f.name}`).join("\n");
+            reply += `\n\n📁 Em qual pasta devo colocar?\n${folderList}\n\n_(Responda o número ou nome da pasta, ou ignore)_`;
+          }
+        } catch (folderCheckErr) {
+          console.error("Folder check error:", folderCheckErr);
+        }
+      }
 
       // Verificar alerta de orçamento
       try {
@@ -1307,6 +1380,165 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
     }
 
     // -------------------------------------------------------
+    // CRIAR PASTA(S)
+    // -------------------------------------------------------
+    case "create_folder": {
+      const folders = Array.isArray(data.folders) ? data.folders : [];
+      if (folders.length === 0) {
+        return aiResponse || "Me diz o nome da pasta que você quer criar! Pode listar várias assim: 1-Casa 2-Granja 3-Consultório 📁";
+      }
+
+      const created: string[] = [];
+      const alreadyExists: string[] = [];
+
+      for (const folder of folders) {
+        const name = typeof folder === "object" && folder !== null ? String((folder as any).name || "").trim() : String(folder).trim();
+        const emoji = typeof folder === "object" && folder !== null ? String((folder as any).emoji || "📁") : "📁";
+        if (!name) continue;
+
+        const { error } = await supabase.from("folders").insert({
+          user_id: userId,
+          name,
+          emoji,
+        });
+
+        if (error) {
+          if (error.code === "23505") {
+            alreadyExists.push(`${emoji} ${name}`);
+          } else {
+            console.error("Folder insert error:", error);
+          }
+        } else {
+          created.push(`${emoji} ${name}`);
+        }
+      }
+
+      let reply = "";
+      if (created.length > 0) {
+        reply = `Pronto! Criei suas pastas:\n\n${created.join("\n")}\n\nAgora, quando registrar um gasto, vou te perguntar em qual pasta colocar. Assim você sabe exatamente onde seu dinheiro está indo! 💪`;
+      }
+      if (alreadyExists.length > 0) {
+        reply += reply ? "\n\n" : "";
+        reply += `Essas pastas já existiam: ${alreadyExists.join(", ")}`;
+      }
+      if (!reply) {
+        reply = "Não consegui criar as pastas. Tente novamente com os nomes! 😅";
+      }
+
+      return reply;
+    }
+
+    // -------------------------------------------------------
+    // LISTAR PASTAS
+    // -------------------------------------------------------
+    case "list_folders": {
+      const { data: userFolders } = await supabase
+        .from("folders")
+        .select("name, emoji, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true });
+
+      if (!userFolders || userFolders.length === 0) {
+        return "Você ainda não tem pastas criadas. 📁\n\nQuer organizar seus gastos? Me diz quais categorias fazem sentido pra você!\nExemplo: 1-Casa 2-Carro 3-Consultório";
+      }
+
+      // Buscar total gasto por pasta
+      const folderLines: string[] = [];
+      for (const f of userFolders) {
+        const { data: folderRecord } = await supabase
+          .from("folders")
+          .select("id")
+          .eq("user_id", userId)
+          .eq("name", f.name)
+          .single();
+
+        let totalStr = "";
+        if (folderRecord) {
+          const monthStart = new Date();
+          monthStart.setDate(1);
+          monthStart.setHours(0, 0, 0, 0);
+          const { data: txs } = await supabase
+            .from("transactions")
+            .select("amount")
+            .eq("user_id", userId)
+            .eq("folder_id", folderRecord.id)
+            .eq("type", "gasto")
+            .gte("transaction_date", monthStart.toISOString());
+
+          if (txs && txs.length > 0) {
+            const total = txs.reduce((sum: number, t: any) => sum + Math.abs(Number(t.amount)), 0);
+            totalStr = ` — R$ ${total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} este mês`;
+          }
+        }
+
+        folderLines.push(`${f.emoji} *${f.name}*${totalStr}`);
+      }
+
+      return `📁 *Suas pastas:*\n\n${folderLines.join("\n")}\n\nPara ver gastos de uma pasta específica, diga: \"gastos da pasta Casa\"`;
+    }
+
+    // -------------------------------------------------------
+    // ASSOCIAR GASTO A PASTA
+    // -------------------------------------------------------
+    case "assign_folder": {
+      const folderName = typeof data.folder_name === "string" ? data.folder_name.trim() : "";
+      const txDesc = typeof data.transaction_description === "string" ? data.transaction_description.trim() : "";
+
+      if (!folderName) {
+        return "Qual pasta você quer usar? Me diz o nome da pasta! 📁";
+      }
+
+      // Buscar a pasta
+      const { data: folder } = await supabase
+        .from("folders")
+        .select("id, name, emoji")
+        .eq("user_id", userId)
+        .ilike("name", folderName)
+        .single();
+
+      if (!folder) {
+        return `Não encontrei a pasta \"${folderName}\". Quer que eu crie? 📁`;
+      }
+
+      // Buscar a última transação (ou a que bate com a descrição)
+      let txQuery = supabase
+        .from("transactions")
+        .select("id, description")
+        .eq("user_id", userId)
+        .is("folder_id", null)
+        .order("created_at", { ascending: false })
+        .limit(1);
+
+      if (txDesc) {
+        txQuery = supabase
+          .from("transactions")
+          .select("id, description")
+          .eq("user_id", userId)
+          .ilike("description", `%${txDesc}%`)
+          .order("created_at", { ascending: false })
+          .limit(1);
+      }
+
+      const { data: txRecord } = await txQuery;
+
+      if (!txRecord || txRecord.length === 0) {
+        return `Não encontrei uma transação recente para associar à pasta ${folder.emoji} ${folder.name}. Registre um gasto primeiro!`;
+      }
+
+      const { error: updateError } = await supabase
+        .from("transactions")
+        .update({ folder_id: folder.id })
+        .eq("id", txRecord[0].id);
+
+      if (updateError) {
+        console.error("Assign folder error:", updateError);
+        return "Ops, não consegui associar. Tente novamente! 😅";
+      }
+
+      return `Pronto! \"${txRecord[0].description}\" foi para a pasta ${folder.emoji} ${folder.name}. ✅`;
+    }
+
+    // -------------------------------------------------------
     // QUERY GERAL
     // -------------------------------------------------------
     case "general_query":
@@ -1524,8 +1756,26 @@ serve(async (req) => {
       }
     }
 
-    // Interpretar a mensagem com IA
-    const aiResult = await interpretMessage(text, new Date());
+    // Buscar pastas do usuário para dar contexto à IA
+    let userFoldersContext = "";
+    try {
+      const { data: userFolders } = await supabase
+        .from("folders")
+        .select("name, emoji")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true });
+
+      if (userFolders && userFolders.length > 0) {
+        const folderNames = userFolders.map((f: any) => `${f.emoji} ${f.name}`).join(", ");
+        userFoldersContext = `\n\n[CONTEXTO DO USUÁRIO: Este usuário tem as seguintes pastas cadastradas: ${folderNames}. Se ele registrar um gasto e o contexto indicar claramente uma pasta (ex: \"ração\" = Granja, \"conta de luz\" = Casa), adicione data.folder_name com o nome da pasta. Se não for claro, NÃO adicione folder_name — o sistema vai perguntar depois.]`;
+      }
+    } catch (folderCtxErr) {
+      console.error("Folder context error:", folderCtxErr);
+    }
+
+    // Interpretar a mensagem com IA (com contexto de pastas)
+    const messageWithContext = userFoldersContext ? text + userFoldersContext : text;
+    const aiResult = await interpretMessage(messageWithContext, new Date());
     const intent = aiResult.intent || "general_query";
 
     // Executar a ação e obter a resposta REAL
