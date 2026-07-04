@@ -1724,7 +1724,10 @@ serve(async (req) => {
       text = text.slice(4).trim();
     }
 
-    const remotePhone = extractPhoneFromKey(key);
+    let remotePhone = extractPhoneFromKey(key);
+    const originalRemoteJid = typeof key.remoteJid === "string" ? key.remoteJid : "";
+    const isLidAddress = originalRemoteJid.endsWith("@lid");
+
     if (!remotePhone) {
       return new Response(JSON.stringify({ status: "missing_phone" }), {
         status: 200,
@@ -1736,6 +1739,92 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
+
+    // Se o endereço é LID, tentar resolver o número real
+    if (isLidAddress) {
+      console.log("LID address detected:", originalRemoteJid, "extracted phone:", remotePhone);
+      
+      // Primeiro: verificar se temos mapeamento salvo na tabela lid_mappings
+      try {
+        const { data: lidMapping } = await supabase
+          .from("lid_mappings")
+          .select("phone")
+          .eq("lid", originalRemoteJid.replace(/@lid$/i, ""))
+          .limit(1)
+          .single();
+        
+        if (lidMapping?.phone) {
+          console.log("LID resolved from mapping:", lidMapping.phone);
+          remotePhone = lidMapping.phone;
+        }
+      } catch (lidErr) {
+        // Tabela pode não existir ainda, ignorar
+        console.log("LID mapping lookup failed (table may not exist):", lidErr);
+      }
+
+      // Segundo: se ainda é um LID numérico (não resolveu), tentar via Evolution API
+      if (remotePhone === originalRemoteJid.replace(/@lid$/i, "")) {
+        try {
+          const evolutionUrl = Deno.env.get("EVOLUTION_API_URL") ?? "";
+          const evolutionKey = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") ?? "";
+          const instanceName = Deno.env.get("EVOLUTION_API_INSTANCE_NAME") || "Tuddo";
+          
+          if (evolutionUrl && evolutionKey) {
+            // Buscar contato pelo LID na Evolution API
+            const contactResp = await fetch(`${evolutionUrl}/chat/findContacts/${instanceName}`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "apikey": evolutionKey },
+              body: JSON.stringify({ where: { remoteJid: originalRemoteJid } }),
+            });
+            
+            if (contactResp.ok) {
+              const contacts = await contactResp.json();
+              const contactList = Array.isArray(contacts) ? contacts : [];
+              
+              // Verificar se o contato também tem uma entrada @s.whatsapp.net
+              if (contactList.length > 0) {
+                const pushName = contactList[0]?.pushName || "";
+                
+                // Buscar pelo pushName para encontrar a versão @s.whatsapp.net
+                if (pushName) {
+                  const altResp = await fetch(`${evolutionUrl}/chat/findContacts/${instanceName}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "apikey": evolutionKey },
+                    body: JSON.stringify({ where: { pushName } }),
+                  });
+                  
+                  if (altResp.ok) {
+                    const altContacts = await altResp.json();
+                    const altList = Array.isArray(altContacts) ? altContacts : [];
+                    const whatsappContact = altList.find((c: any) => 
+                      c.remoteJid && c.remoteJid.includes("@s.whatsapp.net")
+                    );
+                    
+                    if (whatsappContact) {
+                      remotePhone = whatsappContact.remoteJid.replace(/@s\.whatsapp\.net$/i, "");
+                      console.log("LID resolved via Evolution API pushName:", remotePhone);
+                      
+                      // Salvar mapeamento para próxima vez
+                      try {
+                        await supabase.from("lid_mappings").upsert({
+                          lid: originalRemoteJid.replace(/@lid$/i, ""),
+                          phone: remotePhone,
+                          push_name: pushName,
+                        }, { onConflict: "lid" });
+                      } catch (saveErr) {
+                        console.log("Could not save LID mapping:", saveErr);
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } catch (evolutionErr) {
+          console.error("Evolution API LID resolution error:", evolutionErr);
+        }
+      }
+    }
 
     const phoneVariants = buildPhoneVariants(remotePhone);
     const orFilter = phoneVariants.map((phone) => `phone.eq.${phone}`).join(",");
@@ -1755,19 +1844,75 @@ serve(async (req) => {
     }
 
     if (!profiles || profiles.length === 0) {
-      await sendWhatsAppMessage(
-        remotePhone,
-        "Desculpe, não encontrei seu cadastro. Por favor, registre-se na plataforma primeiro! 📱\n\n👉 tuddo.lovable.app",
-      );
+      // Tentar uma última vez: buscar pelo pushName no profiles
+      const pushName = typeof data.pushName === "string" ? data.pushName : "";
+      let foundByPushName = false;
+      
+      if (pushName && pushName.length > 2) {
+        const { data: pushNameProfiles } = await supabase
+          .from("profiles")
+          .select("id, full_name, plan, phone")
+          .ilike("full_name", `%${pushName}%`)
+          .limit(1);
+        
+        if (pushNameProfiles && pushNameProfiles.length > 0) {
+          console.log("Found user by pushName:", pushName, "->", pushNameProfiles[0].full_name);
+          foundByPushName = true;
+          // Usar este perfil e atualizar remotePhone para enviar a resposta
+          remotePhone = pushNameProfiles[0].phone?.replace(/\D/g, "") || remotePhone;
+          
+          // Salvar mapeamento LID
+          if (isLidAddress) {
+            try {
+              await supabase.from("lid_mappings").upsert({
+                lid: originalRemoteJid.replace(/@lid$/i, ""),
+                phone: remotePhone,
+                push_name: pushName,
+              }, { onConflict: "lid" });
+            } catch (e) { /* ignore */ }
+          }
+        }
+      }
+      
+      if (!foundByPushName) {
+        await sendWhatsAppMessage(
+          remotePhone,
+          "Desculpe, não encontrei seu cadastro. Por favor, registre-se na plataforma primeiro! 📱\n\n👉 tuddo.lovable.app",
+        );
 
-      return new Response(JSON.stringify({ status: "user_not_found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+        return new Response(JSON.stringify({ status: "user_not_found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
-    let userId = profiles[0].id;
-    let userPlan = String(profiles[0].plan || "FREE").toUpperCase();
+    // Determinar userId e userPlan (pode vir de profiles ou pushNameProfiles)
+    let userId: string;
+    let userPlan: string;
+    
+    if (profiles && profiles.length > 0) {
+      userId = profiles[0].id;
+      userPlan = String(profiles[0].plan || "FREE").toUpperCase();
+    } else {
+      // foundByPushName = true, buscar novamente
+      const pushName = typeof data.pushName === "string" ? data.pushName : "";
+      const { data: pnProfiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, plan")
+        .ilike("full_name", `%${pushName}%`)
+        .limit(1);
+      
+      if (pnProfiles && pnProfiles.length > 0) {
+        userId = pnProfiles[0].id;
+        userPlan = String(pnProfiles[0].plan || "FREE").toUpperCase();
+      } else {
+        return new Response(JSON.stringify({ status: "user_not_found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
 
     // Verificar se o usuário é membro de um plano familiar
     // Se for, usar o owner_id da família para compartilhar dados
