@@ -428,7 +428,9 @@ function extractTokensFromBody(body: JsonRecord): string[] {
 }
 
 async function verifyRequest(req: Request, rawBody: string, body: JsonRecord): Promise<boolean> {
+  // EVOLUTION_WEBHOOK_TOKEN: token que a Evolution API envia nos headers para autenticar webhooks recebidos
   const acceptedTokens = [
+    Deno.env.get("EVOLUTION_WEBHOOK_TOKEN") ?? "",
     Deno.env.get("EVOLUTION_API_KEY") ?? "",
     Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") ?? "",
   ].filter((value): value is string => Boolean(value));
