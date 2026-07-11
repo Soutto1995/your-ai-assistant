@@ -76,6 +76,18 @@ export default function FinancesPage() {
   const [category, setCategory] = useState("");
   const [type, setType] = useState("gasto");
   const [period, setPeriod] = useState<PeriodFilter>("month");
+  const [folders, setFolders] = useState<Array<{ id: string; name: string; emoji: string }>>([]);
+  const [selectedFolder, setSelectedFolder] = useState<string>("all");
+
+  const fetchFolders = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("folders")
+      .select("id, name, emoji")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true });
+    setFolders(data || []);
+  };
 
   const comparison = useSpendingComparison(transactions);
 
@@ -86,8 +98,17 @@ export default function FinancesPage() {
 
   useEffect(() => {
     fetchTransactions();
-    const channel = supabase.channel("tx-realtime").on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, fetchTransactions).subscribe();
-    return () => { supabase.removeChannel(channel); };
+    fetchFolders();
+    const channel = supabase.channel("tx-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, fetchTransactions)
+      .subscribe();
+    const folderChannel = supabase.channel("folders-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "folders" }, fetchFolders)
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+      supabase.removeChannel(folderChannel);
+    };
   }, [user]);
 
   // Filter by history limit
@@ -100,8 +121,12 @@ export default function FinancesPage() {
 
   const filtered = useMemo(() => {
     const start = getPeriodStart(period);
-    return historyFiltered.filter(t => new Date(t.transaction_date) >= start);
-  }, [historyFiltered, period]);
+    return historyFiltered.filter(t => {
+      const inPeriod = new Date(t.transaction_date) >= start;
+      const inFolder = selectedFolder === "all" || t.folder_id === selectedFolder;
+      return inPeriod && inFolder;
+    });
+  }, [historyFiltered, period, selectedFolder]);
 
   // Transaction count this month
   const txThisMonth = useMemo(() => {
@@ -232,6 +257,35 @@ export default function FinancesPage() {
             </Button>
           ))}
         </div>
+
+        {/* Filtro de pasta */}
+        {folders.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedFolder("all")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                selectedFolder === "all"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+              }`}
+            >
+              📁 Todas as pastas
+            </button>
+            {folders.map(f => (
+              <button
+                key={f.id}
+                onClick={() => setSelectedFolder(f.id)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  selectedFolder === f.id
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                }`}
+              >
+                {f.emoji} {f.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Stat Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
@@ -463,6 +517,11 @@ export default function FinancesPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm text-foreground truncate">{tx.description}</p>
+                      {tx.folder_id && folders.find(f => f.id === tx.folder_id) && (
+                        <span className="text-xs text-muted-foreground ml-1">
+                          {folders.find(f => f.id === tx.folder_id)!.emoji} {folders.find(f => f.id === tx.folder_id)!.name}
+                        </span>
+                      )}
                       <p className="text-xs text-muted-foreground">{tx.category || "Sem categoria"}</p>
                     </div>
                   </div>
