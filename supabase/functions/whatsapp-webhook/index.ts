@@ -1294,16 +1294,43 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
           total = txs.reduce((sum: number, t: any) => sum + Math.abs(Number(t.amount)), 0);
         }
       } else if (itemType === "task") {
-        const { data: tasks } = await supabase
+        let taskQuery = supabase
           .from("tasks")
           .select("title, status, due_date")
           .eq("user_id", userId)
           .eq("status", "pendente")
-          .order("created_at", { ascending: false });
+          .order("due_date", { ascending: true });
 
+        // Aplicar filtro de data apenas quando não for "hoje" sem hora específica
+        if (dateFilter !== "este mês" && startDate && endDate) {
+          // Incluir tarefas SEM due_date apenas quando listagem geral (sem filtro de data)
+          taskQuery = supabase
+            .from("tasks")
+            .select("title, status, due_date")
+            .eq("user_id", userId)
+            .eq("status", "pendente")
+            .or(`due_date.is.null,and(due_date.gte.${startDate}T00:00:00,due_date.lte.${endDate}T23:59:59)`)
+            .order("due_date", { ascending: true });
+
+          // Para filtros específicos (amanhã, ontem, semana), excluir sem data
+          if (["amanhã", "ontem", "esta semana"].includes(dateFilter)) {
+            taskQuery = supabase
+              .from("tasks")
+              .select("title, status, due_date")
+              .eq("user_id", userId)
+              .eq("status", "pendente")
+              .gte("due_date", `${startDate}T00:00:00`)
+              .lte("due_date", `${endDate}T23:59:59`)
+              .order("due_date", { ascending: true });
+          }
+        }
+
+        const { data: tasks } = await taskQuery;
         if (tasks && tasks.length > 0) {
           items = tasks.map((t: any) => {
-            const dueStr = t.due_date ? ` (até ${new Date(t.due_date).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })})` : "";
+            const dueStr = t.due_date
+              ? ` (até ${new Date(t.due_date).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })})`
+              : "";
             return `📌 ${t.title}${dueStr}`;
           });
         }
