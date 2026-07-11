@@ -97,7 +97,8 @@ export default function GoalsPage() {
   };
 
   const deleteGoal = async (id: string) => {
-    await supabase.from("goals").delete().eq("id", id);
+    const { error } = await supabase.from("goals").delete().eq("id", id);
+    if (error) { toast.error("Erro ao remover meta"); return; }
     toast.success("Meta removida");
     fetchGoals();
   };
