@@ -28,6 +28,7 @@ const baseNavItems = [
   { icon: CalendarDays, label: "Calendário", path: "/calendario" },
   { icon: FolderOpen, label: "Projetos", path: "/projetos" },
   { icon: Target, label: "Orçamento", path: "/orcamento" },
+  { icon: Target, label: "Metas", path: "/metas" },
   { icon: CreditCard, label: "Planos", path: "/planos" },
   { icon: Gift, label: "Indicações", path: "/indicacoes" },
 ];
