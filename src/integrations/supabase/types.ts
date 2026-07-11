@@ -294,6 +294,66 @@ export type Database = {
         }
         Relationships: []
       }
+      folders: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          emoji: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          emoji?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          emoji?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      goals: {
+        Row: {
+          id: string
+          user_id: string
+          title: string
+          target_amount: number
+          current_amount: number
+          deadline: string | null
+          category: string
+          status: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title: string
+          target_amount: number
+          current_amount?: number
+          deadline?: string | null
+          category?: string
+          status?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title?: string
+          target_amount?: number
+          current_amount?: number
+          deadline?: string | null
+          category?: string
+          status?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       referrals: {
         Row: {
           created_at: string
@@ -413,6 +473,7 @@ export type Database = {
           category: string | null
           created_at: string
           description: string
+          folder_id: string | null
           id: string
           transaction_date: string
           type: string
@@ -423,6 +484,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           description: string
+          folder_id?: string | null
           id?: string
           transaction_date?: string
           type: string
@@ -433,6 +495,7 @@ export type Database = {
           category?: string | null
           created_at?: string
           description?: string
+          folder_id?: string | null
           id?: string
           transaction_date?: string
           type?: string
