@@ -1301,9 +1301,18 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
           .eq("status", "pendente")
           .order("due_date", { ascending: true });
 
-        // Aplicar filtro de data apenas quando não for "hoje" sem hora específica
-        if (dateFilter !== "este mês" && startDate && endDate) {
-          // Incluir tarefas SEM due_date apenas quando listagem geral (sem filtro de data)
+        if (["amanhã", "ontem", "esta semana"].includes(dateFilter)) {
+          // Filtros específicos: excluir tarefas sem due_date
+          taskQuery = supabase
+            .from("tasks")
+            .select("title, status, due_date")
+            .eq("user_id", userId)
+            .eq("status", "pendente")
+            .gte("due_date", `${startDate}T00:00:00`)
+            .lte("due_date", `${endDate}T23:59:59`)
+            .order("due_date", { ascending: true });
+        } else if (startDate && endDate) {
+          // Filtros gerais (hoje, este mês, mês nomeado): incluir tarefas sem due_date OU dentro do range
           taskQuery = supabase
             .from("tasks")
             .select("title, status, due_date")
@@ -1311,18 +1320,6 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
             .eq("status", "pendente")
             .or(`due_date.is.null,and(due_date.gte.${startDate}T00:00:00,due_date.lte.${endDate}T23:59:59)`)
             .order("due_date", { ascending: true });
-
-          // Para filtros específicos (amanhã, ontem, semana), excluir sem data
-          if (["amanhã", "ontem", "esta semana"].includes(dateFilter)) {
-            taskQuery = supabase
-              .from("tasks")
-              .select("title, status, due_date")
-              .eq("user_id", userId)
-              .eq("status", "pendente")
-              .gte("due_date", `${startDate}T00:00:00`)
-              .lte("due_date", `${endDate}T23:59:59`)
-              .order("due_date", { ascending: true });
-          }
         }
 
         const { data: tasks } = await taskQuery;
