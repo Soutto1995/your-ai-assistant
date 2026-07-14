@@ -321,6 +321,39 @@ export default function FinancesPage() {
           </DropdownMenu>
         </div>
 
+        {/* Nova pasta dialog */}
+        <Dialog open={newFolderOpen} onOpenChange={setNewFolderOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Criar nova pasta</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-[64px_1fr] gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">Emoji</label>
+                  <Input
+                    value={newFolderEmoji}
+                    onChange={e => setNewFolderEmoji(e.target.value.slice(0, 2))}
+                    placeholder="📁"
+                    maxLength={2}
+                    className="text-center text-lg"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">Nome da pasta</label>
+                  <Input
+                    value={newFolderName}
+                    onChange={e => setNewFolderName(e.target.value)}
+                    placeholder="Ex: Casa, Trabalho, Viagem"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setNewFolderOpen(false)}>Cancelar</Button>
+                <Button onClick={createFolder} disabled={!newFolderName.trim()}>Criar</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Pasta ativa */}
         {selectedFolder !== "all" && (() => { const f = folders.find(f => f.id === selectedFolder); return f ? (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
