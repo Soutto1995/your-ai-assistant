@@ -48,6 +48,7 @@ export type Database = {
           id: string
           legacy_meeting_date: string | null
           participants: number | null
+          reminder_1h_sent: boolean | null
           reminder_sent: boolean | null
           status: string
           title: string
@@ -62,6 +63,7 @@ export type Database = {
           id?: string
           legacy_meeting_date?: string | null
           participants?: number | null
+          reminder_1h_sent?: boolean | null
           reminder_sent?: boolean | null
           status?: string
           title: string
@@ -76,6 +78,7 @@ export type Database = {
           id?: string
           legacy_meeting_date?: string | null
           participants?: number | null
+          reminder_1h_sent?: boolean | null
           reminder_sent?: boolean | null
           status?: string
           title?: string
@@ -142,6 +145,111 @@ export type Database = {
           },
         ]
       }
+      folders: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          emoji: string | null
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          emoji?: string | null
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          emoji?: string | null
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      goals: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          current_amount: number | null
+          deadline: string | null
+          description: string | null
+          id: string
+          status: string | null
+          target_amount: number
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          current_amount?: number | null
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          status?: string | null
+          target_amount: number
+          title: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          current_amount?: number | null
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          status?: string | null
+          target_amount?: number
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      google_calendar_tokens: {
+        Row: {
+          access_token: string
+          calendar_id: string | null
+          created_at: string | null
+          id: string
+          refresh_token: string | null
+          sync_enabled: boolean | null
+          token_expiry: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          calendar_id?: string | null
+          created_at?: string | null
+          id?: string
+          refresh_token?: string | null
+          sync_enabled?: boolean | null
+          token_expiry?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          calendar_id?: string | null
+          created_at?: string | null
+          id?: string
+          refresh_token?: string | null
+          sync_enabled?: boolean | null
+          token_expiry?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       inbox_messages: {
         Row: {
           created_at: string
@@ -172,6 +280,33 @@ export type Database = {
           status?: string
           type?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      lid_mappings: {
+        Row: {
+          created_at: string | null
+          id: string
+          lid: string
+          phone: string
+          push_name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          lid: string
+          phone: string
+          push_name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          lid?: string
+          phone?: string
+          push_name?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -291,66 +426,6 @@ export type Database = {
           id?: string
           name?: string
           user_id?: string
-        }
-        Relationships: []
-      }
-      folders: {
-        Row: {
-          id: string
-          user_id: string
-          name: string
-          emoji: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          name: string
-          emoji?: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          name?: string
-          emoji?: string
-          created_at?: string
-        }
-        Relationships: []
-      }
-      goals: {
-        Row: {
-          id: string
-          user_id: string
-          title: string
-          target_amount: number
-          current_amount: number
-          deadline: string | null
-          category: string
-          status: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          title: string
-          target_amount: number
-          current_amount?: number
-          deadline?: string | null
-          category?: string
-          status?: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          title?: string
-          target_amount?: number
-          current_amount?: number
-          deadline?: string | null
-          category?: string
-          status?: string
-          created_at?: string
         }
         Relationships: []
       }
@@ -501,7 +576,15 @@ export type Database = {
           type?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "transactions_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
