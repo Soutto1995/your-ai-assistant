@@ -6,12 +6,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useSpendingComparison } from "@/hooks/useSpendingComparison";
 import UpgradeModal from "@/components/UpgradeModal";
-import { DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Plus, Trash2, Sparkles, Crown, Lock } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Plus, Trash2, Sparkles, Crown, Lock, FolderOpen, ChevronDown, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
@@ -249,43 +250,58 @@ export default function FinancesPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Period filter */}
-        <div className="flex gap-2 flex-wrap">
+        {/* Period filter + pasta */}
+        <div className="flex gap-2 flex-wrap items-center">
           {(Object.keys(periodLabels) as PeriodFilter[]).map(p => (
             <Button key={p} variant={period === p ? "default" : "outline"} size="sm" onClick={() => setPeriod(p)}>
               {periodLabels[p]}
             </Button>
           ))}
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant={selectedFolder === "all" ? "outline" : "default"}
+                size="sm"
+                className="gap-1.5"
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                {selectedFolder === "all"
+                  ? "Pastas"
+                  : (() => { const f = folders.find(f => f.id === selectedFolder); return f ? `${f.emoji} ${f.name}` : "Pastas"; })()
+                }
+                <ChevronDown className="w-3 h-3 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="min-w-[180px]">
+              <DropdownMenuItem onClick={() => setSelectedFolder("all")} className="gap-2">
+                {selectedFolder === "all" && <Check className="w-3.5 h-3.5 text-primary" />}
+                <span className={selectedFolder === "all" ? "ml-0" : "ml-5"}>📁 Todas as pastas</span>
+              </DropdownMenuItem>
+              {folders.length > 0 && <DropdownMenuSeparator />}
+              {folders.map(f => (
+                <DropdownMenuItem key={f.id} onClick={() => setSelectedFolder(f.id)} className="gap-2">
+                  {selectedFolder === f.id && <Check className="w-3.5 h-3.5 text-primary" />}
+                  <span className={selectedFolder === f.id ? "ml-0" : "ml-5"}>{f.emoji} {f.name}</span>
+                </DropdownMenuItem>
+              ))}
+              {folders.length === 0 && (
+                <DropdownMenuItem disabled className="text-muted-foreground text-xs">
+                  Nenhuma pasta criada ainda
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        {/* Filtro de pasta */}
-        {folders.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setSelectedFolder("all")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                selectedFolder === "all"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-muted-foreground hover:bg-secondary/80"
-              }`}
-            >
-              📁 Todas as pastas
-            </button>
-            {folders.map(f => (
-              <button
-                key={f.id}
-                onClick={() => setSelectedFolder(f.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  selectedFolder === f.id
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-muted-foreground hover:bg-secondary/80"
-                }`}
-              >
-                {f.emoji} {f.name}
-              </button>
-            ))}
+        {/* Pasta ativa */}
+        {selectedFolder !== "all" && (() => { const f = folders.find(f => f.id === selectedFolder); return f ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <FolderOpen className="w-3.5 h-3.5 text-primary" />
+            <span>Filtrando por: <span className="text-primary font-medium">{f.emoji} {f.name}</span></span>
+            <button onClick={() => setSelectedFolder("all")} className="text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2">limpar</button>
           </div>
-        )}
+        ) : null; })()}
 
         {/* Stat Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4">
