@@ -312,6 +312,11 @@ export default function FinancesPage() {
                   Nenhuma pasta criada ainda
                 </DropdownMenuItem>
               )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setNewFolderOpen(true)} className="gap-2 text-primary focus:text-primary focus:bg-primary/10">
+                <Plus className="w-3.5 h-3.5" />
+                <span>Nova pasta</span>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
