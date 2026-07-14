@@ -79,6 +79,9 @@ export default function FinancesPage() {
   const [period, setPeriod] = useState<PeriodFilter>("month");
   const [folders, setFolders] = useState<Array<{ id: string; name: string; emoji: string }>>([]);
   const [selectedFolder, setSelectedFolder] = useState<string>("all");
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [newFolderEmoji, setNewFolderEmoji] = useState("");
+  const [newFolderName, setNewFolderName] = useState("");
 
   const fetchFolders = async () => {
     if (!user) return;
@@ -88,6 +91,25 @@ export default function FinancesPage() {
       .eq("user_id", user.id)
       .order("created_at", { ascending: true });
     setFolders(data || []);
+  };
+
+  const createFolder = async () => {
+    if (!user || !newFolderName.trim()) return;
+    const { data, error } = await supabase.from("folders").insert({
+      user_id: user.id,
+      name: newFolderName.trim(),
+      emoji: newFolderEmoji.trim() || "📁",
+    }).select("id, name, emoji").single();
+    if (error) {
+      toast.error("Erro ao criar pasta");
+      return;
+    }
+    toast.success("Pasta criada!");
+    setNewFolderEmoji("");
+    setNewFolderName("");
+    setNewFolderOpen(false);
+    await fetchFolders();
+    if (data) setSelectedFolder(data.id);
   };
 
   const comparison = useSpendingComparison(transactions);
@@ -290,9 +312,47 @@ export default function FinancesPage() {
                   Nenhuma pasta criada ainda
                 </DropdownMenuItem>
               )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setNewFolderOpen(true)} className="gap-2 text-primary focus:text-primary focus:bg-primary/10">
+                <Plus className="w-3.5 h-3.5" />
+                <span>Nova pasta</span>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
+        {/* Nova pasta dialog */}
+        <Dialog open={newFolderOpen} onOpenChange={setNewFolderOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Criar nova pasta</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-[64px_1fr] gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">Emoji</label>
+                  <Input
+                    value={newFolderEmoji}
+                    onChange={e => setNewFolderEmoji(e.target.value.slice(0, 2))}
+                    placeholder="📁"
+                    maxLength={2}
+                    className="text-center text-lg"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted-foreground">Nome da pasta</label>
+                  <Input
+                    value={newFolderName}
+                    onChange={e => setNewFolderName(e.target.value)}
+                    placeholder="Ex: Casa, Trabalho, Viagem"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setNewFolderOpen(false)}>Cancelar</Button>
+                <Button onClick={createFolder} disabled={!newFolderName.trim()}>Criar</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Pasta ativa */}
         {selectedFolder !== "all" && (() => { const f = folders.find(f => f.id === selectedFolder); return f ? (
