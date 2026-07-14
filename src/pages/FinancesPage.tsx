@@ -79,6 +79,9 @@ export default function FinancesPage() {
   const [period, setPeriod] = useState<PeriodFilter>("month");
   const [folders, setFolders] = useState<Array<{ id: string; name: string; emoji: string }>>([]);
   const [selectedFolder, setSelectedFolder] = useState<string>("all");
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const [newFolderEmoji, setNewFolderEmoji] = useState("");
+  const [newFolderName, setNewFolderName] = useState("");
 
   const fetchFolders = async () => {
     if (!user) return;
@@ -88,6 +91,25 @@ export default function FinancesPage() {
       .eq("user_id", user.id)
       .order("created_at", { ascending: true });
     setFolders(data || []);
+  };
+
+  const createFolder = async () => {
+    if (!user || !newFolderName.trim()) return;
+    const { data, error } = await supabase.from("folders").insert({
+      user_id: user.id,
+      name: newFolderName.trim(),
+      emoji: newFolderEmoji.trim() || "📁",
+    }).select("id, name, emoji").single();
+    if (error) {
+      toast.error("Erro ao criar pasta");
+      return;
+    }
+    toast.success("Pasta criada!");
+    setNewFolderEmoji("");
+    setNewFolderName("");
+    setNewFolderOpen(false);
+    await fetchFolders();
+    if (data) setSelectedFolder(data.id);
   };
 
   const comparison = useSpendingComparison(transactions);
