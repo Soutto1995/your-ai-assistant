@@ -533,11 +533,14 @@ export default function FinancesPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm text-foreground truncate">{tx.description}</p>
-                      {tx.folder_id && folders.find(f => f.id === tx.folder_id) && (
-                        <span className="text-xs text-muted-foreground ml-1">
-                          {folders.find(f => f.id === tx.folder_id)!.emoji} {folders.find(f => f.id === tx.folder_id)!.name}
-                        </span>
-                      )}
+                      {(() => {
+                        const f = tx.folder_id ? folders.find(f => f.id === tx.folder_id) : null;
+                        return f ? (
+                          <span className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-medium">
+                            <span>{f.emoji}</span>{f.name}
+                          </span>
+                        ) : null;
+                      })()}
                       <p className="text-xs text-muted-foreground">{tx.category || "Sem categoria"}</p>
                     </div>
                   </div>
