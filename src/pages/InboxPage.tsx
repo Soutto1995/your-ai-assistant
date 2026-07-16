@@ -35,7 +35,7 @@ const typeColors: Record<string, string> = {
 };
 
 export default function InboxPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
