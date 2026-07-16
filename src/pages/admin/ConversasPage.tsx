@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 
-const ADMIN_EMAIL = "brunosouttomed@gmail.com";
+const ADMIN_EMAIL = "brunosouttoo@gmail.com";
 const PAGE_SIZE = 30;
 
 const INTENT_COLORS: Record<string, string> = {
