@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { isFamilyPlan } from "@/lib/planLimits";
 import {
   LayoutDashboard,
@@ -19,7 +20,11 @@ import {
   LogOut,
   Gift,
   Users,
+  MessagesSquare,
+  HeadphonesIcon,
 } from "lucide-react";
+
+const ADMIN_EMAIL = "brunosouttoo@gmail.com";
 
 const baseNavItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard" },
@@ -36,8 +41,24 @@ const baseNavItems = [
 
 export default function AppSidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const [collapsed, setCollapsed] = useState(false);
+  const [pendingSupport, setPendingSupport] = useState(0);
   const location = useLocation();
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, user } = useAuth();
+  const isAdmin = user?.email === ADMIN_EMAIL;
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const fetchPending = async () => {
+      const { count } = await (supabase as any)
+        .from("support_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending");
+      setPendingSupport(count ?? 0);
+    };
+    fetchPending();
+    const timer = setInterval(fetchPending, 60_000);
+    return () => clearInterval(timer);
+  }, [isAdmin]);
 
   const navItems = isFamilyPlan(profile?.plan)
     ? [...baseNavItems, { icon: Users, label: "Família", path: "/family" }]
@@ -90,6 +111,55 @@ export default function AppSidebar({ onNavigate }: { onNavigate?: () => void } =
             </Link>
           );
         })}
+
+        {/* Admin section */}
+        {isAdmin && (
+          <>
+            {!collapsed && (
+              <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                Admin
+              </p>
+            )}
+            {[
+              { icon: MessagesSquare, label: "Conversas", path: "/admin/conversas", badge: 0 },
+              { icon: HeadphonesIcon, label: "Suporte", path: "/admin/suporte", badge: pendingSupport },
+            ].map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  onClick={onNavigate}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    isActive
+                      ? "bg-gold-muted text-primary"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  }`}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <div className="relative flex-shrink-0">
+                    <item.icon className={`w-5 h-5 ${isActive ? "text-primary" : ""}`} />
+                    {item.badge > 0 && (
+                      <span className="absolute -top-1.5 -right-1.5 bg-destructive text-destructive-foreground text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                        {item.badge > 9 ? "9+" : item.badge}
+                      </span>
+                    )}
+                  </div>
+                  {!collapsed && (
+                    <span className="flex-1 flex items-center gap-2">
+                      {item.label}
+                      {item.badge > 0 && (
+                        <span className="ml-auto bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full px-1.5 min-w-[18px] text-center">
+                          {item.badge}
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </>
+        )}
       </nav>
 
       {/* User info + Logout */}

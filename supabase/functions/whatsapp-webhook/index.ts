@@ -997,6 +997,64 @@ function getMediaCaption(message: JsonRecord): string {
 }
 
 // ============================================================
+// SUPPORT ESCALATION HELPERS
+// ============================================================
+
+function isAffirmativeMessage(text: string): boolean {
+  const t = text.toLowerCase().trim().replace(/[!.?]+$/, "");
+  const positives = ["sim", "s", "ok", "pode", "quero", "confirma", "confirmo", "avise", "chama", "por favor", "pfv", "claro", "vai", "yes", "ta", "tá", "bora", "pode sim", "claro que sim", "com certeza", "pode ser"];
+  return positives.some(p => t === p || t.startsWith(p + " ") || t.endsWith(" " + p));
+}
+
+async function createSupportRequest(
+  supabase: any,
+  userId: string,
+  phone: string,
+  originalMessage: string,
+  context: Array<{message: string; response: string | null; created_at: string; type: string}>
+): Promise<string | null> {
+  const { data, error } = await supabase.from("support_requests").insert({
+    user_id: userId,
+    phone,
+    original_message: originalMessage,
+    context,
+    status: "pending",
+  }).select("id").single();
+
+  if (error) {
+    console.error("Support request insert error:", error);
+    return null;
+  }
+  return data?.id ?? null;
+}
+
+async function notifySupportAdmin(
+  clientName: string,
+  originalMessage: string,
+  _metaPhoneId: string
+): Promise<void> {
+  const adminPhone = Deno.env.get("SUPPORT_ADMIN_PHONE") || "5548999844528";
+  const msgBody = `🆘 *Novo chamado de suporte — Tuddo*\n\nCliente: ${clientName}\nMensagem: "${originalMessage.substring(0, 200)}"\n\nAcesse tuddo.lovable.app/admin/suporte para atender.`;
+
+  // TODO: após aprovação do template 'suporte_tuddo' na Meta, substituir por:
+  // POST /v23.0/{_metaPhoneId}/messages com type:"template", name:"suporte_tuddo",
+  // language:{code:"pt_BR"}, components:[{type:"body",parameters:[{type:"text",text:clientName},{type:"text",text:originalMessage}]}]
+
+  const evolutionUrl = Deno.env.get("EVOLUTION_API_URL") ?? "";
+  const evolutionKey = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") ?? "";
+  const instanceName = Deno.env.get("EVOLUTION_API_INSTANCE_NAME") || "Tuddo";
+
+  if (evolutionUrl && evolutionKey) {
+    await fetch(`${evolutionUrl}/message/sendText/${instanceName}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "apikey": evolutionKey },
+      body: JSON.stringify({ number: adminPhone, text: msgBody }),
+    }).then(r => { if (!r.ok) console.error("Admin notify Evolution error:", r.status); })
+      .catch(e => console.error("Admin notify Evolution error:", e));
+  }
+}
+
+// ============================================================
 // EXECUTE INTENT ACTION — TOTALMENTE REESCRITO
 // ============================================================
 async function executeIntentAction(supabase: any, userId: string, userPlan: string, aiResult: AiResult, fallbackText: string): Promise<string> {
@@ -2197,17 +2255,19 @@ serve(async (req) => {
 
     // Buscar histórico de conversa (últimas 8 mensagens) para dar contexto à IA
     let conversationHistory = "";
+    let recentMsgsDesc: Array<{message: string; response: string | null; created_at: string; type: string}> = [];
     try {
-      const { data: recentMessages } = await supabase
+      const { data: historyData } = await supabase
         .from("inbox_messages")
-        .select("message, response, created_at")
+        .select("message, response, created_at, type")
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(8);
 
-      if (recentMessages && recentMessages.length > 0) {
-        // Inverter para ordem cronológica (mais antiga primeiro)
-        const chronological = recentMessages.reverse();
+      if (historyData && historyData.length > 0) {
+        recentMsgsDesc = historyData;
+        // Cópia invertida para ordem cronológica — só para display no histórico
+        const chronological = [...historyData].reverse();
         const historyLines = chronological.map((m: any) => {
           const userMsg = `USUÁRIO: ${m.message}`;
           const botMsg = m.response ? `TUDDO: ${m.response.substring(0, 150)}` : "";
@@ -2217,6 +2277,43 @@ serve(async (req) => {
       }
     } catch (historyErr) {
       console.error("History fetch error:", historyErr);
+    }
+
+    // Verificar confirmação de escalonamento para suporte humano
+    const lastInboxMsg = recentMsgsDesc.length > 0 ? recentMsgsDesc[0] : null;
+    if (lastInboxMsg?.type === "escalation_offered" && isAffirmativeMessage(text)) {
+      const clientName = (profiles && profiles.length > 0 ? profiles[0].full_name : null)
+        || (isMeta ? (_metaExtracted?.pushName ?? "") : _pushName)
+        || remotePhone;
+      const contextForSupport = [...recentMsgsDesc.slice(0, 5)].reverse(); // cronológico
+
+      const requestId = await createSupportRequest(supabase, userId, remotePhone, lastInboxMsg.message, contextForSupport);
+
+      const supportReply = requestId
+        ? "✅ Pronto! Acionei o suporte. Alguém do time Tuddo vai entrar em contato por aqui em breve. 🤝"
+        : "Ops, não consegui acionar o suporte agora. Tente novamente em alguns instantes! 😅";
+
+      if (requestId) {
+        notifySupportAdmin(clientName, lastInboxMsg.message, metaPhoneNumberId).catch(() => {});
+      }
+
+      await supabase.from("inbox_messages").insert({
+        user_id: userId,
+        message: text,
+        type: "support_requested",
+        source: "whatsapp",
+        status: "processado",
+        response: supportReply,
+      }).catch((e: unknown) => console.error("Inbox insert error:", e));
+
+      isMeta
+        ? await sendMessageMeta(metaPhoneNumberId, remotePhone, supportReply)
+        : await sendWhatsAppMessage(remotePhone, supportReply);
+
+      return new Response(JSON.stringify({ status: "ok", intent: "support_requested" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Buscar pastas do usuário para dar contexto à IA
@@ -2251,13 +2348,23 @@ serve(async (req) => {
     const intent = aiResult.intent || "general_query";
 
     // Executar a ação e obter a resposta REAL
-    const reply = await executeIntentAction(supabase, userId, userPlan, aiResult, text);
+    let reply = await executeIntentAction(supabase, userId, userPlan, aiResult, text);
+    let finalIntent: string = intent;
+
+    // Escalonamento: segunda mensagem consecutiva não reconhecida → oferecer suporte humano
+    if (intent === "general_query") {
+      const prevMsg = recentMsgsDesc.length > 0 ? recentMsgsDesc[0] : null;
+      if (prevMsg && (prevMsg.type === "general_query" || prevMsg.type === "escalation_offered")) {
+        reply = "Não consegui te ajudar com isso ainda. Quer que eu avise o suporte humano? Responda *sim* para confirmar. 🆘";
+        finalIntent = "escalation_offered";
+      }
+    }
 
     // Salvar no inbox
     const { error: inboxError } = await supabase.from("inbox_messages").insert({
       user_id: userId,
       message: text,
-      type: intent,
+      type: finalIntent,
       source: "whatsapp",
       status: "processado",
       response: reply,
@@ -2272,7 +2379,7 @@ serve(async (req) => {
       ? await sendMessageMeta(metaPhoneNumberId, remotePhone, reply)
       : await sendWhatsAppMessage(remotePhone, reply);
 
-    return new Response(JSON.stringify({ status: "ok", intent, sendResult, phone: remotePhone, reply: reply.substring(0, 50) }), {
+    return new Response(JSON.stringify({ status: "ok", intent: finalIntent, sendResult, phone: remotePhone, reply: reply.substring(0, 50) }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
