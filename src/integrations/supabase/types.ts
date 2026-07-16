@@ -509,6 +509,57 @@ export type Database = {
           },
         ]
       }
+      support_requests: {
+        Row: {
+          context: Json | null
+          created_at: string
+          id: string
+          original_message: string
+          phone: string
+          resolved_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          context?: Json | null
+          created_at?: string
+          id?: string
+          original_message: string
+          phone: string
+          resolved_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          context?: Json | null
+          created_at?: string
+          id?: string
+          original_message?: string
+          phone?: string
+          resolved_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      system_config: {
+        Row: {
+          key: string
+          updated_at: string | null
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string | null
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string | null
+          value?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           created_at: string
