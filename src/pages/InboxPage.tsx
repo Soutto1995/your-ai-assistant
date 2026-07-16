@@ -111,6 +111,9 @@ export default function InboxPage() {
                 <div key={item.id} className="bg-card rounded-xl border border-border p-5 card-glow animate-slide-up" style={{ animationDelay: `${i * 60}ms` }}>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 space-y-2">
+                      {profile?.full_name && (
+                        <span className="text-xs font-medium text-muted-foreground">👤 {profile.full_name}</span>
+                      )}
                       <div className="flex items-center gap-2">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${typeColors[label] || "bg-muted text-muted-foreground"}`}>{label}</span>
                         <span className="flex items-center gap-1 text-xs text-muted-foreground">
