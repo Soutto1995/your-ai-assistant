@@ -678,6 +678,11 @@ export default function HomePage() {
                     href={annual ? plan.stripeYearly : plan.stripeMonthly}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => {
+                      if (typeof (window as any).fbq === "function") {
+                        (window as any).fbq("track", "InitiateCheckout");
+                      }
+                    }}
                   >
                     <Button className="w-full" variant={plan.highlight ? "default" : "outline"}>
                       {plan.cta}
@@ -786,6 +791,11 @@ export default function HomePage() {
                     href={annual ? plan.linkYearly : plan.linkMonthly}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => {
+                      if (typeof (window as any).fbq === "function") {
+                        (window as any).fbq("track", "InitiateCheckout");
+                      }
+                    }}
                   >
                     <Button className="w-full" variant={plan.highlight ? "default" : "outline"}>
                       Quero o {plan.name}

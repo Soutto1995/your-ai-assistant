@@ -122,6 +122,9 @@ export default function PricingPage() {
     }
 
     setLoadingPlan(planKey);
+    if (typeof (window as any).fbq === "function") {
+      (window as any).fbq("track", "InitiateCheckout");
+    }
     try {
       const response = await fetch(
         'https://jwxrtnleqdvzvoywzqir.supabase.co/functions/v1/create-checkout',

@@ -76,6 +76,10 @@ export default function SignupPage() {
           } as any).eq("referral_code", refCode).is("referred_id", null);
         }
       }
+      // Meta Pixel: signup completo
+      if (typeof (window as any).fbq === "function") {
+        (window as any).fbq("track", "CompleteRegistration");
+      }
       toast({ title: "Conta criada!", description: "Você já pode usar o Tuddo." });
       navigate("/dashboard");
     }
