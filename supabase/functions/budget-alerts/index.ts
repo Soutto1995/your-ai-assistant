@@ -1,24 +1,46 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-async function sendWhatsAppMessage(evolutionUrl: string, instanceName: string, apiKey: string, phone: string, message: string): Promise<void> {
-  const url = `${evolutionUrl}/message/sendText/${instanceName}`;
-  const response = await fetch(url, {
+let _cachedMetaPhoneId: string | null = null;
+
+async function getMetaPhoneId(supabase: ReturnType<typeof createClient>): Promise<string> {
+  if (_cachedMetaPhoneId) return _cachedMetaPhoneId;
+  const fromEnv = Deno.env.get("META_PHONE_NUMBER_ID") ?? "";
+  if (fromEnv) { _cachedMetaPhoneId = fromEnv; return fromEnv; }
+  try {
+    const { data } = await supabase.from("system_config").select("value").eq("key", "meta_phone_number_id").single();
+    if (data?.value) { _cachedMetaPhoneId = data.value; return data.value; }
+  } catch { /* ignore */ }
+  return "";
+}
+
+async function sendMessage(phone: string, message: string, supabase: ReturnType<typeof createClient>): Promise<void> {
+  const metaToken = Deno.env.get("META_ACCESS_TOKEN") ?? "";
+  const metaPhoneId = await getMetaPhoneId(supabase);
+
+  if (metaToken && metaPhoneId) {
+    const res = await fetch(`https://graph.facebook.com/v23.0/${metaPhoneId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${metaToken}` },
+      body: JSON.stringify({ messaging_product: "whatsapp", to: phone, type: "text", text: { body: message } }),
+    });
+    if (!res.ok) console.error(`Meta send error to ${phone}:`, res.status, await res.text());
+    return;
+  }
+
+  const evolutionUrl = Deno.env.get("EVOLUTION_API_URL") ?? "https://evolution-api-production-6070.up.railway.app";
+  const instanceName = Deno.env.get("EVOLUTION_API_INSTANCE_NAME") ?? "Tuddo";
+  const evolutionKey = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") ?? "";
+  const res = await fetch(`${evolutionUrl}/message/sendText/${instanceName}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "apikey": apiKey },
+    headers: { "Content-Type": "application/json", "apikey": evolutionKey },
     body: JSON.stringify({ number: phone, text: message }),
   });
-  if (!response.ok) {
-    console.error(`Failed to send WhatsApp to ${phone}:`, await response.text());
-  }
+  if (!res.ok) console.error(`Evolution send error to ${phone}:`, res.status, await res.text());
 }
 
 Deno.serve(async (req) => {
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
   const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  const EVOLUTION_URL = Deno.env.get("EVOLUTION_API_URL") ?? "https://evolution-api-production-6070.up.railway.app";
-  const EVOLUTION_INSTANCE = Deno.env.get("EVOLUTION_API_INSTANCE_NAME") ?? "Tuddo";
-  const EVOLUTION_KEY = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") ?? "";
-
   // Auth
   const authHeader = req.headers.get("Authorization") ?? "";
   const token = authHeader.replace("Bearer ", "");
@@ -74,7 +96,7 @@ Deno.serve(async (req) => {
       .from("transactions")
       .select("amount, category")
       .eq("user_id", userId)
-      .eq("type", "expense")
+      .eq("type", "gasto")
       .gte("date", startDate)
       .lte("date", endDate);
 
@@ -93,12 +115,12 @@ Deno.serve(async (req) => {
       // Alertar em 80% e 100%
       if (percentage >= 100) {
         const message = `🚨 *Alerta de orçamento, ${firstName}!*\n\nVocê *ultrapassou* o limite de *${budget.category}* este mês!\n\n• Limite: R$ ${budget.limit.toFixed(2).replace(".", ",")}\n• Gasto: R$ ${spent.toFixed(2).replace(".", ",")}\n• Excesso: R$ ${(spent - budget.limit).toFixed(2).replace(".", ",")}\n\nAcesse o app para revisar seus gastos. 📊`;
-        await sendWhatsAppMessage(EVOLUTION_URL, EVOLUTION_INSTANCE, EVOLUTION_KEY, profile.phone, message);
+        await sendMessage(profile.phone, message, supabase);
         alertsSent++;
       } else if (percentage >= 80 && percentage < 100) {
         const remaining = budget.limit - spent;
         const message = `⚠️ *Atenção, ${firstName}!*\n\nVocê já usou *${percentage.toFixed(0)}%* do orçamento de *${budget.category}*.\n\n• Limite: R$ ${budget.limit.toFixed(2).replace(".", ",")}\n• Gasto: R$ ${spent.toFixed(2).replace(".", ",")}\n• Restante: R$ ${remaining.toFixed(2).replace(".", ",")}\n\nFique de olho para não ultrapassar! 💡`;
-        await sendWhatsAppMessage(EVOLUTION_URL, EVOLUTION_INSTANCE, EVOLUTION_KEY, profile.phone, message);
+        await sendMessage(profile.phone, message, supabase);
         alertsSent++;
       }
     }

@@ -24,6 +24,7 @@ import ReferralsPage from "./pages/ReferralsPage";
 import SuccessPage from "./pages/SuccessPage";
 import FamilyPage from "./pages/FamilyPage";
 import GoalsPage from "./pages/GoalsPage";
+import ConversasPage from "./pages/admin/ConversasPage";
 import NotFound from "./pages/NotFound";
 import InstallPrompt from "./components/InstallPrompt";
 
@@ -56,6 +57,7 @@ const App = () => (
             <Route path="/indicacoes" element={<ProtectedRoute><ReferralsPage /></ProtectedRoute>} />
             <Route path="/family" element={<ProtectedRoute><FamilyPage /></ProtectedRoute>} />
             <Route path="/metas" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
+            <Route path="/admin/conversas" element={<ProtectedRoute><ConversasPage /></ProtectedRoute>} />
             <Route path="/success" element={<SuccessPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
