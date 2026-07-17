@@ -682,6 +682,9 @@ export default function HomePage() {
                       if (typeof (window as any).fbq === "function") {
                         (window as any).fbq("track", "InitiateCheckout");
                       }
+                      if (typeof (window as any).gtag === "function") {
+                        (window as any).gtag("event", "begin_checkout");
+                      }
                     }}
                   >
                     <Button className="w-full" variant={plan.highlight ? "default" : "outline"}>
@@ -794,6 +797,9 @@ export default function HomePage() {
                     onClick={() => {
                       if (typeof (window as any).fbq === "function") {
                         (window as any).fbq("track", "InitiateCheckout");
+                      }
+                      if (typeof (window as any).gtag === "function") {
+                        (window as any).gtag("event", "begin_checkout");
                       }
                     }}
                   >
