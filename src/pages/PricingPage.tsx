@@ -125,6 +125,9 @@ export default function PricingPage() {
     if (typeof (window as any).fbq === "function") {
       (window as any).fbq("track", "InitiateCheckout");
     }
+    if (typeof (window as any).gtag === "function") {
+      (window as any).gtag("event", "begin_checkout");
+    }
     try {
       const response = await fetch(
         'https://jwxrtnleqdvzvoywzqir.supabase.co/functions/v1/create-checkout',

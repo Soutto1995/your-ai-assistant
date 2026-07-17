@@ -80,6 +80,9 @@ export default function SignupPage() {
       if (typeof (window as any).fbq === "function") {
         (window as any).fbq("track", "CompleteRegistration");
       }
+      if (typeof (window as any).gtag === "function") {
+        (window as any).gtag("event", "sign_up");
+      }
       toast({ title: "Conta criada!", description: "Você já pode usar o Tuddo." });
       navigate("/dashboard");
     }

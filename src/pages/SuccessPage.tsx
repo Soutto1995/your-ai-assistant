@@ -25,6 +25,9 @@ export default function SuccessPage() {
     if (typeof (window as any).fbq === "function") {
       (window as any).fbq("track", "Purchase", { value, currency: "BRL" });
     }
+    if (typeof (window as any).gtag === "function") {
+      (window as any).gtag("event", "purchase", { value, currency: "BRL" });
+    }
   }, [plan]);
 
   return (
