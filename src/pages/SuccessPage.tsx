@@ -4,12 +4,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { CheckCircle, Crown, Zap } from "lucide-react";
 
-const PLAN_VALUES: Record<string, number> = {
+const PLAN_VALUES_MONTHLY: Record<string, number> = {
   STARTER: 19.9,
   PRO: 24.9,
   FAMILY_2: 34.9,
   FAMILY_3: 44.9,
   FAMILY_4: 54.9,
+};
+
+const PLAN_VALUES_ANNUAL: Record<string, number> = {
+  STARTER: 199.9,
+  PRO: 239.9,
+  FAMILY_2: 358.8,
+  FAMILY_3: 454.8,
+  FAMILY_4: 538.8,
 };
 
 export default function SuccessPage() {
@@ -21,14 +29,17 @@ export default function SuccessPage() {
   const PlanIcon = plan.toUpperCase() === "PRO" ? Crown : Zap;
 
   useEffect(() => {
-    const value = PLAN_VALUES[plan.toUpperCase()] ?? 19.9;
+    const period = searchParams.get("period");
+    const planValues =
+      period === "annual" ? PLAN_VALUES_ANNUAL : PLAN_VALUES_MONTHLY;
+    const value = planValues[plan.toUpperCase()] ?? 0;
     if (typeof (window as any).fbq === "function") {
       (window as any).fbq("track", "Purchase", { value, currency: "BRL" });
     }
     if (typeof (window as any).gtag === "function") {
       (window as any).gtag("event", "purchase", { value, currency: "BRL" });
     }
-  }, [plan]);
+  }, [plan, searchParams]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
