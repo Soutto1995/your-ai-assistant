@@ -2253,6 +2253,132 @@ serve(async (req) => {
       }
     }
 
+    // ============================================================
+    // ONBOARDING PROATIVO — SEQUÊNCIA DE BOAS-VINDAS
+    // ============================================================
+    // Detecta o estágio do onboarding pelo histórico de inbox_messages.
+    // Estágio 0: nenhuma mensagem anterior → enviar Mensagem 1 (boas-vindas)
+    // Estágio 1: última resposta do bot foi a pergunta de diagnóstico → enviar Mensagem 3 (dica personalizada)
+    // Estágio 2+: onboarding concluído → seguir fluxo normal da IA
+
+    const ONBOARDING_DIAGNOSIS_MARKER = "[ONBOARDING_DIAGNOSIS]";
+
+    const ONBOARDING_MSG1 = (name: string) =>
+      `Oi, ${name}! 👋\n\nBem-vindo ao Tuddo — seu assistente financeiro pessoal aqui no WhatsApp.\n\nSou o Tuddo. Vou te ajudar a saber exatamente para onde vai o seu dinheiro, sem planilha, sem app novo, sem complicação. Tudo aqui mesmo, no WhatsApp que você já usa.\n\nPra começar, é simples: só me manda uma mensagem quando gastar alguma coisa. Tipo assim:\n\n💬 "Gastei R$18 no café"\n💬 "Mercado R$95"\n💬 "Uber R$22"\n\nEu registro, categorizo e organizo tudo automaticamente. Você só fala, eu cuido do resto.\n\nTesta agora — me manda o último gasto que você teve hoje. 👇`;
+
+    const ONBOARDING_MSG2 =
+      `Ótimo! Já anotei aqui. 📝\n\nAgora me conta uma coisa — assim eu consigo te ajudar de um jeito muito mais certeiro:\n\n*Qual é o seu maior desafio financeiro agora?*\n\n1️⃣ Gasto demais no cartão e não sei exatamente onde\n2️⃣ Minha conta fica no vermelho antes do fim do mês\n3️⃣ Não sei para onde vai o meu dinheiro — ele simplesmente some\n\nSó responde o número (1, 2 ou 3). 😊\n\n${ONBOARDING_DIAGNOSIS_MARKER}`;
+
+    const ONBOARDING_MSG2_DELAYED =
+      `Oi! Só passando para te lembrar que estou aqui quando você quiser. 😊\n\nEnquanto isso, me conta uma coisa rápida:\n\n*Qual é o seu maior desafio com dinheiro agora?*\n\n1️⃣ Gasto demais no cartão e não sei exatamente onde\n2️⃣ Minha conta fica no vermelho antes do fim do mês\n3️⃣ Não sei para onde vai o meu dinheiro — ele simplesmente some\n\nSó responde o número — leva 5 segundos. Assim eu já sei como te ajudar melhor. 👇\n\n${ONBOARDING_DIAGNOSIS_MARKER}`;
+
+    const ONBOARDING_MSG3_CARTAO =
+      `Entendi! Cartão é o maior vilão de quem não tem visibilidade dos gastos — porque você gasta sem sentir o dinheiro saindo.\n\nAqui está o que vou fazer por você: *toda vez que você me mandar um gasto no cartão, eu vou registrar e te mostrar o total acumulado do mês.* Assim você sabe em tempo real quanto já comprometeu — antes de chegar a fatura.\n\nTesta agora: me manda o último gasto que você fez no cartão. Pode ser de hoje ou de ontem.\n\n💡 *Dica rápida:* Você também pode me perguntar "quanto gastei no cartão esse mês?" a qualquer hora. Eu respondo em segundos. 💳`;
+
+    const ONBOARDING_MSG3_VERMELHO =
+      `Entendi! Conta no vermelho geralmente acontece por uma combinação de dois problemas: gastos invisíveis que somam mais do que parecem, e falta de visibilidade do saldo real ao longo do mês.\n\nAqui está o que vou fazer por você: *vou te ajudar a mapear onde está indo o dinheiro antes do fim do mês* — não depois, quando já é tarde.\n\nComeça assim: me manda os 3 maiores gastos fixos que você tem todo mês (aluguel, financiamento, mensalidade, seja o que for). Assim eu consigo te dar uma visão do quanto você já tem comprometido antes mesmo de gastar.\n\n💡 *Dica rápida:* Você pode me perguntar "quanto ainda posso gastar esse mês?" a qualquer hora. 📊`;
+
+    const ONBOARDING_MSG3_SUMINDO =
+      `Entendi! Esse é o mais comum — e o mais frustrante. O dinheiro vai embora em pequenos gastos que parecem insignificantes na hora, mas somam centenas de reais no fim do mês.\n\nAqui está o que vou fazer por você: *vou rastrear cada gasto e te mostrar os padrões que você ainda não viu.* Em 2 semanas, você vai saber exatamente para onde está indo cada real.\n\nComeça agora: me manda tudo que você gastou hoje — pode ser vários gastos de uma vez, um por linha.\n\n💡 *Dica rápida:* No fim de cada semana, você pode me pedir "resumo da semana" e eu te mostro tudo organizado por categoria. 🔍`;
+
+    const ONBOARDING_MSG3_LIVRE =
+      `Obrigado por me contar! Vou prestar atenção nisso enquanto trabalhamos juntos.\n\nPara começar, o mais importante é criar o hábito de me avisar quando gastar alguma coisa. Quanto mais você me conta, mais preciso fico nas análises.\n\nTesta agora: me manda o último gasto que você teve — pode ser qualquer coisa, de qualquer valor. 👇`;
+
+    // Verificar estágio do onboarding
+    try {
+      const { data: allMessages, count: totalMessages } = await supabase
+        .from("inbox_messages")
+        .select("message, response, created_at", { count: "exact" })
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      const messageCount = totalMessages ?? (allMessages?.length ?? 0);
+      const lastBotResponse = allMessages && allMessages.length > 0 ? (allMessages[0].response || "") : "";
+      const isAwaitingDiagnosis = lastBotResponse.includes(ONBOARDING_DIAGNOSIS_MARKER);
+
+      if (messageCount === 0) {
+        // ESTÁGIO 0: Primeiro contato — enviar Mensagem 1 de boas-vindas
+        const userName = profiles && profiles.length > 0
+          ? (profiles[0].full_name || "").split(" ")[0] || "amigo"
+          : "amigo";
+        const welcomeMsg = ONBOARDING_MSG1(userName);
+
+        await supabase.from("inbox_messages").insert({
+          user_id: userId,
+          message: text,
+          type: "general_query",
+          source: "whatsapp",
+          status: "processado",
+          response: welcomeMsg,
+        });
+
+        await sendWhatsAppMessage(remotePhone, welcomeMsg);
+
+        // Agendar Mensagem 2 com delay de 30 minutos via Edge Function (usando setTimeout não é confiável em Deno Deploy)
+        // Solução: registrar um flag no banco para que o próximo contato do usuário dispare a MSG2 se ainda não respondeu
+        // Por ora, a MSG2 será enviada na PRÓXIMA mensagem do usuário se ainda não tiver respondido
+
+        return new Response(JSON.stringify({ status: "ok", intent: "onboarding_welcome", phone: remotePhone }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      if (isAwaitingDiagnosis) {
+        // ESTÁGIO 1: Usuário respondeu à pergunta de diagnóstico — enviar Mensagem 3 personalizada
+        const lowerText = text.toLowerCase().trim();
+        let diagnosisReply = "";
+
+        if (lowerText.includes("1") || lowerText.includes("cartão") || lowerText.includes("cartao") || lowerText.includes("crédito") || lowerText.includes("credito")) {
+          diagnosisReply = ONBOARDING_MSG3_CARTAO;
+        } else if (lowerText.includes("2") || lowerText.includes("vermelho") || lowerText.includes("negativo") || lowerText.includes("devendo")) {
+          diagnosisReply = ONBOARDING_MSG3_VERMELHO;
+        } else if (lowerText.includes("3") || lowerText.includes("some") || lowerText.includes("sumindo") || lowerText.includes("não sei") || lowerText.includes("nao sei")) {
+          diagnosisReply = ONBOARDING_MSG3_SUMINDO;
+        } else {
+          diagnosisReply = ONBOARDING_MSG3_LIVRE;
+        }
+
+        await supabase.from("inbox_messages").insert({
+          user_id: userId,
+          message: text,
+          type: "general_query",
+          source: "whatsapp",
+          status: "processado",
+          response: diagnosisReply,
+        });
+
+        await sendWhatsAppMessage(remotePhone, diagnosisReply);
+
+        return new Response(JSON.stringify({ status: "ok", intent: "onboarding_diagnosis", phone: remotePhone }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // ESTÁGIO 2: Verificar se o usuário tem apenas 1 mensagem (boas-vindas enviada, mas ainda não respondeu à MSG2)
+      // Nesse caso, a próxima mensagem do usuário deve disparar a MSG2 de diagnóstico ANTES de processar normalmente
+      if (messageCount === 1) {
+        const firstResponse = allMessages && allMessages.length > 0 ? (allMessages[0].response || "") : "";
+        const isFirstResponseWelcome = firstResponse.includes("Bem-vindo ao Tuddo");
+
+        if (isFirstResponseWelcome) {
+          // Usuário respondeu à MSG1 (registrou primeiro gasto ou mandou qualquer coisa)
+          // Processar normalmente E depois enviar MSG2 de diagnóstico
+          // Deixar o fluxo normal rodar — a MSG2 será enviada como mensagem adicional após a resposta da IA
+          // Marcamos isso para enviar a MSG2 ao final
+          // (implementado abaixo, após o processamento normal)
+        }
+      }
+    } catch (onboardingErr) {
+      console.error("Onboarding check error:", onboardingErr);
+      // Em caso de erro, seguir fluxo normal
+    }
+    // ============================================================
+    // FIM DO ONBOARDING — FLUXO NORMAL DA IA
+    // ============================================================
+
     // Buscar histórico de conversa (últimas 8 mensagens) para dar contexto à IA
     let conversationHistory = "";
     let recentMsgsDesc: Array<{message: string; response: string | null; created_at: string; type: string}> = [];
@@ -2378,6 +2504,43 @@ serve(async (req) => {
     const sendResult = isMeta
       ? await sendMessageMeta(metaPhoneNumberId, remotePhone, reply)
       : await sendWhatsAppMessage(remotePhone, reply);
+
+    // ONBOARDING: Se esta é a segunda mensagem do usuário (respondeu à MSG1 de boas-vindas),
+    // enviar a MSG2 de diagnóstico logo após a resposta normal da IA
+    try {
+      const { data: msgCheck, count: msgCheckCount } = await supabase
+        .from("inbox_messages")
+        .select("response", { count: "exact" })
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      // Contar inclui a mensagem que acabamos de salvar, então 2 = esta é a segunda mensagem
+      const totalNow = msgCheckCount ?? (msgCheck?.length ?? 0);
+      const prevResponse = msgCheck && msgCheck.length > 1 ? (msgCheck[1].response || "") : "";
+      const prevWasWelcome = prevResponse.includes("Bem-vindo ao Tuddo");
+
+      if (totalNow === 2 && prevWasWelcome) {
+        // Aguardar 2 segundos para não parecer instantâneo
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        const diagnosisMsg = ONBOARDING_MSG2;
+
+        // Salvar MSG2 no inbox
+        await supabase.from("inbox_messages").insert({
+          user_id: userId,
+          message: "[ONBOARDING_AUTO]",
+          type: "general_query",
+          source: "whatsapp",
+          status: "processado",
+          response: diagnosisMsg,
+        });
+
+        await sendWhatsAppMessage(remotePhone, diagnosisMsg);
+      }
+    } catch (onboardingFollowErr) {
+      console.error("Onboarding follow-up error:", onboardingFollowErr);
+    }
 
     return new Response(JSON.stringify({ status: "ok", intent: finalIntent, sendResult, phone: remotePhone, reply: reply.substring(0, 50) }), {
       status: 200,
