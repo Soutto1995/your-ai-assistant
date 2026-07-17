@@ -138,7 +138,7 @@ ESTRUTURA DE SAÍDA:
 INTENTS DISPONÍVEIS:
 1. create_transaction — registrar gasto ou receita (inclui compras, pagamentos, boletos, pix, salário)
 2. create_task — criar tarefa, lembrete ou to-do
-3. create_meeting — agendar UM compromisso, reunião, consulta ou evento
+3. create_meeting — agendar UM compromisso, reunião, consulta, visita ou evento (inclui "visitar X", "ir a X", "comparecer em X", "audiência", "ida ao" com data)
 4. create_multiple_meetings — agendar VÁRIOS compromissos de uma vez, quando o usuário enviar uma lista com múltiplos horários e nomes (ex: "13:00 - Paciente Aline\n14:00 - Paciente Mariana"). Use este intent sempre que houver 2 ou mais eventos na mesma mensagem.
 5. list_items — listar/consultar itens existentes (gastos, receitas, tarefas, compromissos)
 5. create_goal — criar uma meta financeira (ex: "quero juntar 5000 para viagem", "meta de economizar 1000 por mês")
@@ -237,6 +237,12 @@ REGRAS CRÍTICAS DE INTERPRETAÇÃO:
 13. CATEGORIZAÇÃO INTELIGENTE: Sempre tente inferir a categoria pelo contexto. "Bistek" = Mercado. "Shell" = Transporte. "Farmácia" = Saúde. "Netflix" = Lazer. Se não souber, use "Geral".
 
 EXEMPLOS:
+Input: "amanhã visitar presídio"
+Output: {"intent":"create_meeting","data":{"description":"Visita ao presídio","meeting_date":"2026-07-17T09:00:00"},"response":"Agendado! Visita ao presídio amanhã às 09:00. 📅"}
+
+Input: "segunda ir ao cartório"
+Output: {"intent":"create_meeting","data":{"description":"Ida ao cartório","meeting_date":"2026-07-21T09:00:00"},"response":"Agendado! Ida ao cartório na segunda às 09:00. 📅"}
+
 Input: "Consulta Luciana 20h quinta feira"
 Output: {"intent":"create_meeting","data":{"description":"Consulta com Luciana","meeting_date":"2026-05-22T20:00:00"},"response":"Agendado! Consulta com Luciana para quinta-feira às 20:00. 📅"}
 
@@ -2407,7 +2413,8 @@ serve(async (req) => {
 
     // Verificar confirmação de escalonamento para suporte humano
     const lastInboxMsg = recentMsgsDesc.length > 0 ? recentMsgsDesc[0] : null;
-    if (lastInboxMsg?.type === "escalation_offered" && isAffirmativeMessage(text)) {
+    const alreadyRequestedSupport = recentMsgsDesc.some(m => m.type === "support_requested");
+    if (lastInboxMsg?.type === "escalation_offered" && isAffirmativeMessage(text) && !alreadyRequestedSupport) {
       const clientName = (profiles && profiles.length > 0 ? profiles[0].full_name : null)
         || (isMeta ? (_metaExtracted?.pushName ?? "") : _pushName)
         || remotePhone;
@@ -2477,10 +2484,18 @@ serve(async (req) => {
     let reply = await executeIntentAction(supabase, userId, userPlan, aiResult, text);
     let finalIntent: string = intent;
 
-    // Escalonamento: segunda mensagem consecutiva não reconhecida → oferecer suporte humano
+    // Escalonamento: 3+ mensagens consecutivas não reconhecidas → oferecer suporte humano
+    // Não escalona durante onboarding (primeiras mensagens do usuário)
     if (intent === "general_query") {
-      const prevMsg = recentMsgsDesc.length > 0 ? recentMsgsDesc[0] : null;
-      if (prevMsg && (prevMsg.type === "general_query" || prevMsg.type === "escalation_offered")) {
+      const totalMessages = recentMsgsDesc.length;
+      const isNewUser = totalMessages <= 3;
+      const prevMsg  = recentMsgsDesc.length > 0 ? recentMsgsDesc[0] : null;
+      const prev2Msg = recentMsgsDesc.length > 1 ? recentMsgsDesc[1] : null;
+      const twoConsecutiveUnrecognized =
+        prevMsg && prev2Msg &&
+        (prevMsg.type === "general_query" || prevMsg.type === "escalation_offered") &&
+        (prev2Msg.type === "general_query" || prev2Msg.type === "escalation_offered");
+      if (!isNewUser && twoConsecutiveUnrecognized) {
         reply = "Não consegui te ajudar com isso ainda. Quer que eu avise o suporte humano? Responda *sim* para confirmar. 🆘";
         finalIntent = "escalation_offered";
       }
@@ -2525,8 +2540,9 @@ serve(async (req) => {
         await new Promise((resolve) => setTimeout(resolve, 2000));
 
         const diagnosisMsg = ONBOARDING_MSG2;
+        const diagnosisMsgClean = diagnosisMsg.replace(ONBOARDING_DIAGNOSIS_MARKER, "").trim();
 
-        // Salvar MSG2 no inbox
+        // Salvar MSG2 no inbox COM marcador (para detecção do próximo estágio)
         await supabase.from("inbox_messages").insert({
           user_id: userId,
           message: "[ONBOARDING_AUTO]",
@@ -2536,7 +2552,8 @@ serve(async (req) => {
           response: diagnosisMsg,
         });
 
-        await sendWhatsAppMessage(remotePhone, diagnosisMsg);
+        // Enviar ao usuário SEM marcador
+        await sendWhatsAppMessage(remotePhone, diagnosisMsgClean);
       }
     } catch (onboardingFollowErr) {
       console.error("Onboarding follow-up error:", onboardingFollowErr);

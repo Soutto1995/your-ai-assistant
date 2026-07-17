@@ -28,6 +28,7 @@ import ConversasPage from "./pages/admin/ConversasPage";
 import SuportePage from "./pages/admin/SuportePage";
 import NotFound from "./pages/NotFound";
 import InstallPrompt from "./components/InstallPrompt";
+import WebChat from "./components/WebChat";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +40,7 @@ const App = () => (
       <InstallPrompt />
       <BrowserRouter>
         <AuthProvider>
+          <WebChat />
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
