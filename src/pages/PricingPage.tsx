@@ -153,7 +153,7 @@ export default function PricingPage() {
       }
 
       if (data.url) {
-        window.location.href = data.url;
+        window.open(data.url, "_blank");
       }
     } catch (error: any) {
       toast.error(error.message || "Erro ao processar checkout. Tente novamente.");
