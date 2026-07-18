@@ -1969,6 +1969,16 @@ serve(async (req) => {
       });
     }
 
+    // Ignorar eco de mensagens enviadas pelo próprio bot — sem isso, toda resposta
+    // do Tuddo (inclusive a oferta de escalonamento) volta pelo webhook como se
+    // fosse mensagem do usuário e pode disparar um novo ciclo de escalonamento.
+    if (key.fromMe === true) {
+      return new Response(JSON.stringify({ status: "ignored_own_message" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const message = isRecord(data.message) ? data.message : {};
     text = extractTextMessage(message).trim();
 
