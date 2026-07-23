@@ -879,6 +879,44 @@ async function getMediaBase64(messageKey: JsonRecord, message: JsonRecord): Prom
   }
 }
 
+async function getMetaMediaBase64(mediaId: string): Promise<string | null> {
+  const token = Deno.env.get("META_ACCESS_TOKEN") ?? "";
+  if (!token) {
+    console.error("META_ACCESS_TOKEN not configured");
+    return null;
+  }
+  try {
+    const lookupResponse = await fetch(`https://graph.facebook.com/v23.0/${mediaId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!lookupResponse.ok) {
+      console.error("getMetaMediaBase64 lookup error:", lookupResponse.status, await lookupResponse.text());
+      return null;
+    }
+    const lookup = await lookupResponse.json();
+    const mediaUrl = typeof lookup?.url === "string" ? lookup.url : "";
+    if (!mediaUrl) return null;
+
+    const mediaResponse = await fetch(mediaUrl, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!mediaResponse.ok) {
+      console.error("getMetaMediaBase64 download error:", mediaResponse.status);
+      return null;
+    }
+    const bytes = new Uint8Array(await mediaResponse.arrayBuffer());
+    let binary = "";
+    const chunkSize = 8192;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
+  } catch (error) {
+    console.error("getMetaMediaBase64 error:", error);
+    return null;
+  }
+}
+
 async function analyzeImageWithVision(base64: string, mimetype: string, caption?: string): Promise<string> {
   const openaiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
 
@@ -1901,13 +1939,21 @@ serve(async (req) => {
         const change = entry && Array.isArray(entry.changes) && isRecord(entry.changes[0]) ? entry.changes[0] as JsonRecord : null;
         const val = change && isRecord(change.value) ? change.value as JsonRecord : null;
         const msgs = val && Array.isArray(val.messages) ? val.messages : [];
-        const msg = msgs.length > 0 && isRecord(msgs[0]) && isRecord((msgs[0] as JsonRecord).text) ? msgs[0] as JsonRecord : null;
+        const msg = msgs.length > 0 && isRecord(msgs[0]) ? msgs[0] as JsonRecord : null;
         if (!msg || typeof msg.from !== "string") return null;
         const contacts = val && Array.isArray(val.contacts) ? val.contacts : [];
         const profile = contacts.length > 0 && isRecord(contacts[0]) && isRecord((contacts[0] as JsonRecord).profile) ? (contacts[0] as JsonRecord).profile as JsonRecord : null;
+        const type = typeof msg.type === "string" ? msg.type : "";
+        const mediaField = (type === "audio" || type === "image" || type === "document") && isRecord(msg[type])
+          ? msg[type] as JsonRecord
+          : null;
         return {
           from: String(msg.from).replace(/\D/g, ""),
-          text: String((msg.text as JsonRecord).body ?? "").trim(),
+          text: type === "text" && isRecord(msg.text) ? String((msg.text as JsonRecord).body ?? "").trim() : "",
+          type,
+          mediaId: mediaField ? String(mediaField.id ?? "") : "",
+          mediaMimetype: mediaField ? String(mediaField.mime_type ?? "") : "",
+          caption: mediaField && typeof mediaField.caption === "string" ? mediaField.caption : "",
           phoneNumberId: String(isRecord(val!.metadata) ? (val!.metadata as JsonRecord).phone_number_id ?? "" : ""),
           pushName: profile ? String(profile.name ?? "") : "",
         };
@@ -1929,6 +1975,26 @@ serve(async (req) => {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+    }
+
+    if (isMeta && !text && remotePhone && (_metaExtracted?.type === "audio" || _metaExtracted?.type === "image") && _metaExtracted?.mediaId) {
+      const base64 = await getMetaMediaBase64(_metaExtracted.mediaId);
+      if (base64) {
+        const mimetype = _metaExtracted.mediaMimetype;
+        if (_metaExtracted.type === "image") {
+          const imageAnalysis = await analyzeImageWithVision(base64, mimetype, _metaExtracted.caption);
+          if (imageAnalysis) {
+            text = _metaExtracted.caption
+              ? `[Foto enviada - análise: ${imageAnalysis}] Legenda do usuário: ${_metaExtracted.caption}`
+              : `[Foto enviada - análise: ${imageAnalysis}]`;
+          }
+        } else {
+          const transcription = await transcribeAudio(base64, mimetype);
+          if (transcription) {
+            text = transcription;
+          }
+        }
       }
     }
 
