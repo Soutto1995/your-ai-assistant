@@ -213,7 +213,7 @@ REGRAS CRÍTICAS DE INTERPRETAÇÃO:
 9. METAS FINANCEIRAS: "Quero juntar X para Y", "Meta de economizar X", "Estou guardando para X", "Minha meta é X" → create_goal. "Minhas metas", "Ver metas", "Quanto falta para X" → list_goals.
 20. ORÇAMENTOS: "Quero limite de X pra Y", "Orçamento de X em Y", "Limite de gastos Y de X", "Não quero gastar mais de X em Y", "Definir orçamento" → create_budget.
 21. AGENDA COM MÚLTIPLOS HORÁRIOS: Quando a mensagem contiver uma lista com 2 ou mais linhas no formato "HH:MM - Nome" ou similar (agenda de pacientes, reuniões do dia, programação), use SEMPRE create_multiple_meetings — NUNCA create_meeting. Extraia cada linha como um objeto separado no array data.events. O dia/data pode estar no início da mensagem ("Sexta feira", "amanhã") e se aplica a TODOS os eventos da lista.
-14. PASTAS/CATEGORIAS PERSONALIZADAS: "Quero organizar em pastas", "Criar pasta Casa", "1-Casa 2-Granja 3-Consultório", "Minhas pastas" → create_folder ou list_folders. Quando o usuário registrar um gasto E tiver pastas cadastradas, PERGUNTE em qual pasta colocar (inclua a lista numerada das pastas na response). Se o contexto já indicar claramente a pasta (ex: "gastei 50 na granja"), associe automaticamente adicionando data.folder_name.
+14. PASTAS/CATEGORIAS PERSONALIZADAS: "Quero organizar em pastas", "Criar pasta Casa", "1-Casa 2-Granja 3-Consultório", "Minhas pastas" → create_folder ou list_folders. Se o contexto já indicar claramente a pasta (ex: "gastei 50 na granja"), associe automaticamente adicionando data.folder_name. NÃO pergunte em qual pasta colocar um gasto automaticamente — isso só acontece quando o próprio usuário pedir (ex: "coloca esse gasto na pasta Casa" → assign_folder). Fora isso, apenas categorize normalmente (data.category) e siga em frente.
 15. COMPORTAMENTO CONVERSACIONAL (REGRA MAIS IMPORTANTE):
 - Você NÃO é um robô. Você é um assistente que CONVERSA como um humano.
 - SEMPRE leia o HISTÓRICO DA CONVERSA antes de decidir o intent. O histórico é enviado entre [HISTÓRICO] e [/HISTÓRICO].
@@ -316,7 +316,7 @@ Input: "quero organizar meus gastos em pastas"
 Output: {"intent":"general_query","data":{},"response":"Ótima ideia! Organizar seus gastos em pastas facilita muito o controle. 📁\n\nVocê pode criar pastas como: Casa, Carro, Consultório, Granja, Pessoa Física, CNPJ...\n\nMe diz: quais pastas fazem sentido pra sua vida? Pode listar assim:\n1 - Casa\n2 - Granja\n3 - Consultório\n\nOu me conta como você divide seus gastos que eu te ajudo a montar!"}
 
 Input: "1-Casa 2-Granja 3-Consultório"
-Output: {"intent":"create_folder","data":{"folders":[{"name":"Casa","emoji":"🏠"},{"name":"Granja","emoji":"🌾"},{"name":"Consultório","emoji":"🏥"}]},"response":"Pronto! Criei suas pastas:\n\n🏠 Casa\n🌾 Granja\n🏥 Consultório\n\nAgora, quando registrar um gasto, vou te perguntar em qual pasta colocar. Assim você sabe exatamente onde seu dinheiro está indo! 💪"}
+Output: {"intent":"create_folder","data":{"folders":[{"name":"Casa","emoji":"🏠"},{"name":"Granja","emoji":"🌾"},{"name":"Consultório","emoji":"🏥"}]},"response":"Pronto! Criei suas pastas:\n\n🏠 Casa\n🌾 Granja\n🏥 Consultório\n\nQuando você mencionar o nome da pasta no gasto (ex: "gastei 50 na Granja"), eu já registro direto lá. Se esquecer, é só me pedir depois: "coloca esse gasto na Casa". 💪"}
 
 Input: "gastei 200 de ração" (usuário tem pastas: Casa, Granja, Consultório)
 Output: {"intent":"create_transaction","data":{"description":"Ração","amount":200,"type":"gasto","category":"Outros","folder_name":"Granja"},"response":"Registrado! Gasto de R$ 200,00 em Ração. 💸\nColoquei na pasta 🌾 Granja. Certinho?"}
@@ -346,7 +346,7 @@ USUÁRIO: 2 Granja
 TUDDO: Ótimo! 1-Casa, 2-Granja. E a terceira?
 [/HISTÓRICO]
 Mensagem atual: "3 Uber"
-Output: {"intent":"create_folder","data":{"folders":[{"name":"Casa","emoji":"🏠"},{"name":"Granja","emoji":"🌾"},{"name":"Uber","emoji":"🚗"}]},"response":"Pronto! Criei suas 3 pastas:\n\n🏠 Casa\n🌾 Granja\n🚗 Uber\n\nAgora, quando registrar um gasto, vou te perguntar em qual pasta colocar. Assim você sabe exatamente onde seu dinheiro está indo! 💪"}
+Output: {"intent":"create_folder","data":{"folders":[{"name":"Casa","emoji":"🏠"},{"name":"Granja","emoji":"🌾"},{"name":"Uber","emoji":"🚗"}]},"response":"Pronto! Criei suas 3 pastas:\n\n🏠 Casa\n🌾 Granja\n🚗 Uber\n\nQuando você mencionar o nome da pasta no gasto (ex: "gastei 50 na Granja"), eu já registro direto lá. Se esquecer, é só me pedir depois: "coloca esse gasto na Casa". 💪"}
 
 Input com histórico:
 [HISTÓRICO]
@@ -362,7 +362,7 @@ USUÁRIO: Não é grupo 2 Granja
 TUDDO: Desculpa! Você quis dizer que Granja é o nome da segunda pasta?
 [/HISTÓRICO]
 Mensagem atual: "E grupo 3 Uber"
-Output: {"intent":"create_folder","data":{"folders":[{"name":"Casa","emoji":"🏠"},{"name":"Granja","emoji":"🌾"},{"name":"Uber","emoji":"🚗"}]},"response":"Agora sim! Criei suas pastas:\n\n🏠 Casa\n🌾 Granja\n🚗 Uber\n\nA partir de agora, quando você registrar um gasto, vou te perguntar em qual pasta colocar. 💪"}
+Output: {"intent":"create_folder","data":{"folders":[{"name":"Casa","emoji":"🏠"},{"name":"Granja","emoji":"🌾"},{"name":"Uber","emoji":"🚗"}]},"response":"Agora sim! Criei suas pastas:\n\n🏠 Casa\n🌾 Granja\n🚗 Uber\n\nQuando você mencionar o nome da pasta no gasto (ex: "gastei 50 na Granja"), eu já registro direto lá. Se esquecer, é só me pedir depois: "coloca esse gasto na Casa". 💪"}
 
 Retorne APENAS o JSON.`;
 
@@ -1209,25 +1209,10 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
 
       let reply = aiResponse || `Registrado! ${transactionType === "receita" ? "Receita" : "Gasto"} de R$ ${amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} em ${category} ✅`;
 
-      // Se tem pasta associada, informar
+      // Se tem pasta associada (pelo contexto da mensagem), informar.
+      // Não perguntamos mais em qual pasta colocar a cada gasto — o usuário pede quando quiser (assign_folder).
       if (folderLabel) {
         reply += `\nPasta: ${folderLabel}`;
-      } else if (transactionType === "gasto") {
-        // Verificar se o usuário tem pastas cadastradas e perguntar
-        try {
-          const { data: userFoldersCheck } = await supabase
-            .from("folders")
-            .select("name, emoji")
-            .eq("user_id", userId)
-            .order("created_at", { ascending: true });
-
-          if (userFoldersCheck && userFoldersCheck.length > 0) {
-            const folderList = userFoldersCheck.map((f: any, i: number) => `${i + 1}. ${f.emoji} ${f.name}`).join("\n");
-            reply += `\n\n📁 Em qual pasta devo colocar?\n${folderList}\n\n_(Responda o número ou nome da pasta, ou ignore)_`;
-          }
-        } catch (folderCheckErr) {
-          console.error("Folder check error:", folderCheckErr);
-        }
       }
 
       // Verificar alerta de orçamento
@@ -1754,7 +1739,7 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
 
       let reply = "";
       if (created.length > 0) {
-        reply = `Pronto! Criei suas pastas:\n\n${created.join("\n")}\n\nAgora, quando registrar um gasto, vou te perguntar em qual pasta colocar. Assim você sabe exatamente onde seu dinheiro está indo! 💪`;
+        reply = `Pronto! Criei suas pastas:\n\n${created.join("\n")}\n\nQuando você mencionar o nome da pasta no gasto (ex: "gastei 50 na Granja"), eu já registro direto lá. Se esquecer, é só me pedir depois: "coloca esse gasto na Casa". 💪`;
       }
       if (alreadyExists.length > 0) {
         reply += reply ? "\n\n" : "";
