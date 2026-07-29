@@ -22,6 +22,7 @@ import {
   Users,
   MessagesSquare,
   HeadphonesIcon,
+  HardDrive,
 } from "lucide-react";
 
 const ADMIN_EMAIL = "brunosouttoo@gmail.com";
@@ -35,6 +36,7 @@ const baseNavItems = [
   { icon: FolderOpen, label: "Projetos", path: "/projetos" },
   { icon: PieChart, label: "Orçamento", path: "/orcamento" },
   { icon: Target, label: "Metas", path: "/metas" },
+  { icon: HardDrive, label: "Drive", path: "/drive" },
   { icon: CreditCard, label: "Planos", path: "/planos" },
   { icon: Gift, label: "Indicações", path: "/indicacoes" },
 ];

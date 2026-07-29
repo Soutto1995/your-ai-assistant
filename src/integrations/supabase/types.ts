@@ -145,6 +145,62 @@ export type Database = {
           },
         ]
       }
+      files: {
+        Row: {
+          caption: string | null
+          content_text: string | null
+          created_at: string
+          embedding: string | null
+          file_name: string
+          folder_id: string | null
+          id: string
+          media_type: string
+          mime_type: string | null
+          size_bytes: number | null
+          source: string
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          caption?: string | null
+          content_text?: string | null
+          created_at?: string
+          embedding?: string | null
+          file_name: string
+          folder_id?: string | null
+          id?: string
+          media_type: string
+          mime_type?: string | null
+          size_bytes?: number | null
+          source?: string
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          caption?: string | null
+          content_text?: string | null
+          created_at?: string
+          embedding?: string | null
+          file_name?: string
+          folder_id?: string | null
+          id?: string
+          media_type?: string
+          mime_type?: string | null
+          size_bytes?: number | null
+          source?: string
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "files_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       folders: {
         Row: {
           created_at: string | null
@@ -429,6 +485,68 @@ export type Database = {
         }
         Relationships: []
       }
+      recurring_transactions: {
+        Row: {
+          active: boolean
+          amount: number
+          category: string | null
+          created_at: string
+          day_of_month: number | null
+          day_of_week: number | null
+          description: string
+          end_date: string | null
+          folder_id: string | null
+          frequency: string
+          id: string
+          month_of_year: number | null
+          start_date: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          amount: number
+          category?: string | null
+          created_at?: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          description: string
+          end_date?: string | null
+          folder_id?: string | null
+          frequency?: string
+          id?: string
+          month_of_year?: number | null
+          start_date?: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          amount?: number
+          category?: string | null
+          created_at?: string
+          day_of_month?: number | null
+          day_of_week?: number | null
+          description?: string
+          end_date?: string | null
+          folder_id?: string | null
+          frequency?: string
+          id?: string
+          month_of_year?: number | null
+          start_date?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_transactions_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referrals: {
         Row: {
           created_at: string
@@ -562,31 +680,46 @@ export type Database = {
       }
       tasks: {
         Row: {
+          assignee_name: string | null
+          assignee_phone: string | null
+          charge_count: number
           created_at: string
           due_date: string | null
           id: string
+          last_charged_at: string | null
           priority: string
           project: string | null
+          recurrence: string | null
           status: string
           title: string
           user_id: string
         }
         Insert: {
+          assignee_name?: string | null
+          assignee_phone?: string | null
+          charge_count?: number
           created_at?: string
           due_date?: string | null
           id?: string
+          last_charged_at?: string | null
           priority?: string
           project?: string | null
+          recurrence?: string | null
           status?: string
           title: string
           user_id: string
         }
         Update: {
+          assignee_name?: string | null
+          assignee_phone?: string | null
+          charge_count?: number
           created_at?: string
           due_date?: string | null
           id?: string
+          last_charged_at?: string | null
           priority?: string
           project?: string | null
+          recurrence?: string | null
           status?: string
           title?: string
           user_id?: string
@@ -596,33 +729,42 @@ export type Database = {
       transactions: {
         Row: {
           amount: number
+          card_label: string | null
           category: string | null
           created_at: string
           description: string
           folder_id: string | null
           id: string
+          paid_by_name: string | null
+          paid_by_user_id: string | null
           transaction_date: string
           type: string
           user_id: string
         }
         Insert: {
           amount: number
+          card_label?: string | null
           category?: string | null
           created_at?: string
           description: string
           folder_id?: string | null
           id?: string
+          paid_by_name?: string | null
+          paid_by_user_id?: string | null
           transaction_date?: string
           type: string
           user_id: string
         }
         Update: {
           amount?: number
+          card_label?: string | null
           category?: string | null
           created_at?: string
           description?: string
           folder_id?: string | null
           id?: string
+          paid_by_name?: string | null
+          paid_by_user_id?: string | null
           transaction_date?: string
           type?: string
           user_id?: string
@@ -642,6 +784,30 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cash_flow: {
+        Args: {
+          p_months_ahead?: number
+          p_months_back?: number
+          p_user_id: string
+        }
+        Returns: {
+          month: string
+          projected_expense: number
+          projected_income: number
+          realized_expense: number
+          realized_income: number
+        }[]
+      }
+      recurring_occurrences: {
+        Args: { p_from: string; p_to: string; p_user_id: string }
+        Returns: {
+          amount: number
+          category: string
+          description: string
+          occurs_on: string
+          type: string
+        }[]
+      }
       get_family_members: {
         Args: { p_family_id: string }
         Returns: {
@@ -658,6 +824,33 @@ export type Database = {
       invite_family_member: {
         Args: { p_contact: string; p_family_id: string }
         Returns: Json
+      }
+      search_files: {
+        Args: {
+          p_match_count?: number
+          p_query_embedding: string
+          p_threshold?: number
+          p_user_id: string
+        }
+        Returns: {
+          caption: string
+          content_text: string
+          created_at: string
+          file_name: string
+          id: string
+          media_type: string
+          mime_type: string
+          similarity: number
+          storage_path: string
+        }[]
+      }
+      spending_by_person: {
+        Args: { p_end: string; p_start: string; p_user_id: string }
+        Returns: {
+          person: string
+          total: number
+          transactions: number
+        }[]
       }
       update_user_plan: {
         Args: {

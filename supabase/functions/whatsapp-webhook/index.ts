@@ -147,7 +147,10 @@ INTENTS DISPONÍVEIS:
 8. create_folder — criar uma pasta/categoria personalizada para organizar gastos (ex: "cria pasta Casa", "quero organizar em pastas", "1-Casa 2-Granja 3-Consultório")
 9. list_folders — listar pastas do usuário (ex: "minhas pastas", "ver categorias")
 10. assign_folder — associar um gasto existente a uma pasta (ex: "coloca na pasta Casa", "esse vai pra Granja")
-11. general_query — saudações, perguntas gerais ou qualquer coisa que não se encaixe acima
+11. search_files — procurar um ARQUIVO, FOTO, ÁUDIO ou DOCUMENTO que o usuário já enviou antes (ex: "acha o comprovante do mecânico", "cadê a foto do orçamento da obra", "busca a nota fiscal da geladeira", "onde está aquele áudio que mandei sobre o projeto X", "me manda o boleto do condomínio que te enviei")
+12. create_recurring — cadastrar uma conta FIXA que se repete todo mês/semana/ano (ex: "todo dia 10 pago 1200 de aluguel", "meu salário de 5000 cai dia 5", "mensalidade da academia 120 todo dia 15", "todo mês pago 89 de streaming")
+13. cash_flow — mostrar o fluxo de caixa: quanto já entrou/saiu e quanto ainda está previsto (ex: "como fica meu mês?", "quanto vai sobrar?", "fluxo de caixa", "o que ainda tenho pra pagar?", "minha previsão dos próximos meses")
+14. general_query — saudações, perguntas gerais ou qualquer coisa que não se encaixe acima
 
 REGRAS DE EXTRAÇÃO DE DADOS:
 
@@ -156,10 +159,16 @@ Para create_transaction:
 - data.amount: valor numérico positivo (extrair mesmo sem "R$". "50 reais" = 50. "12,90" = 12.90)
 - data.type: "gasto" (gastei, paguei, comprei, boleto, conta) ou "receita" (recebi, ganhei, vendi, salário, freelance)
 - data.category: uma das categorias [${Object.keys(categoryDictionary).join(", ")}]. Default: "Geral"
+- data.paid_by: nome da pessoa que FEZ o gasto, quando o usuário atribui a outra pessoa (ex: "a Maria gastou 80 na farmácia" → "Maria"; "200 no cartão do João" → "João"; "meu filho gastou 50" → "Filho"). OMITIR quando o gasto é do próprio usuário.
+- data.card_label: apelido do cartão/conta, quando citado (ex: "no cartão da empresa" → "Cartão da empresa"; "no Itaú Black" → "Itaú Black"). OMITIR se não for citado.
 
 Para create_task:
 - data.description: título conciso e claro da tarefa (ex: "Fazer INSS da Luciana", "Comprar leite")
 - data.due_date: data no formato "YYYY-MM-DDTHH:mm:ss" (horário local São Paulo, SEM sufixo Z ou offset). Se não houver data específica, usar null.
+- data.assignee_name: nome da pessoa que deve EXECUTAR a tarefa, quando o usuário delega para outra pessoa (ex: "cobra o João pelo relatório" → "João"). OMITIR quando a tarefa é do próprio usuário.
+- data.assignee_phone: telefone da pessoa responsável, só dígitos com DDD (ex: "5548999887766"). OMITIR se o usuário não informar o número.
+- data.recurrence: "daily", "weekdays", "weekly" ou "monthly" — apenas quando a cobrança se repete (ex: "cobra ele todo dia", "toda segunda", "todo mês"). OMITIR se for cobrança única.
+- REGRA: se o usuário delegar uma tarefa mas NÃO informar o telefone da pessoa, ainda assim crie a tarefa com assignee_name e PEÇA o número na sua "response" (ex: "Anotado! Me passa o WhatsApp do João que eu começo a cobrar.").
 
 Para create_meeting:
 - data.description: título conciso do compromisso (NUNCA repita a mensagem inteira. Ex: "consulta com Luciana 20h quinta" → "Consulta com Luciana")
@@ -195,6 +204,25 @@ Para list_folders:
 Para assign_folder:
 - data.folder_name: nome da pasta onde colocar o gasto
 - data.transaction_description: descrição do gasto a ser associado (se mencionado)
+
+Para create_recurring:
+- data.description: nome da conta fixa (ex: "Aluguel", "Salário", "Academia", "Netflix")
+- data.amount: valor numérico positivo
+- data.type: "gasto" ou "receita"
+- data.category: uma das categorias do sistema
+- data.frequency: "monthly" (padrão), "weekly" ou "yearly"
+- data.day_of_month: dia do mês (1-31) — obrigatório para monthly e yearly
+- data.day_of_week: 0=domingo … 6=sábado — obrigatório apenas para weekly
+- data.month_of_year: mês (1-12) — obrigatório apenas para yearly
+- DIFERENÇA CRÍTICA: create_transaction é um gasto que JÁ aconteceu ("paguei o aluguel"). create_recurring é um compromisso que se REPETE ("todo dia 10 pago aluguel"). Se o usuário usar "todo", "todos os meses", "sempre", "mensalidade", "cai dia X" → create_recurring.
+
+Para cash_flow:
+- data.months_ahead: quantos meses à frente projetar (padrão 3). Se o usuário pedir "próximos 6 meses", use 6.
+
+Para search_files:
+- data.query: o que o usuário está procurando, em linguagem natural e SEM os verbos de busca. Ex: "acha o comprovante do mecânico" → "comprovante do mecânico". "cadê aquela foto da neve" → "foto da neve". "onde está o áudio sobre o projeto Alfa" → "áudio sobre o projeto Alfa".
+- data.media_type: "image", "audio", "document" — APENAS se o usuário deixar explícito o tipo. Caso contrário, OMITIR.
+- ATENÇÃO: só use search_files quando o usuário procura um ARQUIVO que ELE MESMO já mandou. Para consultar gastos, tarefas ou compromissos, use list_items.
 
 Para list_items:
 - data.item_type: "transaction", "task" ou "meeting"
@@ -324,6 +352,54 @@ Output: {"intent":"create_transaction","data":{"description":"Ração","amount":
 Input: "minhas pastas"
 Output: {"intent":"list_folders","data":{},"response":"Buscando suas pastas..."}
 
+Input: "todo dia 10 pago 1200 de aluguel"
+Output: {"intent":"create_recurring","data":{"description":"Aluguel","amount":1200,"type":"gasto","category":"Moradia","frequency":"monthly","day_of_month":10},"response":"Anotado como conta fixa! 🔁\n\n🏠 *Aluguel* — R$ 1.200,00 todo dia 10\n\nAgora ela já entra na sua projeção de fluxo de caixa."}
+
+Input: "meu salário de 5000 cai dia 5"
+Output: {"intent":"create_recurring","data":{"description":"Salário","amount":5000,"type":"receita","category":"Outros","frequency":"monthly","day_of_month":5},"response":"Registrado! 💰\n\n*Salário* — R$ 5.000,00 todo dia 5\n\nJá contei na sua projeção."}
+
+Input: "paguei o aluguel de 1200" (JÁ aconteceu — não é conta fixa)
+Output: {"intent":"create_transaction","data":{"description":"Aluguel","amount":1200,"type":"gasto","category":"Moradia"},"response":"Registrado! Gasto de R$ 1.200,00 em Moradia. 🏠"}
+
+Input: "como fica meu mês?"
+Output: {"intent":"cash_flow","data":{"months_ahead":3},"response":"Calculando seu fluxo de caixa..."}
+
+Input: "quanto ainda tenho pra pagar esse mês?"
+Output: {"intent":"cash_flow","data":{"months_ahead":1},"response":"Calculando seu fluxo de caixa..."}
+
+Input: "a Maria gastou 80 na farmácia"
+Output: {"intent":"create_transaction","data":{"description":"Farmácia","amount":80,"type":"gasto","category":"Saúde","paid_by":"Maria"},"response":"Registrado! Gasto de R$ 80,00 em Saúde. 💸\n👤 Maria"}
+
+Input: "300 de gasolina no cartão da empresa"
+Output: {"intent":"create_transaction","data":{"description":"Gasolina","amount":300,"type":"gasto","category":"Transporte","card_label":"Cartão da empresa"},"response":"Registrado! Gasto de R$ 300,00 em Transporte. ⛽\n💳 Cartão da empresa"}
+
+Input: "meu filho gastou 45 no lanche"
+Output: {"intent":"create_transaction","data":{"description":"Lanche","amount":45,"type":"gasto","category":"Alimentação","paid_by":"Filho"},"response":"Registrado! Gasto de R$ 45,00 em Alimentação. 🍔\n👤 Filho"}
+
+Input: "cobra o João o relatório de vendas até sexta 18h, o número dele é 48 99988-7766"
+Output: {"intent":"create_task","data":{"description":"Relatório de vendas","due_date":"2026-05-23T18:00:00","assignee_name":"João","assignee_phone":"5548999887766"},"response":"Combinado! Vou cobrar o João pelo relatório de vendas até sexta às 18:00. Você não precisa fazer o papel de chato. 😉"}
+
+Input: "todo dia às 9h cobra a Maria o relatório diário, 11 98765-4321"
+Output: {"intent":"create_task","data":{"description":"Relatório diário","due_date":"2026-05-22T09:00:00","assignee_name":"Maria","assignee_phone":"5511987654321","recurrence":"daily"},"response":"Feito! Vou cobrar a Maria todo dia às 09:00 pelo relatório diário. 🔁"}
+
+Input: "manda o Pedro me entregar a planilha amanhã"
+Output: {"intent":"create_task","data":{"description":"Entregar a planilha","due_date":"2026-05-22T09:00:00","assignee_name":"Pedro"},"response":"Anotado! Me passa o WhatsApp do Pedro (com DDD) que eu começo a cobrar. 📱"}
+
+Input: "acha aquele comprovante do mecânico que te mandei"
+Output: {"intent":"search_files","data":{"query":"comprovante do mecânico"},"response":"Procurando no seu drive..."}
+
+Input: "cadê a foto do orçamento da obra?"
+Output: {"intent":"search_files","data":{"query":"foto do orçamento da obra","media_type":"image"},"response":"Procurando no seu drive..."}
+
+Input: "o que eu falei sobre o projeto Alfa?"
+Output: {"intent":"search_files","data":{"query":"projeto Alfa"},"response":"Procurando no seu drive..."}
+
+Input: "me manda a nota fiscal da geladeira"
+Output: {"intent":"search_files","data":{"query":"nota fiscal da geladeira"},"response":"Procurando no seu drive..."}
+
+Input: "quanto gastei esse mês?" (NÃO é busca de arquivo — é consulta de gastos)
+Output: {"intent":"list_items","data":{"item_type":"transaction","transaction_type":"gasto","date_filter":"este mês"},"response":"Buscando seus gastos deste mês..."}
+
 EXEMPLOS COM HISTÓRICO DE CONVERSA (FUNDAMENTAL):
 
 Input com histórico:
@@ -369,7 +445,7 @@ Retorne APENAS o JSON.`;
 type JsonRecord = Record<string, unknown>;
 
 type AiResult = {
-  intent: "create_task" | "create_transaction" | "create_meeting" | "create_multiple_meetings" | "list_items" | "create_goal" | "list_goals" | "create_budget" | "create_folder" | "list_folders" | "assign_folder" | "general_query";
+  intent: "create_task" | "create_transaction" | "create_meeting" | "create_multiple_meetings" | "list_items" | "create_goal" | "list_goals" | "create_budget" | "create_folder" | "list_folders" | "assign_folder" | "search_files" | "create_recurring" | "cash_flow" | "general_query";
   data: JsonRecord;
   response: string;
 };
@@ -539,6 +615,29 @@ function buildPhoneVariants(rawPhone: string): string[] {
   return [...variants];
 }
 
+const VALID_RECURRENCES = ["daily", "weekdays", "weekly", "monthly"];
+
+// Normaliza o telefone do responsável para o formato 55DDD9XXXXXXXX, que é o
+// que a Meta e a Evolution esperam para enviar mensagem.
+function normalizeAssigneePhone(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  let digits = raw.replace(/\D/g, "");
+  if (!digits) return null;
+
+  // Sem código do país: assume Brasil
+  if (digits.length === 10 || digits.length === 11) digits = `55${digits}`;
+
+  if (!digits.startsWith("55")) return digits.length >= 10 ? digits : null;
+
+  // 55 + DDD(2) + número(8 ou 9)
+  if (digits.length === 12) {
+    // Celular antigo sem o nono dígito — acrescenta
+    digits = `${digits.slice(0, 4)}9${digits.slice(4)}`;
+  }
+
+  return digits.length === 13 ? digits : null;
+}
+
 function extractPhoneFromKey(key: JsonRecord): string {
   const participant = typeof key.participant === "string" ? key.participant : "";
   const remoteJid = typeof key.remoteJid === "string" ? key.remoteJid : "";
@@ -598,7 +697,7 @@ function extractAiJson(content: string): AiResult | null {
     const data = isRecord(parsed.data) ? parsed.data : {};
 
     return {
-      intent: ["create_task", "create_transaction", "create_meeting", "create_multiple_meetings", "list_items", "create_goal", "list_goals", "create_budget", "create_folder", "list_folders", "assign_folder", "general_query"].includes(intent)
+      intent: ["create_task", "create_transaction", "create_meeting", "create_multiple_meetings", "list_items", "create_goal", "list_goals", "create_budget", "create_folder", "list_folders", "assign_folder", "search_files", "create_recurring", "cash_flow", "general_query"].includes(intent)
         ? (intent as AiResult["intent"])
         : "general_query",
       data,
@@ -1019,6 +1118,290 @@ async function transcribeAudio(base64: string, mimetype: string): Promise<string
   }
 }
 
+function base64ToBytes(base64: string): Uint8Array {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function extensionForMime(mimetype: string): string {
+  const m = (mimetype || "").toLowerCase();
+  if (m.includes("jpeg") || m.includes("jpg")) return "jpg";
+  if (m.includes("png")) return "png";
+  if (m.includes("webp")) return "webp";
+  if (m.includes("heic")) return "heic";
+  if (m.includes("pdf")) return "pdf";
+  if (m.includes("ogg")) return "ogg";
+  if (m.includes("mpeg")) return "mp3";
+  if (m.includes("mp4")) return "mp4";
+  if (m.includes("wav")) return "wav";
+  if (m.includes("webm")) return "webm";
+  if (m.includes("wordprocessingml")) return "docx";
+  if (m.includes("spreadsheetml")) return "xlsx";
+  if (m.includes("msword")) return "doc";
+  if (m.includes("excel")) return "xls";
+  return "bin";
+}
+
+// Embedding do conteúdo textual do arquivo — é isso que permite achar
+// "aquele comprovante do mecânico" sem lembrar o nome do arquivo.
+async function generateEmbedding(input: string): Promise<number[] | null> {
+  const openaiKey = Deno.env.get("OPENAI_API_KEY") ?? "";
+  const cleaned = (input || "").trim().slice(0, 8000);
+  if (!openaiKey || !cleaned) return null;
+
+  try {
+    const response = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${openaiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ model: "text-embedding-3-small", input: cleaned }),
+    });
+
+    if (!response.ok) {
+      console.error("Embeddings API error:", response.status, await response.text());
+      return null;
+    }
+
+    const payload = await response.json();
+    const vector = payload?.data?.[0]?.embedding;
+    return Array.isArray(vector) ? vector : null;
+  } catch (error) {
+    console.error("generateEmbedding error:", error);
+    return null;
+  }
+}
+
+interface PendingMedia {
+  base64: string;
+  mimetype: string;
+  mediaType: "image" | "audio" | "document";
+  fileName: string;
+  caption: string;
+  contentText: string;
+}
+
+// Salva a mídia no bucket privado e indexa o conteúdo extraído.
+// Nunca lança: falha no drive não pode derrubar o registro do gasto/tarefa.
+async function saveToDrive(supabase: any, userId: string, media: PendingMedia): Promise<void> {
+  try {
+    const bytes = base64ToBytes(media.base64);
+    const ext = extensionForMime(media.mimetype);
+    const objectId = crypto.randomUUID();
+    const storagePath = `${userId}/${objectId}.${ext}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("drive")
+      .upload(storagePath, bytes, {
+        contentType: media.mimetype || "application/octet-stream",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      console.error("saveToDrive upload error:", uploadError);
+      return;
+    }
+
+    // O texto indexado junta legenda + conteúdo extraído, para que tanto o que
+    // o usuário escreveu quanto o que está dentro do arquivo sejam pesquisáveis.
+    const indexText = [media.caption, media.contentText, media.fileName]
+      .filter((part) => part && part.trim())
+      .join(" — ");
+    const embedding = await generateEmbedding(indexText);
+
+    const { error: insertError } = await supabase.from("files").insert({
+      user_id: userId,
+      storage_path: storagePath,
+      file_name: media.fileName || `${media.mediaType}-${objectId}.${ext}`,
+      mime_type: media.mimetype || null,
+      media_type: media.mediaType,
+      size_bytes: bytes.length,
+      content_text: media.contentText || null,
+      caption: media.caption || null,
+      embedding,
+      source: "whatsapp",
+    });
+
+    if (insertError) {
+      console.error("saveToDrive insert error:", insertError);
+      return;
+    }
+
+    console.log(`Drive: arquivo ${media.mediaType} salvo para ${userId} (${bytes.length} bytes, embedding=${embedding ? "sim" : "não"})`);
+  } catch (error) {
+    console.error("saveToDrive error:", error);
+  }
+}
+
+function formatFileDate(value: string): string {
+  try {
+    return new Date(value).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  } catch {
+    return "";
+  }
+}
+
+const MEDIA_TYPE_ICONS: Record<string, string> = {
+  image: "🖼️",
+  audio: "🎙️",
+  document: "📄",
+};
+
+async function searchDriveFiles(supabase: any, userId: string, query: string): Promise<string> {
+  const cleanQuery = (query || "").trim();
+  if (!cleanQuery) {
+    return "Me diz o que você está procurando — ex: \"acha o comprovante do mecânico\". 🔎";
+  }
+
+  const embedding = await generateEmbedding(cleanQuery);
+  let matches: any[] = [];
+
+  if (embedding) {
+    const { data, error } = await supabase.rpc("search_files", {
+      p_user_id: userId,
+      p_query_embedding: JSON.stringify(embedding),
+      p_match_count: 5,
+      p_threshold: 0.15,
+    });
+    if (error) {
+      console.error("searchDriveFiles rpc error:", error);
+    } else if (Array.isArray(data)) {
+      matches = data;
+    }
+  }
+
+  // Fallback textual: arquivos antigos sem embedding, ou embedding indisponível
+  if (matches.length === 0) {
+    const { data } = await supabase
+      .from("files")
+      .select("id, file_name, media_type, storage_path, content_text, caption, created_at")
+      .eq("user_id", userId)
+      .or(`content_text.ilike.%${cleanQuery}%,caption.ilike.%${cleanQuery}%,file_name.ilike.%${cleanQuery}%`)
+      .order("created_at", { ascending: false })
+      .limit(5);
+    if (Array.isArray(data)) matches = data;
+  }
+
+  if (matches.length === 0) {
+    return `Não achei nada sobre "${cleanQuery}" no seu drive. 🤔\n\nTudo que você me manda (foto, áudio, documento) fica guardado aqui — talvez esse arquivo ainda não tenha passado por mim.`;
+  }
+
+  const lines: string[] = [`Achei ${matches.length === 1 ? "1 arquivo" : `${matches.length} arquivos`} sobre "${cleanQuery}": 🔎\n`];
+
+  for (const match of matches) {
+    const { data: signed } = await supabase.storage
+      .from("drive")
+      .createSignedUrl(match.storage_path, 60 * 60 * 24);
+
+    const icon = MEDIA_TYPE_ICONS[match.media_type] || "📎";
+    const date = formatFileDate(match.created_at);
+    const summary = String(match.caption || match.content_text || match.file_name || "").trim().slice(0, 120);
+
+    lines.push(`${icon} *${summary || match.file_name}*${date ? `\n   ${date}` : ""}${signed?.signedUrl ? `\n   ${signed.signedUrl}` : ""}`);
+  }
+
+  lines.push("\n_Os links valem por 24h._");
+  return lines.join("\n");
+}
+
+// ============================================================
+// FLUXO DE CAIXA
+// ============================================================
+
+function clampInt(value: unknown, min: number, max: number): number | null {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  const i = Math.trunc(n);
+  return i >= min && i <= max ? i : null;
+}
+
+const WEEKDAY_NAMES = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+const MONTH_NAMES = [
+  "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+];
+
+function describeFrequency(
+  frequency: string,
+  dayOfMonth: number | null,
+  dayOfWeek: number | null,
+  monthOfYear: number | null,
+): string {
+  if (frequency === "weekly" && dayOfWeek !== null) return `toda ${WEEKDAY_NAMES[dayOfWeek]}`;
+  if (frequency === "yearly" && dayOfMonth !== null && monthOfYear !== null) {
+    return `todo dia ${dayOfMonth} de ${MONTH_NAMES[monthOfYear - 1]}`;
+  }
+  if (dayOfMonth !== null) return `todo dia ${dayOfMonth}`;
+  return "todo mês";
+}
+
+function brl(value: number): string {
+  return `R$ ${Math.abs(value).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function monthLabel(monthIso: string): string {
+  const [year, month] = monthIso.split("-").map(Number);
+  return `${MONTH_NAMES[(month ?? 1) - 1]}/${String(year).slice(2)}`;
+}
+
+async function buildCashFlowReply(supabase: any, userId: string, monthsAhead: number): Promise<string> {
+  const { data, error } = await supabase.rpc("cash_flow", {
+    p_user_id: userId,
+    p_months_back: 0,
+    p_months_ahead: monthsAhead,
+  });
+
+  if (error) {
+    console.error("cash_flow rpc error:", error);
+    return "Não consegui montar seu fluxo de caixa agora. Tenta de novo em instantes? 😅";
+  }
+
+  const rows = Array.isArray(data) ? data : [];
+  if (rows.length === 0) {
+    return "Ainda não tenho dados suficientes para projetar seu fluxo. 📊\n\nRegistre seus gastos e me conte suas contas fixas (ex: \"todo dia 10 pago 1200 de aluguel\") que eu monto a previsão.";
+  }
+
+  const lines: string[] = ["*Seu fluxo de caixa* 📊\n"];
+  let hasProjection = false;
+
+  for (const row of rows) {
+    const realizedIncome = Number(row.realized_income) || 0;
+    const realizedExpense = Number(row.realized_expense) || 0;
+    const projectedIncome = Number(row.projected_income) || 0;
+    const projectedExpense = Number(row.projected_expense) || 0;
+
+    const realizedBalance = realizedIncome - realizedExpense;
+    const totalBalance = realizedIncome + projectedIncome - realizedExpense - projectedExpense;
+    const hasAnything = realizedIncome || realizedExpense || projectedIncome || projectedExpense;
+    if (!hasAnything) continue;
+
+    lines.push(`*${monthLabel(String(row.month))}*`);
+
+    if (realizedIncome || realizedExpense) {
+      lines.push(`  Realizado: +${brl(realizedIncome)} / -${brl(realizedExpense)} = ${realizedBalance >= 0 ? "" : "-"}${brl(realizedBalance)}`);
+    }
+
+    if (projectedIncome || projectedExpense) {
+      hasProjection = true;
+      lines.push(`  Previsto:  +${brl(projectedIncome)} / -${brl(projectedExpense)}`);
+      lines.push(`  ${totalBalance >= 0 ? "✅" : "⚠️"} Saldo do mês: ${totalBalance >= 0 ? "" : "-"}${brl(totalBalance)}`);
+    }
+
+    lines.push("");
+  }
+
+  if (!hasProjection) {
+    lines.push("_Ainda não tenho nada previsto para frente. Me conta suas contas fixas (ex: \"todo dia 10 pago 1200 de aluguel\") que eu passo a projetar._");
+  }
+
+  return lines.join("\n").trim();
+}
+
 function detectMediaType(message: JsonRecord): "image" | "audio" | "document" | null {
   if (isRecord(message.imageMessage)) return "image";
   if (isRecord(message.audioMessage)) return "audio";
@@ -1037,12 +1420,106 @@ function getMediaCaption(message: JsonRecord): string {
   if (isRecord(message.imageMessage) && typeof message.imageMessage.caption === "string") {
     return message.imageMessage.caption;
   }
+  if (isRecord(message.documentMessage) && typeof message.documentMessage.caption === "string") {
+    return message.documentMessage.caption;
+  }
   return "";
+}
+
+function getMediaFileName(message: JsonRecord, mediaType: string, mimetype: string): string {
+  if (isRecord(message.documentMessage) && typeof message.documentMessage.fileName === "string" && message.documentMessage.fileName.trim()) {
+    return message.documentMessage.fileName.trim();
+  }
+  return `${mediaType}-${crypto.randomUUID().slice(0, 8)}.${extensionForMime(mimetype)}`;
 }
 
 // ============================================================
 // SUPPORT ESCALATION HELPERS
 // ============================================================
+
+// ============================================================
+// RESPOSTA DE TERCEIRO COBRADO
+// ============================================================
+
+const COMPLETION_WORDS = [
+  "feito", "fiz", "ja fiz", "já fiz", "pronto", "concluido", "concluído", "conclui", "concluí",
+  "terminei", "finalizado", "finalizei", "entreguei", "resolvido", "resolvi", "ok feito", "tá feito", "ta feito",
+];
+
+function isCompletionMessage(text: string): boolean {
+  const t = text.toLowerCase().trim().replace(/[!.?]+$/, "");
+  return COMPLETION_WORDS.some((w) => t === w || t.startsWith(w + " ") || t.includes(" " + w));
+}
+
+interface AssigneeReply {
+  reply: string;
+  ownerPhone?: string;
+  ownerNotice?: string;
+}
+
+// Terceiros cobrados não têm cadastro no Tuddo. Esta função dá a eles o mínimo
+// necessário: ver o que devem e dar baixa. Nada além disso.
+async function handleAssigneeReply(
+  supabase: any,
+  phoneVariants: string[],
+  text: string,
+): Promise<AssigneeReply | null> {
+  if (!phoneVariants.length) return null;
+
+  const { data: tasks } = await supabase
+    .from("tasks")
+    .select("id, user_id, title, due_date, assignee_name")
+    .in("assignee_phone", phoneVariants)
+    .eq("status", "pendente")
+    .order("due_date", { ascending: true })
+    .limit(10);
+
+  if (!tasks || tasks.length === 0) return null;
+
+  if (!isCompletionMessage(text)) {
+    const list = tasks
+      .map((t: any) => `  • ${t.title}${t.due_date ? ` — até ${new Date(t.due_date).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}` : ""}`)
+      .join("\n");
+    return {
+      reply: `Oi! Sou o Tuddo. 👋\n\nO que está pendente com você:\n\n${list}\n\nQuando concluir, é só responder *"feito"* que eu dou baixa e aviso quem pediu. 👍`,
+    };
+  }
+
+  // Se a mensagem cita o título de alguma tarefa, fecha essa. Senão, a mais antiga.
+  const lower = text.toLowerCase();
+  const matched = tasks.find((t: any) =>
+    String(t.title).toLowerCase().split(/\s+/).filter((w: string) => w.length > 3).some((w: string) => lower.includes(w))
+  ) ?? tasks[0];
+
+  const { error } = await supabase
+    .from("tasks")
+    .update({ status: "concluída" })
+    .eq("id", matched.id);
+
+  if (error) {
+    console.error("Assignee task completion error:", error);
+    return { reply: "Ops, não consegui dar baixa agora. Tenta de novo em instantes? 😅" };
+  }
+
+  const remaining = tasks.filter((t: any) => t.id !== matched.id);
+  const remainingText = remaining.length > 0
+    ? `\n\nAinda ficou pendente:\n${remaining.map((t: any) => `  • ${t.title}`).join("\n")}`
+    : "";
+
+  const { data: owner } = await supabase
+    .from("profiles")
+    .select("phone, full_name")
+    .eq("id", matched.user_id)
+    .single();
+
+  const who = matched.assignee_name || "O responsável";
+
+  return {
+    reply: `Perfeito, dei baixa em *${matched.title}*. ✅\n\nJá avisei quem pediu. Valeu!${remainingText}`,
+    ownerPhone: owner?.phone || undefined,
+    ownerNotice: `✅ *${who}* concluiu: "${matched.title}".\n\nDei baixa na sua lista de tarefas.`,
+  };
+}
 
 function isAffirmativeMessage(text: string): boolean {
   const t = text.toLowerCase().trim().replace(/[!.?]+$/, "");
@@ -1101,7 +1578,22 @@ async function notifySupportAdmin(
 // ============================================================
 // EXECUTE INTENT ACTION — TOTALMENTE REESCRITO
 // ============================================================
-async function executeIntentAction(supabase: any, userId: string, userPlan: string, aiResult: AiResult, fallbackText: string): Promise<string> {
+// sender identifica QUEM mandou a mensagem. Em conta compartilhada isso é
+// diferente do userId (que é sempre o titular) — é o que permite atribuir o
+// gasto à pessoa certa.
+interface MessageSender {
+  userId: string | null;
+  name: string | null;
+}
+
+async function executeIntentAction(
+  supabase: any,
+  userId: string,
+  userPlan: string,
+  aiResult: AiResult,
+  fallbackText: string,
+  sender: MessageSender = { userId: null, name: null },
+): Promise<string> {
   const { intent, data, response: aiResponse } = aiResult;
 
   switch (intent) {
@@ -1113,17 +1605,33 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
         ? data.description
         : (typeof data.title === "string" && data.title.trim().length > 0 ? data.title : fallbackText);
 
+      // Tarefa delegada: o Tuddo cobra a pessoa responsável em vez do dono.
+      const assigneeName = typeof data.assignee_name === "string" && data.assignee_name.trim()
+        ? data.assignee_name.trim()
+        : null;
+      const assigneePhone = normalizeAssigneePhone(data.assignee_phone);
+      const recurrence = VALID_RECURRENCES.includes(String(data.recurrence))
+        ? String(data.recurrence)
+        : null;
+
       const { error } = await supabase.from("tasks").insert({
         user_id: userId,
         title,
         priority: "baixa",
         status: "pendente",
         due_date: typeof data.due_date === "string" ? data.due_date : null,
+        assignee_name: assigneeName,
+        assignee_phone: assigneePhone,
+        recurrence: assigneePhone ? recurrence : null,
       });
 
       if (error) {
         console.error("Task insert error:", error);
         return "Ops, não consegui criar a tarefa. Tente novamente! 😅";
+      }
+
+      if (assigneeName && !assigneePhone) {
+        return aiResponse || `Anotado: *${title}* — responsável ${assigneeName}. 📌\n\nMe passa o WhatsApp ${assigneeName ? `d${assigneeName.endsWith("a") ? "a" : "o"} ${assigneeName}` : "da pessoa"} (com DDD) que eu começo a cobrar. 📱`;
       }
 
       return aiResponse || `Anotado! Tarefa "${title}" criada com sucesso ✅`;
@@ -1166,6 +1674,17 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
         }
       }
 
+      // Quem gastou: o nome dito na mensagem ("cartão da Maria") tem prioridade
+      // sobre quem enviou. Em conta individual ambos ficam nulos.
+      const explicitPayer = typeof data.paid_by === "string" && data.paid_by.trim()
+        ? data.paid_by.trim()
+        : null;
+      const paidByName = explicitPayer ?? sender.name;
+      const paidByUserId = explicitPayer ? null : sender.userId;
+      const cardLabel = typeof data.card_label === "string" && data.card_label.trim()
+        ? data.card_label.trim()
+        : null;
+
       // Se é parcelamento, criar múltiplas transações
       if (installments > 1 && installmentAmount > 0) {
         const now = new Date();
@@ -1180,6 +1699,9 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
             category,
             folder_id: folderId,
             transaction_date: txDate.toISOString(),
+            paid_by_name: paidByName,
+            paid_by_user_id: paidByUserId,
+            card_label: cardLabel,
           });
         }
         const { error: installError } = await supabase.from("transactions").insert(transactions);
@@ -1200,6 +1722,9 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
         type: transactionType,
         category,
         folder_id: folderId,
+        paid_by_name: paidByName,
+        paid_by_user_id: paidByUserId,
+        card_label: cardLabel,
       });
 
       if (error) {
@@ -1213,6 +1738,11 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
       // Não perguntamos mais em qual pasta colocar a cada gasto — o usuário pede quando quiser (assign_folder).
       if (folderLabel) {
         reply += `\nPasta: ${folderLabel}`;
+      }
+
+      // Em conta compartilhada, deixar claro em nome de quem o gasto entrou.
+      if (paidByName) {
+        reply += `\n👤 ${paidByName}${cardLabel ? ` · ${cardLabel}` : ""}`;
       }
 
       // Verificar alerta de orçamento
@@ -1755,6 +2285,68 @@ async function executeIntentAction(supabase: any, userId: string, userPlan: stri
     // -------------------------------------------------------
     // LISTAR PASTAS
     // -------------------------------------------------------
+    case "create_recurring": {
+      const description = typeof data.description === "string" && data.description.trim()
+        ? data.description.trim()
+        : fallbackText;
+      const amount = Math.abs(Number(data.amount) || 0);
+      if (amount <= 0) {
+        return "Não consegui identificar o valor dessa conta fixa. Me diz assim: \"todo dia 10 pago 1200 de aluguel\". 😊";
+      }
+
+      const type = data.type === "receita" ? "receita" : "gasto";
+      const frequency = ["weekly", "monthly", "yearly"].includes(String(data.frequency))
+        ? String(data.frequency)
+        : "monthly";
+
+      const dayOfMonth = clampInt(data.day_of_month, 1, 31);
+      const dayOfWeek = clampInt(data.day_of_week, 0, 6);
+      const monthOfYear = clampInt(data.month_of_year, 1, 12);
+
+      // Cada frequência tem seu campo obrigatório — sem ele a projeção não sabe
+      // em que dia lançar a ocorrência.
+      if (frequency === "monthly" && dayOfMonth === null) {
+        return "Em que dia do mês essa conta cai? Ex: \"todo dia 10\". 📅";
+      }
+      if (frequency === "weekly" && dayOfWeek === null) {
+        return "Em que dia da semana essa conta cai? Ex: \"toda segunda\". 📅";
+      }
+      if (frequency === "yearly" && (dayOfMonth === null || monthOfYear === null)) {
+        return "Em que dia e mês essa conta cai? Ex: \"todo 15 de março\". 📅";
+      }
+
+      const { error } = await supabase.from("recurring_transactions").insert({
+        user_id: userId,
+        description,
+        amount,
+        type,
+        category: typeof data.category === "string" ? data.category : null,
+        frequency,
+        day_of_month: frequency === "weekly" ? null : dayOfMonth,
+        day_of_week: frequency === "weekly" ? dayOfWeek : null,
+        month_of_year: frequency === "yearly" ? monthOfYear : null,
+      });
+
+      if (error) {
+        console.error("Recurring insert error:", error);
+        return "Ops, não consegui salvar essa conta fixa. Tente novamente! 😅";
+      }
+
+      return aiResponse || `Anotado como conta fixa! 🔁\n\n*${description}* — R$ ${amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} ${describeFrequency(frequency, dayOfMonth, dayOfWeek, monthOfYear)}\n\nJá entra na sua projeção de fluxo de caixa.`;
+    }
+
+    case "cash_flow": {
+      const monthsAhead = clampInt(data.months_ahead, 1, 12) ?? 3;
+      return await buildCashFlowReply(supabase, userId, monthsAhead);
+    }
+
+    case "search_files": {
+      const query = typeof data.query === "string" && data.query.trim()
+        ? data.query.trim()
+        : fallbackText;
+      return await searchDriveFiles(supabase, userId, query);
+    }
+
     case "list_folders": {
       const { data: userFolders } = await supabase
         .from("folders")
@@ -1951,6 +2543,9 @@ serve(async (req) => {
     let originalRemoteJid = "";
     let isLidAddress = false;
     let _pushName = "";
+    // Mídia recebida fica pendente até o userId ser resolvido pelo telefone,
+    // aí vai para o drive (bucket + índice semântico).
+    let pendingMedia: PendingMedia | null = null;
 
     if (!isMeta) {
       const isAuthorized = await verifyRequest(req, rawBody, body);
@@ -1963,23 +2558,52 @@ serve(async (req) => {
       }
     }
 
-    if (isMeta && !text && remotePhone && (_metaExtracted?.type === "audio" || _metaExtracted?.type === "image") && _metaExtracted?.mediaId) {
+    if (isMeta && !text && remotePhone && (_metaExtracted?.type === "audio" || _metaExtracted?.type === "image" || _metaExtracted?.type === "document") && _metaExtracted?.mediaId) {
       const base64 = await getMetaMediaBase64(_metaExtracted.mediaId);
       if (base64) {
         const mimetype = _metaExtracted.mediaMimetype;
-        if (_metaExtracted.type === "image") {
+        const metaType = _metaExtracted.type as "image" | "audio" | "document";
+        let contentText = "";
+
+        if (metaType === "image") {
           const imageAnalysis = await analyzeImageWithVision(base64, mimetype, _metaExtracted.caption);
           if (imageAnalysis) {
+            contentText = imageAnalysis;
             text = _metaExtracted.caption
               ? `[Foto enviada - análise: ${imageAnalysis}] Legenda do usuário: ${_metaExtracted.caption}`
               : `[Foto enviada - análise: ${imageAnalysis}]`;
           }
-        } else {
+        } else if (metaType === "audio") {
           const transcription = await transcribeAudio(base64, mimetype);
           if (transcription) {
+            contentText = transcription;
             text = transcription;
           }
+        } else {
+          // Documento: ainda não extraímos o conteúdo, mas guardamos no drive
+          // indexado pela legenda/nome para busca posterior.
+          contentText = _metaExtracted.caption;
+          text = _metaExtracted.caption
+            ? `[Documento enviado] ${_metaExtracted.caption}`
+            : "[Documento enviado — guardei no seu drive]";
         }
+
+        // Mesmo se a visão/transcrição falhar, seguimos o fluxo para que o
+        // arquivo chegue ao drive em vez de ser descartado como "non_text".
+        if (!text) {
+          text = _metaExtracted.caption
+            ? `[Arquivo enviado] ${_metaExtracted.caption}`
+            : "[Arquivo enviado — guardei no seu drive]";
+        }
+
+        pendingMedia = {
+          base64,
+          mimetype,
+          mediaType: metaType,
+          fileName: `${metaType}-${_metaExtracted.mediaId}.${extensionForMime(mimetype)}`,
+          caption: _metaExtracted.caption,
+          contentText,
+        };
       }
     }
 
@@ -2037,7 +2661,7 @@ serve(async (req) => {
     const mediaType = detectMediaType(message);
     let mediaProcessed = false;
 
-    if (mediaType === "image" || mediaType === "audio") {
+    if (mediaType === "image" || mediaType === "audio" || mediaType === "document") {
       // Buscar o base64 da mídia via Evolution API
       const messageKey = {
         id: typeof key.id === "string" ? key.id : "",
@@ -2049,11 +2673,13 @@ serve(async (req) => {
 
       if (base64) {
         const mimetype = getMediaMimetype(message);
+        const caption = getMediaCaption(message);
+        let contentText = "";
 
         if (mediaType === "image") {
-          const caption = getMediaCaption(message);
           const imageAnalysis = await analyzeImageWithVision(base64, mimetype, caption || text);
           if (imageAnalysis) {
+            contentText = imageAnalysis;
             // Combinar a análise da imagem com qualquer texto/legenda
             text = caption
               ? `[Foto enviada - análise: ${imageAnalysis}] Legenda do usuário: ${caption}`
@@ -2063,10 +2689,36 @@ serve(async (req) => {
         } else if (mediaType === "audio") {
           const transcription = await transcribeAudio(base64, mimetype);
           if (transcription) {
+            contentText = transcription;
             text = transcription;
             mediaProcessed = true;
           }
+        } else {
+          // Documento: guardado no drive, indexado pela legenda/nome do arquivo.
+          contentText = caption;
+          text = caption
+            ? `[Documento enviado] ${caption}`
+            : "[Documento enviado — guardei no seu drive]";
+          mediaProcessed = true;
         }
+
+        // Mesmo se a visão/transcrição falhar, seguimos o fluxo para que o
+        // arquivo chegue ao drive em vez de ser descartado.
+        if (!text) {
+          text = caption
+            ? `[Arquivo enviado] ${caption}`
+            : "[Arquivo enviado — guardei no seu drive]";
+          mediaProcessed = true;
+        }
+
+        pendingMedia = {
+          base64,
+          mimetype,
+          mediaType,
+          fileName: getMediaFileName(message, mediaType, mimetype),
+          caption,
+          contentText,
+        };
       }
 
       // Se não conseguiu processar a mídia e não tem texto
@@ -2237,6 +2889,27 @@ serve(async (req) => {
       }
       
       if (!foundByPushName) {
+        // Antes de recusar: pode ser um TERCEIRO que está sendo cobrado por uma
+        // tarefa. Essas pessoas não têm cadastro, mas precisam conseguir dar
+        // baixa respondendo "feito".
+        const assigneeReply = await handleAssigneeReply(supabase, phoneVariants, text);
+        if (assigneeReply) {
+          isMeta
+            ? await sendMessageMeta(metaPhoneNumberId, remotePhone, assigneeReply.reply)
+            : await sendWhatsAppMessage(remotePhone, assigneeReply.reply);
+
+          if (assigneeReply.ownerPhone && assigneeReply.ownerNotice) {
+            isMeta
+              ? await sendMessageMeta(metaPhoneNumberId, assigneeReply.ownerPhone, assigneeReply.ownerNotice)
+              : await sendWhatsAppMessage(assigneeReply.ownerPhone, assigneeReply.ownerNotice);
+          }
+
+          return new Response(JSON.stringify({ status: "assignee_reply" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
         isMeta
           ? await sendMessageMeta(metaPhoneNumberId, remotePhone, "Desculpe, não encontrei seu cadastro. Por favor, registre-se na plataforma primeiro! 📱\n\n👉 tuddo.lovable.app")
           : await sendWhatsAppMessage(remotePhone, "Desculpe, não encontrei seu cadastro. Por favor, registre-se na plataforma primeiro! 📱\n\n👉 tuddo.lovable.app");
@@ -2275,6 +2948,10 @@ serve(async (req) => {
       }
     }
 
+    // Quem mandou a mensagem, antes de qualquer redirecionamento para o titular.
+    // É o que permite atribuir o gasto à pessoa certa numa conta compartilhada.
+    const sender: MessageSender = { userId: null, name: null };
+
     // Verificar se o usuário é membro de um plano familiar
     // Se for, usar o owner_id da família para compartilhar dados
     try {
@@ -2291,6 +2968,13 @@ serve(async (req) => {
         const familyPlan = (familyMember.family_groups as any).plan || "FAMILY_2";
         // Usar o owner como userId para que os dados sejam compartilhados
         if (familyMember.role === "member") {
+          const { data: senderProfile } = await supabase
+            .from("profiles")
+            .select("full_name")
+            .eq("id", userId)
+            .single();
+          sender.userId = userId;
+          sender.name = senderProfile?.full_name?.trim() || null;
           userId = familyOwnerId;
         }
         // Plano familiar = PRO (acesso completo)
@@ -2299,6 +2983,14 @@ serve(async (req) => {
     } catch (familyErr) {
       // Se não é membro de família, continua normal
       console.log("Not a family member or no family found");
+    }
+
+    // Drive: toda mídia recebida vira arquivo guardado e indexado.
+    // Roda depois da resolução de família para que o arquivo caia na mesma
+    // conta que recebe as transações.
+    if (pendingMedia) {
+      await saveToDrive(supabase, userId, pendingMedia);
+      pendingMedia = null;
     }
 
     const adminPhones = (Deno.env.get("ADMIN_PHONES") || "")
@@ -2542,7 +3234,7 @@ serve(async (req) => {
     const intent = aiResult.intent || "general_query";
 
     // Executar a ação e obter a resposta REAL
-    let reply = await executeIntentAction(supabase, userId, userPlan, aiResult, text);
+    let reply = await executeIntentAction(supabase, userId, userPlan, aiResult, text, sender);
     let finalIntent: string = intent;
 
     // Escalonamento: 3+ mensagens consecutivas não reconhecidas → oferecer suporte humano

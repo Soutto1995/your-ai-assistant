@@ -24,6 +24,7 @@ import ReferralsPage from "./pages/ReferralsPage";
 import SuccessPage from "./pages/SuccessPage";
 import FamilyPage from "./pages/FamilyPage";
 import GoalsPage from "./pages/GoalsPage";
+import DrivePage from "./pages/DrivePage";
 import ConversasPage from "./pages/admin/ConversasPage";
 import SuportePage from "./pages/admin/SuportePage";
 import NotFound from "./pages/NotFound";
@@ -60,6 +61,7 @@ const App = () => (
             <Route path="/indicacoes" element={<ProtectedRoute><ReferralsPage /></ProtectedRoute>} />
             <Route path="/family" element={<ProtectedRoute><FamilyPage /></ProtectedRoute>} />
             <Route path="/metas" element={<ProtectedRoute><GoalsPage /></ProtectedRoute>} />
+            <Route path="/drive" element={<ProtectedRoute><DrivePage /></ProtectedRoute>} />
             <Route path="/admin/conversas" element={<ProtectedRoute><ConversasPage /></ProtectedRoute>} />
             <Route path="/admin/suporte" element={<ProtectedRoute><SuportePage /></ProtectedRoute>} />
             <Route path="/success" element={<SuccessPage />} />

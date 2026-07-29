@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import AppLayout from "@/components/AppLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { CheckSquare, Plus, Trash2, Check } from "lucide-react";
+import { CheckSquare, Plus, Trash2, Check, UserRound, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -178,6 +178,16 @@ export default function TasksPage() {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-foreground truncate">{task.title}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{task.project || "Sem projeto"}</p>
+                  {task.assignee_name && (
+                    <p className="text-xs text-info mt-1 flex items-center gap-1">
+                      <UserRound className="w-3 h-3" />
+                      {task.assignee_name}
+                      {task.recurrence && <Repeat className="w-3 h-3" />}
+                      {task.charge_count > 0 && (
+                        <span className="text-muted-foreground">· cobrado {task.charge_count}x</span>
+                      )}
+                    </p>
+                  )}
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
                   {task.status !== "concluída" && (
@@ -203,6 +213,7 @@ export default function TasksPage() {
               <thead>
                 <tr className="border-b border-border">
                   <th className="text-left px-5 py-3 text-xs text-muted-foreground font-medium uppercase tracking-wider">Tarefa</th>
+                  <th className="text-left px-5 py-3 text-xs text-muted-foreground font-medium uppercase tracking-wider">Responsável</th>
                   <th className="text-left px-5 py-3 text-xs text-muted-foreground font-medium uppercase tracking-wider">Projeto</th>
                   <th className="text-left px-5 py-3 text-xs text-muted-foreground font-medium uppercase tracking-wider">Prioridade</th>
                   <th className="text-left px-5 py-3 text-xs text-muted-foreground font-medium uppercase tracking-wider">Status</th>
@@ -214,6 +225,20 @@ export default function TasksPage() {
                 {filteredTasks.map((task, i) => (
                   <tr key={task.id} className="border-b border-border last:border-0 hover:bg-secondary/30 transition-colors animate-slide-up" style={{ animationDelay: `${i * 50}ms` }}>
                     <td className="px-5 py-4"><span className="text-sm text-foreground">{task.title}</span></td>
+                    <td className="px-5 py-4">
+                      {task.assignee_name ? (
+                        <span className="text-xs text-info flex items-center gap-1">
+                          <UserRound className="w-3 h-3" />
+                          {task.assignee_name}
+                          {task.recurrence && <Repeat className="w-3 h-3" />}
+                          {task.charge_count > 0 && (
+                            <span className="text-muted-foreground">· {task.charge_count}x</span>
+                          )}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">eu</span>
+                      )}
+                    </td>
                     <td className="px-5 py-4"><span className="text-xs text-muted-foreground">{task.project || "—"}</span></td>
                     <td className="px-5 py-4"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${priorityBadge[task.priority] || ""}`}>{task.priority}</span></td>
                     <td className="px-5 py-4"><span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge[task.status] || ""}`}>{task.status}</span></td>
@@ -229,7 +254,7 @@ export default function TasksPage() {
                   </tr>
                 ))}
                 {filteredTasks.length === 0 && (
-                  <tr><td colSpan={6} className="text-center py-8 text-muted-foreground">Nenhuma tarefa encontrada.</td></tr>
+                  <tr><td colSpan={7} className="text-center py-8 text-muted-foreground">Nenhuma tarefa encontrada.</td></tr>
                 )}
               </tbody>
             </table>

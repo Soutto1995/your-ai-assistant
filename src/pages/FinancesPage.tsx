@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePlanLimits } from "@/hooks/usePlanLimits";
 import { useSpendingComparison } from "@/hooks/useSpendingComparison";
 import UpgradeModal from "@/components/UpgradeModal";
-import { DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Plus, Trash2, Sparkles, Crown, Lock, FolderOpen, ChevronDown, Check } from "lucide-react";
+import { DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Plus, Trash2, Sparkles, Crown, Lock, FolderOpen, ChevronDown, Check, Users, CalendarClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -114,16 +114,49 @@ export default function FinancesPage() {
 
   const comparison = useSpendingComparison(transactions);
 
+  // Fluxo de caixa: realizado (já lançado) + projetado (parcelas futuras e contas fixas)
+  const [cashFlow, setCashFlow] = useState<Array<{
+    month: string;
+    realized_income: number;
+    realized_expense: number;
+    projected_income: number;
+    projected_expense: number;
+  }>>([]);
+
+  const fetchCashFlow = async () => {
+    if (!user) return;
+    const { data, error } = await supabase.rpc("cash_flow", {
+      p_user_id: user.id,
+      p_months_back: 2,
+      p_months_ahead: 6,
+    });
+    if (error) {
+      console.error(error);
+      return;
+    }
+    setCashFlow((data as any[]) || []);
+  };
+
   const fetchTransactions = async () => {
-    const { data } = await supabase.from("transactions").select("*").order("transaction_date", { ascending: false });
+    if (!user) return;
+    // O .eq('user_id') é redundante com a RLS de propósito — defesa em profundidade.
+    const { data } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("transaction_date", { ascending: false });
     setTransactions(data || []);
   };
 
   useEffect(() => {
     fetchTransactions();
     fetchFolders();
+    fetchCashFlow();
     const channel = supabase.channel("tx-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, fetchTransactions)
+      .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, () => {
+        fetchTransactions();
+        fetchCashFlow();
+      })
       .subscribe();
     const folderChannel = supabase.channel("folders-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "folders" }, fetchFolders)
@@ -174,6 +207,41 @@ export default function FinancesPage() {
   }, [filtered]);
 
   const topCategories = useMemo(() => [...pieData].sort((a, b) => b.value - a.value).slice(0, 3), [pieData]);
+
+  // Quem gastou o quê — só aparece quando há mais de uma pessoa lançando na conta.
+  const spendingByPerson = useMemo(() => {
+    const map: Record<string, { total: number; count: number }> = {};
+    filtered.filter(t => t.type === "gasto").forEach(t => {
+      const person = (t.paid_by_name || "").trim() || "Titular";
+      if (!map[person]) map[person] = { total: 0, count: 0 };
+      map[person].total += Math.abs(Number(t.amount));
+      map[person].count += 1;
+    });
+    return Object.entries(map)
+      .map(([person, v]) => ({ person, ...v }))
+      .sort((a, b) => b.total - a.total);
+  }, [filtered]);
+
+  const hasSharedSpending = spendingByPerson.length > 1;
+
+  const cashFlowData = useMemo(() => {
+    const MONTHS_SHORT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+    return cashFlow.map((r) => {
+      const [year, month] = String(r.month).split("-").map(Number);
+      const realizedBalance = Number(r.realized_income) - Number(r.realized_expense);
+      const projectedBalance =
+        Number(r.realized_income) + Number(r.projected_income) -
+        Number(r.realized_expense) - Number(r.projected_expense);
+      return {
+        name: `${MONTHS_SHORT[(month || 1) - 1]}/${String(year).slice(2)}`,
+        Realizado: Math.round(realizedBalance * 100) / 100,
+        Previsto: Math.round(projectedBalance * 100) / 100,
+        hasProjection: Number(r.projected_income) > 0 || Number(r.projected_expense) > 0,
+      };
+    });
+  }, [cashFlow]);
+
+  const hasCashFlow = cashFlowData.some((d) => d.Realizado !== 0 || d.Previsto !== 0);
 
   const dailyTrendData = useMemo(() => {
     const now = new Date();
@@ -369,6 +437,79 @@ export default function FinancesPage() {
           <StatCard icon={<TrendingDown className="w-5 h-5" />} label="Gastos" value={`R$ ${expenses.toLocaleString("pt-BR")}`} />
           <StatCard icon={<DollarSign className="w-5 h-5" />} label="Saldo" value={`R$ ${balance.toLocaleString("pt-BR")}`} positive={balance >= 0} />
         </div>
+
+        {/* Fluxo de caixa: realizado vs projetado */}
+        {hasCashFlow && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm md:text-base flex items-center gap-2">
+                <CalendarClock className="w-4 h-4 text-primary" />
+                Fluxo de caixa
+                <span className="text-xs text-muted-foreground font-normal">
+                  realizado vs. previsto
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-56">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={cashFlowData} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(240 5% 20%)" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis
+                      tick={{ fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(v) => `${v >= 0 ? "" : "-"}${Math.abs(Number(v)) >= 1000 ? `${(Math.abs(Number(v)) / 1000).toFixed(0)}k` : Math.abs(Number(v))}`}
+                    />
+                    <Tooltip
+                      formatter={(v: any, name: any) => [`R$ ${Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, name]}
+                      contentStyle={{ background: "hsl(240 6% 10%)", border: "1px solid hsl(240 5% 20%)", borderRadius: 8 }}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Bar dataKey="Realizado" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Previsto" fill="hsl(var(--primary))" fillOpacity={0.35} radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                O previsto inclui parcelas futuras e suas contas fixas. Cadastre uma pelo
+                WhatsApp: <span className="text-foreground">"todo dia 10 pago 1200 de aluguel"</span>.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Quem gastou — conta compartilhada */}
+        {hasSharedSpending && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm md:text-base flex items-center gap-2">
+                <Users className="w-4 h-4 text-info" />
+                Gastos por pessoa
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {spendingByPerson.map((p) => {
+                const pct = expenses > 0 ? (p.total / expenses) * 100 : 0;
+                return (
+                  <div key={p.person}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">{p.person}</span>
+                      <span className="text-muted-foreground">
+                        R$ {p.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                        <span className="ml-2 text-xs">({pct.toFixed(0)}% · {p.count})</span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-secondary rounded-full mt-1 overflow-hidden">
+                      <div className="h-full bg-info rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        )}
 
         {/* PRO Comparison Section */}
         {isPro && comparison.length > 0 && (
