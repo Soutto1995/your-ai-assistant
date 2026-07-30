@@ -42,16 +42,31 @@ export default function TasksPage() {
   const [priority, setPriority] = useState("baixa");
   const [project, setProject] = useState("");
   const [dueDate, setDueDate] = useState("");
+  const [assigneeName, setAssigneeName] = useState("");
+  const [assigneePhone, setAssigneePhone] = useState("");
+  const [recurrence, setRecurrence] = useState("__none__");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterPriority, setFilterPriority] = useState("all");
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
 
   const fetchTasks = async () => {
-    let query = supabase.from("tasks").select("*").order("created_at", { ascending: false });
+    if (!user) return;
+    let query = supabase.from("tasks").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
     if (filterStatus !== "all") query = query.eq("status", filterStatus);
     if (filterPriority !== "all") query = query.eq("priority", filterPriority);
     const { data } = await query;
     setTasks(data || []);
+  };
+
+  // Normaliza pro formato 55DDD9XXXXXXXX, igual ao webhook do WhatsApp — assim
+  // o chase-tasks reconhece e o número bate com o que o Tuddo já usa.
+  const normalizePhone = (raw: string): string | null => {
+    let digits = raw.replace(/\D/g, "");
+    if (!digits) return null;
+    if (digits.length === 10 || digits.length === 11) digits = `55${digits}`;
+    if (!digits.startsWith("55")) return digits.length >= 10 ? digits : null;
+    if (digits.length === 12) digits = `${digits.slice(0, 4)}9${digits.slice(4)}`;
+    return digits.length === 13 ? digits : null;
   };
 
   const fetchProjects = async () => {
@@ -76,22 +91,40 @@ export default function TasksPage() {
 
   const addTask = async () => {
     if (!title.trim() || !user) return;
+
+    const normalizedPhone = assigneeName.trim() ? normalizePhone(assigneePhone) : null;
+    if (assigneeName.trim() && assigneePhone.trim() && !normalizedPhone) {
+      toast.error("Telefone inválido. Use DDD + número (ex: 48 99988-7766).");
+      return;
+    }
+    if (normalizedPhone && !dueDate) {
+      toast.error("Defina um prazo — é o que o Tuddo usa para saber quando cobrar.");
+      return;
+    }
+
     const { error } = await supabase.from("tasks").insert({
       title: title.trim(), priority, project: (project && project !== "__none__") ? project : null,
       due_date: dueDate || null, user_id: user.id,
+      assignee_name: assigneeName.trim() || null,
+      assignee_phone: normalizedPhone,
+      recurrence: normalizedPhone && recurrence !== "__none__" ? recurrence : null,
     });
     if (error) { toast.error("Erro ao criar tarefa"); return; }
-    toast.success("Tarefa criada!");
-    setTitle(""); setPriority("baixa"); setProject(""); setDueDate(""); setOpen(false);
+    toast.success(normalizedPhone ? "Tarefa criada! Vou cobrar o responsável no WhatsApp." : "Tarefa criada!");
+    setTitle(""); setPriority("baixa"); setProject(""); setDueDate("");
+    setAssigneeName(""); setAssigneePhone(""); setRecurrence("__none__");
+    setOpen(false);
   };
 
   const completeTask = async (id: string) => {
-    await supabase.from("tasks").update({ status: "concluída" }).eq("id", id);
+    if (!user) return;
+    await supabase.from("tasks").update({ status: "concluída" }).eq("id", id).eq("user_id", user.id);
     toast.success("Tarefa concluída!");
   };
 
   const deleteTask = async (id: string) => {
-    await supabase.from("tasks").delete().eq("id", id);
+    if (!user) return;
+    await supabase.from("tasks").delete().eq("id", id).eq("user_id", user.id);
     toast.success("Tarefa deletada!");
   };
 
@@ -132,6 +165,29 @@ export default function TasksPage() {
                     </SelectContent>
                   </Select>
                   <Input type="datetime-local" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+
+                  <div className="pt-2 border-t border-border space-y-3">
+                    <p className="text-xs text-muted-foreground">
+                      Delegar para outra pessoa (opcional) — o Tuddo cobra ela pelo WhatsApp.
+                    </p>
+                    <Input placeholder="Nome do responsável" value={assigneeName} onChange={e => setAssigneeName(e.target.value)} />
+                    {assigneeName.trim() && (
+                      <>
+                        <Input placeholder="WhatsApp com DDD (ex: 48 99988-7766)" value={assigneePhone} onChange={e => setAssigneePhone(e.target.value)} />
+                        <Select value={recurrence} onValueChange={setRecurrence}>
+                          <SelectTrigger><SelectValue placeholder="Repetir cobrança?" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Não repetir</SelectItem>
+                            <SelectItem value="daily">Todo dia</SelectItem>
+                            <SelectItem value="weekdays">Dias úteis</SelectItem>
+                            <SelectItem value="weekly">Toda semana</SelectItem>
+                            <SelectItem value="monthly">Todo mês</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </>
+                    )}
+                  </div>
+
                   <Button onClick={addTask} className="w-full">Criar Tarefa</Button>
                 </div>
               </DialogContent>

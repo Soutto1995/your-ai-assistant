@@ -137,6 +137,137 @@ export default function FinancesPage() {
     setCashFlow((data as any[]) || []);
   };
 
+  // Contas fixas (recurring_transactions) — alimentam a coluna "Previsto" do fluxo de caixa
+  type RecurringTx = {
+    id: string;
+    description: string;
+    amount: number;
+    type: string;
+    category: string | null;
+    frequency: string;
+    day_of_month: number | null;
+    day_of_week: number | null;
+    month_of_year: number | null;
+    active: boolean;
+  };
+
+  const WEEKDAY_LABELS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+  const MONTH_LABELS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+
+  const [recurring, setRecurring] = useState<RecurringTx[]>([]);
+  const [recurringOpen, setRecurringOpen] = useState(false);
+  const [editingRecurringId, setEditingRecurringId] = useState<string | null>(null);
+  const [recurringDescription, setRecurringDescription] = useState("");
+  const [recurringAmount, setRecurringAmount] = useState("");
+  const [recurringType, setRecurringType] = useState("gasto");
+  const [recurringCategory, setRecurringCategory] = useState("");
+  const [recurringFrequency, setRecurringFrequency] = useState("monthly");
+  const [recurringDayOfMonth, setRecurringDayOfMonth] = useState("1");
+  const [recurringDayOfWeek, setRecurringDayOfWeek] = useState("1");
+  const [recurringMonthOfYear, setRecurringMonthOfYear] = useState("1");
+
+  const fetchRecurring = async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("recurring_transactions")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+    if (error) {
+      console.error(error);
+      return;
+    }
+    setRecurring((data as RecurringTx[]) || []);
+  };
+
+  const resetRecurringForm = () => {
+    setEditingRecurringId(null);
+    setRecurringDescription("");
+    setRecurringAmount("");
+    setRecurringType("gasto");
+    setRecurringCategory("");
+    setRecurringFrequency("monthly");
+    setRecurringDayOfMonth("1");
+    setRecurringDayOfWeek("1");
+    setRecurringMonthOfYear("1");
+  };
+
+  const openNewRecurring = () => {
+    resetRecurringForm();
+    setRecurringOpen(true);
+  };
+
+  const openEditRecurring = (r: RecurringTx) => {
+    setEditingRecurringId(r.id);
+    setRecurringDescription(r.description);
+    setRecurringAmount(String(r.amount));
+    setRecurringType(r.type);
+    setRecurringCategory(r.category || "");
+    setRecurringFrequency(r.frequency);
+    setRecurringDayOfMonth(String(r.day_of_month ?? 1));
+    setRecurringDayOfWeek(String(r.day_of_week ?? 1));
+    setRecurringMonthOfYear(String(r.month_of_year ?? 1));
+    setRecurringOpen(true);
+  };
+
+  const saveRecurring = async () => {
+    if (!recurringDescription.trim() || !recurringAmount || !user) return;
+
+    const payload = {
+      user_id: user.id,
+      description: recurringDescription.trim(),
+      amount: Number(recurringAmount),
+      type: recurringType,
+      category: recurringCategory.trim() || null,
+      frequency: recurringFrequency,
+      day_of_month: recurringFrequency === "weekly" ? null : Number(recurringDayOfMonth),
+      day_of_week: recurringFrequency === "weekly" ? Number(recurringDayOfWeek) : null,
+      month_of_year: recurringFrequency === "yearly" ? Number(recurringMonthOfYear) : null,
+    };
+
+    const { error } = editingRecurringId
+      ? await supabase.from("recurring_transactions").update(payload).eq("id", editingRecurringId).eq("user_id", user.id)
+      : await supabase.from("recurring_transactions").insert(payload);
+
+    if (error) {
+      toast.error("Erro ao salvar conta fixa");
+      return;
+    }
+    toast.success(editingRecurringId ? "Conta fixa atualizada!" : "Conta fixa criada!");
+    setRecurringOpen(false);
+    resetRecurringForm();
+  };
+
+  const toggleRecurringActive = async (r: RecurringTx) => {
+    if (!user) return;
+    const { error } = await supabase
+      .from("recurring_transactions")
+      .update({ active: !r.active })
+      .eq("id", r.id)
+      .eq("user_id", user.id);
+    if (error) {
+      toast.error("Erro ao atualizar conta fixa");
+      return;
+    }
+    toast.success(r.active ? "Conta fixa pausada." : "Conta fixa reativada!");
+  };
+
+  const deleteRecurring = async (id: string) => {
+    if (!user) return;
+    const { error } = await supabase.from("recurring_transactions").delete().eq("id", id).eq("user_id", user.id);
+    if (error) {
+      toast.error("Erro ao remover conta fixa");
+      return;
+    }
+    toast.success("Conta fixa removida.");
+  };
+
+  const describeRecurring = (r: RecurringTx): string => {
+    if (r.frequency === "weekly") return `toda ${WEEKDAY_LABELS[r.day_of_week ?? 0]}`;
+    if (r.frequency === "yearly") return `todo dia ${r.day_of_month} de ${MONTH_LABELS[(r.month_of_year ?? 1) - 1]}`;
+    return `todo dia ${r.day_of_month}`;
+  };
+
   const fetchTransactions = async () => {
     if (!user) return;
     // O .eq('user_id') é redundante com a RLS de propósito — defesa em profundidade.
@@ -152,9 +283,16 @@ export default function FinancesPage() {
     fetchTransactions();
     fetchFolders();
     fetchCashFlow();
+    fetchRecurring();
     const channel = supabase.channel("tx-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "transactions" }, () => {
         fetchTransactions();
+        fetchCashFlow();
+      })
+      .subscribe();
+    const recurringChannel = supabase.channel("recurring-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "recurring_transactions" }, () => {
+        fetchRecurring();
         fetchCashFlow();
       })
       .subscribe();
@@ -164,6 +302,7 @@ export default function FinancesPage() {
     return () => {
       supabase.removeChannel(channel);
       supabase.removeChannel(folderChannel);
+      supabase.removeChannel(recurringChannel);
     };
   }, [user]);
 
@@ -473,12 +612,126 @@ export default function FinancesPage() {
                 </ResponsiveContainer>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                O previsto inclui parcelas futuras e suas contas fixas. Cadastre uma pelo
-                WhatsApp: <span className="text-foreground">"todo dia 10 pago 1200 de aluguel"</span>.
+                O previsto inclui parcelas futuras e suas contas fixas, cadastradas abaixo
+                ou pelo WhatsApp: <span className="text-foreground">"todo dia 10 pago 1200 de aluguel"</span>.
               </p>
             </CardContent>
           </Card>
         )}
+
+        {/* Contas fixas */}
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-sm md:text-base flex items-center gap-2">
+              <CalendarClock className="w-4 h-4 text-primary" />
+              Contas fixas
+            </CardTitle>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={openNewRecurring}>
+              <Plus className="w-3.5 h-3.5" />
+              Nova
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {recurring.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                Nenhuma conta fixa cadastrada. Aluguel, salário, mensalidades — cadastre aqui
+                ou pelo WhatsApp para entrarem na sua projeção de fluxo de caixa.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {recurring.map((r) => (
+                  <div
+                    key={r.id}
+                    className={`flex items-center justify-between gap-3 p-3 rounded-lg border border-border ${!r.active ? "opacity-50" : ""}`}
+                  >
+                    <button className="min-w-0 flex-1 text-left" onClick={() => openEditRecurring(r)}>
+                      <p className="text-sm font-medium truncate">{r.description}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {describeRecurring(r)}{r.category ? ` · ${r.category}` : ""}{!r.active ? " · pausada" : ""}
+                      </p>
+                    </button>
+                    <span className={`text-sm font-medium shrink-0 ${r.type === "receita" ? "text-success" : "text-destructive"}`}>
+                      {r.type === "receita" ? "+" : "-"}R$ {Number(r.amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </span>
+                    <div className="flex gap-1 shrink-0">
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => toggleRecurringActive(r)} title={r.active ? "Pausar" : "Reativar"}>
+                        {r.active ? <Lock className="w-4 h-4" /> : <Check className="w-4 h-4 text-success" />}
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => deleteRecurring(r.id)}>
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Dialog open={recurringOpen} onOpenChange={(o) => { setRecurringOpen(o); if (!o) resetRecurringForm(); }}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>{editingRecurringId ? "Editar conta fixa" : "Nova conta fixa"}</DialogTitle></DialogHeader>
+            <div className="space-y-4">
+              <Input placeholder="Descrição (ex: Aluguel, Salário)" value={recurringDescription} onChange={e => setRecurringDescription(e.target.value)} />
+              <Input type="number" placeholder="Valor" value={recurringAmount} onChange={e => setRecurringAmount(e.target.value)} />
+              <Input placeholder="Categoria (opcional)" value={recurringCategory} onChange={e => setRecurringCategory(e.target.value)} />
+
+              <Select value={recurringType} onValueChange={setRecurringType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gasto">Gasto</SelectItem>
+                  <SelectItem value="receita">Receita</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={recurringFrequency} onValueChange={setRecurringFrequency}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Todo mês</SelectItem>
+                  <SelectItem value="weekly">Toda semana</SelectItem>
+                  <SelectItem value="yearly">Todo ano</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {recurringFrequency === "weekly" && (
+                <Select value={recurringDayOfWeek} onValueChange={setRecurringDayOfWeek}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {WEEKDAY_LABELS.map((label, idx) => (
+                      <SelectItem key={idx} value={String(idx)}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {recurringFrequency === "yearly" && (
+                <Select value={recurringMonthOfYear} onValueChange={setRecurringMonthOfYear}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {MONTH_LABELS.map((label, idx) => (
+                      <SelectItem key={idx} value={String(idx + 1)}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              {recurringFrequency !== "weekly" && (
+                <Input
+                  type="number"
+                  min={1}
+                  max={31}
+                  placeholder="Dia do mês (1-31)"
+                  value={recurringDayOfMonth}
+                  onChange={e => setRecurringDayOfMonth(e.target.value)}
+                />
+              )}
+
+              <Button className="w-full" onClick={saveRecurring}>
+                {editingRecurringId ? "Salvar alterações" : "Criar conta fixa"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Quem gastou — conta compartilhada */}
         {hasSharedSpending && (
