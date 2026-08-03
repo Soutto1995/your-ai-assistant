@@ -17,12 +17,16 @@ const PRICE_TO_PLAN: Record<string, string> = {
   "price_1TZw5mPpu2ogE0DARkfRUIGt": "STARTER", // Starter Anual (one-time)
   "price_1TZw5oPpu2ogE0DAiO4YFJdb": "PRO",     // PRO Anual (one-time)
   // Planos Familiares
-  "price_1TlbK4LKc2YbZKCT1NOAflvQ": "FAMILY_2", // Familiar 2 Mensal
-  "price_1TlbKCLKc2YbZKCT2nRNLta0": "FAMILY_2", // Familiar 2 Anual
-  "price_1TlbKJLKc2YbZKCTtJ1doKK2": "FAMILY_3", // Familiar 3 Mensal
-  "price_1TlbKQLKc2YbZKCTiGnPVHOf": "FAMILY_3", // Familiar 3 Anual
-  "price_1TlbKXLKc2YbZKCTidQuFTyz": "FAMILY_4", // Familiar 4 Mensal
-  "price_1TlbKeLKc2YbZKCTANYMCONf": "FAMILY_4", // Familiar 4 Anual
+  // Recriados em 2026-08-03 na conta Stripe correta (LOOSE COMPANY LTDA) — os
+  // IDs antigos tinham sido criados numa conta Stripe diferente ("Tuddo LTDA"),
+  // nunca conectada ao backend, e todo checkout de plano Familiar falhava com
+  // "No such price".
+  "price_1U0DBmPpu2ogE0DAtD4JD4NK": "FAMILY_2", // Familiar 2 Mensal
+  "price_1U0DBmPpu2ogE0DARdZhvTK6": "FAMILY_2", // Familiar 2 Anual
+  "price_1U0DBmPpu2ogE0DAuiahuEse": "FAMILY_3", // Familiar 3 Mensal
+  "price_1U0DBnPpu2ogE0DA5Law7dAV": "FAMILY_3", // Familiar 3 Anual
+  "price_1U0DBnPpu2ogE0DA9JcPuA2u": "FAMILY_4", // Familiar 4 Mensal
+  "price_1U0DBoPpu2ogE0DAqULPPX1g": "FAMILY_4", // Familiar 4 Anual
 };
 
 Deno.serve(async (req) => {
