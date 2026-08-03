@@ -1,0 +1,11 @@
+
+# Roteamento de SPA no Cloudflare Pages.
+#
+# O app é um Single Page Application: as rotas (/dashboard, /financas, /drive…)
+# só existem no client, via react-router. Sem esta regra, o Pages devolveria 404
+# para qualquer acesso direto ou refresh fora da raiz.
+#
+# Equivale ao "rewrites" que o vercel.json já faz na Vercel. Vercel e Lovable
+# ignoram este arquivo, então mantê-lo aqui é inofensivo enquanto a migração
+# não termina.
+/*    /index.html   200
