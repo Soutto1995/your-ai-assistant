@@ -27,6 +27,25 @@ const PRICE_TO_PLAN: Record<string, "STARTER" | "PRO" | "FAMILY_2" | "FAMILY_3" 
   "price_1U0DBoPpu2ogE0DAqULPPX1g": "FAMILY_4", // Family 4 Anual
 };
 
+// Tradução de price IDs legados -> atuais.
+//
+// Os planos Familiares foram criados originalmente numa conta Stripe errada
+// ("Tuddo LTDA"), e recriados na conta correta em 2026-08-03 com IDs novos.
+// O front-end em produção pode continuar servindo um bundle antigo por um
+// tempo (cache de CDN, deploy pendente), e nesse caso ele envia o ID velho —
+// que não existe mais em lugar nenhum. Sem esta tradução, o cliente recebe
+// "Plano inválido" e a venda é perdida.
+//
+// Manter este mapa é barato e evita depender do timing do deploy do front.
+const LEGACY_PRICE_IDS: Record<string, string> = {
+  "price_1TlbK4LKc2YbZKCT1NOAflvQ": "price_1U0DBmPpu2ogE0DAtD4JD4NK", // Family 2 Mensal
+  "price_1TlbKCLKc2YbZKCT2nRNLta0": "price_1U0DBmPpu2ogE0DARdZhvTK6", // Family 2 Anual
+  "price_1TlbKJLKc2YbZKCTtJ1doKK2": "price_1U0DBmPpu2ogE0DAuiahuEse", // Family 3 Mensal
+  "price_1TlbKQLKc2YbZKCTiGnPVHOf": "price_1U0DBnPpu2ogE0DA5Law7dAV", // Family 3 Anual
+  "price_1TlbKXLKc2YbZKCTidQuFTyz": "price_1U0DBnPpu2ogE0DA9JcPuA2u", // Family 4 Mensal
+  "price_1TlbKeLKc2YbZKCTANYMCONf": "price_1U0DBoPpu2ogE0DAqULPPX1g", // Family 4 Anual
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -63,12 +82,19 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { priceId, email } = body ?? {};
-    if (!priceId || typeof priceId !== "string") {
+    const { priceId: rawPriceId, email } = body ?? {};
+    if (!rawPriceId || typeof rawPriceId !== "string") {
       return new Response(JSON.stringify({ error: "Parâmetros inválidos" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Traduz IDs legados antes de qualquer coisa, para que um front-end
+    // desatualizado continue conseguindo vender.
+    const priceId = LEGACY_PRICE_IDS[rawPriceId] ?? rawPriceId;
+    if (priceId !== rawPriceId) {
+      console.log(`Legacy priceId ${rawPriceId} traduzido para ${priceId}`);
     }
 
     // Authoritative: derive plan from priceId, never trust client.
