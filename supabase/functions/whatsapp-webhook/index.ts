@@ -24,12 +24,12 @@ const PLAN_LIMITS: Record<string, { limit: number; message: string }> = {
   FREE: {
     limit: 20,
     message:
-      "Você atingiu o limite de 20 mensagens mensais do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por R$ 19,90 e tenha 200 mensagens/mês! 🚀\n\n👉 tuddo.lovable.app/planos",
+      "Você atingiu o limite de 20 mensagens mensais do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por R$ 19,90 e tenha 200 mensagens/mês! 🚀\n\n👉 tuddo.pro/planos",
   },
   STARTER: {
     limit: 200,
     message:
-      "Você atingiu o seu limite de 200 mensagens mensais. Para ter mais liberdade, faça o upgrade para o plano PRO com mensagens ilimitadas! 💎\n\n👉 tuddo.lovable.app/planos",
+      "Você atingiu o seu limite de 200 mensagens mensais. Para ter mais liberdade, faça o upgrade para o plano PRO com mensagens ilimitadas! 💎\n\n👉 tuddo.pro/planos",
   },
   PRO: {
     limit: Infinity,
@@ -57,21 +57,21 @@ async function checkFeatureLimit(supabase: any, userId: string, plan: string, fe
       .eq("user_id", userId)
       .gte("transaction_date", monthStart.toISOString());
     if ((count ?? 0) >= limits.transactionsPerMonth) {
-      return `Você atingiu o limite de ${limits.transactionsPerMonth} transações/mês do seu plano. Faça upgrade para continuar! 🚀\n\n👉 tuddo.lovable.app/planos`;
+      return `Você atingiu o limite de ${limits.transactionsPerMonth} transações/mês do seu plano. Faça upgrade para continuar! 🚀\n\n👉 tuddo.pro/planos`;
     }
   }
 
   if (feature === "budget") {
     if (limits.budgets === Infinity) return null;
     if (limits.budgets === 0) {
-      return "O controle de orçamento está disponível a partir do plano Starter. Faça upgrade! 🚀\n\n👉 tuddo.lovable.app/planos";
+      return "O controle de orçamento está disponível a partir do plano Starter. Faça upgrade! 🚀\n\n👉 tuddo.pro/planos";
     }
     const { count } = await supabase
       .from("budgets")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId);
     if ((count ?? 0) >= limits.budgets) {
-      return `Você atingiu o limite de ${limits.budgets} orçamentos do seu plano. Faça upgrade para mais! 🚀\n\n👉 tuddo.lovable.app/planos`;
+      return `Você atingiu o limite de ${limits.budgets} orçamentos do seu plano. Faça upgrade para mais! 🚀\n\n👉 tuddo.pro/planos`;
     }
   }
 
@@ -1555,7 +1555,7 @@ async function notifySupportAdmin(
   _metaPhoneId: string
 ): Promise<void> {
   const adminPhone = Deno.env.get("SUPPORT_ADMIN_PHONE") || "5548999844528";
-  const msgBody = `🆘 *Novo chamado de suporte — Tuddo*\n\nCliente: ${clientName}\nMensagem: "${originalMessage.substring(0, 200)}"\n\nAcesse tuddo.lovable.app/admin/suporte para atender.`;
+  const msgBody = `🆘 *Novo chamado de suporte — Tuddo*\n\nCliente: ${clientName}\nMensagem: "${originalMessage.substring(0, 200)}"\n\nAcesse tuddo.pro/admin/suporte para atender.`;
 
   // TODO: após aprovação do template 'suporte_tuddo' na Meta, substituir por:
   // POST /v23.0/{_metaPhoneId}/messages com type:"template", name:"suporte_tuddo",
@@ -2911,8 +2911,8 @@ serve(async (req) => {
         }
 
         isMeta
-          ? await sendMessageMeta(metaPhoneNumberId, remotePhone, "Desculpe, não encontrei seu cadastro. Por favor, registre-se na plataforma primeiro! 📱\n\n👉 tuddo.lovable.app")
-          : await sendWhatsAppMessage(remotePhone, "Desculpe, não encontrei seu cadastro. Por favor, registre-se na plataforma primeiro! 📱\n\n👉 tuddo.lovable.app");
+          ? await sendMessageMeta(metaPhoneNumberId, remotePhone, "Desculpe, não encontrei seu cadastro. Por favor, registre-se na plataforma primeiro! 📱\n\n👉 tuddo.pro")
+          : await sendWhatsAppMessage(remotePhone, "Desculpe, não encontrei seu cadastro. Por favor, registre-se na plataforma primeiro! 📱\n\n👉 tuddo.pro");
 
         return new Response(JSON.stringify({ status: "user_not_found" }), {
           status: 404,

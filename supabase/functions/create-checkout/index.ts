@@ -94,7 +94,7 @@ Deno.serve(async (req) => {
       if (existing.data.length > 0) customerId = existing.data[0].id;
     }
 
-    const origin = req.headers.get("origin") ?? "https://tuddo.lovable.app";
+    const origin = req.headers.get("origin") ?? "https://tuddo.pro";
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",

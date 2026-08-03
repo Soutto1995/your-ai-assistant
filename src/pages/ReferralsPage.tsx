@@ -113,7 +113,7 @@ export default function ReferralsPage() {
     );
   }
 
-  const referralLink = `tuddo.lovable.app/signup?ref=${referralCode}`;
+  const referralLink = `tuddo.pro/signup?ref=${referralCode}`;
   const rewardedCount = referrals.filter((r) => r.status === "recompensado").length;
   const referredReferrals = referrals.filter((r) => r.referred_id);
 
