@@ -197,7 +197,8 @@ export default function FamilyPage() {
                 Convidar membro
               </CardTitle>
               <CardDescription>
-                Digite o e-mail ou telefone (com DDD) de alguém já cadastrado em tuddo.pro.
+                A pessoa precisa <strong>criar a conta dela em tuddo.pro primeiro</strong>.
+                Depois, convide pelo e-mail ou telefone que ela usou no cadastro.
               </CardDescription>
             </CardHeader>
             <CardContent>
