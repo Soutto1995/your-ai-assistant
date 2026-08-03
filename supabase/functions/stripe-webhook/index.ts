@@ -106,24 +106,12 @@ Deno.serve(async (req) => {
           console.log(`No userId in metadata. Trying to find user by email: ${customerEmail}`);
 
           if (customerEmail) {
-            // Buscar usuário pelo email na tabela profiles
-            const { data: userByEmail } = await supabase
-              .from("profiles")
-              .select("id")
-              .eq("email", customerEmail)
-              .maybeSingle();
-
-            if (userByEmail) {
-              userId = userByEmail.id;
-              console.log(`Found user by email in profiles: ${userId}`);
-            } else {
-              // Tentar buscar na auth.users
-              const { data: { users } } = await supabase.auth.admin.listUsers();
-              const authUser = users?.find(u => u.email === customerEmail);
-              if (authUser) {
-                userId = authUser.id;
-                console.log(`Found user by email in auth.users: ${userId}`);
-              }
+            // profiles não tem coluna email (o e-mail vive em auth.users) — busca direto lá.
+            const { data: { users } } = await supabase.auth.admin.listUsers();
+            const authUser = users?.find(u => u.email === customerEmail);
+            if (authUser) {
+              userId = authUser.id;
+              console.log(`Found user by email in auth.users: ${userId}`);
             }
           }
         }
