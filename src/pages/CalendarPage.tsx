@@ -108,6 +108,37 @@ export default function CalendarPage() {
   const firstDay = getFirstDayOfWeek(currentYear, currentMonth);
   const today = new Date().toISOString().slice(0, 10);
 
+  // A lista lateral precisa acompanhar o mês que está sendo navegado. Antes ela
+  // usava visibleEvents (todos os eventos do usuário), então trocar de mês não
+  // mudava nada — e o rótulo dizia "Próximos" mesmo mostrando eventos passados.
+  const now = new Date();
+  const isViewingCurrentMonth =
+    currentYear === now.getFullYear() && currentMonth === now.getMonth();
+
+  const monthEvents = useMemo(() => {
+    return visibleEvents
+      .filter(e => {
+        if (e.status !== "agendada") return false;
+        const raw = e.event_date || e.legacy_meeting_date;
+        if (!raw) return false;
+        const key = String(raw).slice(0, 10);
+        const [y, m] = key.split("-").map(Number);
+        if (y !== currentYear || m - 1 !== currentMonth) return false;
+        // No mês corrente, "próximos" significa de hoje em diante.
+        return isViewingCurrentMonth ? key >= today : true;
+      })
+      .sort((a, b) => {
+        const ka = String(a.event_date || a.legacy_meeting_date).slice(0, 10);
+        const kb = String(b.event_date || b.legacy_meeting_date).slice(0, 10);
+        return ka.localeCompare(kb);
+      })
+      .slice(0, 8);
+  }, [visibleEvents, currentYear, currentMonth, isViewingCurrentMonth, today]);
+
+  const monthEventsLabel = isViewingCurrentMonth
+    ? "Próximos eventos:"
+    : `Eventos de ${MONTHS[currentMonth]} ${currentYear}:`;
+
   const prevMonth = () => {
     if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); }
     else setCurrentMonth(m => m - 1);
@@ -229,16 +260,18 @@ export default function CalendarPage() {
             ))}
             {!selectedDate && (
               <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">Próximos eventos:</p>
-                {visibleEvents.filter(e => e.status === "agendada").slice(0, 5).map(e => (
+                <p className="text-sm text-muted-foreground">{monthEventsLabel}</p>
+                {monthEvents.map(e => (
                   <div key={e.id} className="p-3 rounded-lg border border-border">
                     <p className="text-sm font-medium text-foreground">{e.title}</p>
                     {e.event_date && <p className="text-xs text-muted-foreground">{new Date(e.event_date + "T12:00:00").toLocaleDateString("pt-BR")}</p>}
                     {e.category && <p className="text-xs text-muted-foreground">📌 {e.category}</p>}
                   </div>
                 ))}
-                {visibleEvents.filter(e => e.status === "agendada").length === 0 && (
-                  <p className="text-sm text-muted-foreground">Nenhum evento agendado.</p>
+                {monthEvents.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum evento agendado em {MONTHS[currentMonth]} de {currentYear}.
+                  </p>
                 )}
               </div>
             )}

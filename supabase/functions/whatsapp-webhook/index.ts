@@ -1550,6 +1550,22 @@ async function createSupportRequest(
   originalMessage: string,
   context: Array<{message: string; response: string | null; created_at: string; type: string}>
 ): Promise<string | null> {
+  // Não abrir um segundo chamado se o usuário já tem um pendente — senão o
+  // time recebe o mesmo caso várias vezes. Um chamado resolvido não bloqueia
+  // um novo (o cliente pode ter um problema diferente depois).
+  const { data: existing } = await supabase
+    .from("support_requests")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("status", "pending")
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) {
+    console.log(`Usuário ${userId} já tem chamado pendente ${existing.id} — não duplicando`);
+    return existing.id;
+  }
+
   const { data, error } = await supabase.from("support_requests").insert({
     user_id: userId,
     phone,
@@ -2544,6 +2560,7 @@ serve(async (req) => {
           from: String(msg.from).replace(/\D/g, ""),
           text: type === "text" && isRecord(msg.text) ? String((msg.text as JsonRecord).body ?? "").trim() : "",
           type,
+          messageId: typeof msg.id === "string" ? msg.id : "",
           mediaId: mediaField ? String(mediaField.id ?? "") : "",
           mediaMimetype: mediaField ? String(mediaField.mime_type ?? "") : "",
           caption: mediaField && typeof mediaField.caption === "string" ? mediaField.caption : "",
@@ -2559,6 +2576,9 @@ serve(async (req) => {
     let originalRemoteJid = "";
     let isLidAddress = false;
     let _pushName = "";
+    // ID único da mensagem no WhatsApp — usado para descartar reentregas.
+    // Meta preenche aqui; Evolution é lido mais abaixo (data.key.id).
+    let inboundMessageId = _metaExtracted?.messageId ?? "";
     // Mídia recebida fica pendente até o userId ser resolvido pelo telefone,
     // aí vai para o drive (bucket + índice semântico).
     let pendingMedia: PendingMedia | null = null;
@@ -2653,6 +2673,7 @@ serve(async (req) => {
     }
 
     const key = isRecord(data.key) ? data.key : {};
+    if (typeof key.id === "string" && key.id) inboundMessageId = key.id;
     if (isGroupMessage(key)) {
       return new Response(JSON.stringify({ status: "ignored_group_message" }), {
         status: 200,
@@ -2855,6 +2876,33 @@ serve(async (req) => {
     }
     _pushName = typeof data.pushName === "string" ? String(data.pushName) : "";
     } // end if (!isMeta)
+
+    // ── Idempotência ────────────────────────────────────────────────────────
+    // Meta e Evolution reenviam a mesma mensagem quando não recebem o 200 a
+    // tempo. Sem esta trava, cada reentrega reexecutava tudo: já gerou 10
+    // chamados de suporte duplicados para o mesmo cliente (alguns com 2s de
+    // diferença) e poderia igualmente duplicar transações e tarefas.
+    //
+    // A PK da tabela faz o trabalho: se o insert falhar por conflito, é
+    // reentrega e paramos aqui.
+    if (inboundMessageId) {
+      const { error: dupErr } = await supabase
+        .from("processed_messages")
+        .insert({ message_id: inboundMessageId });
+
+      if (dupErr) {
+        // 23505 = unique_violation → já processamos esta mensagem antes.
+        if (dupErr.code === "23505") {
+          console.log(`Mensagem ${inboundMessageId} já processada — ignorando reentrega`);
+          return new Response(JSON.stringify({ status: "duplicate_ignored" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        // Qualquer outro erro não deve bloquear o atendimento do usuário.
+        console.error("processed_messages insert error:", dupErr);
+      }
+    }
 
     const phoneVariants = buildPhoneVariants(remotePhone);
     const orFilter = phoneVariants.map((phone) => `phone.eq.${phone}`).join(",");
@@ -3260,11 +3308,20 @@ serve(async (req) => {
       const isNewUser = totalMessages <= 3;
       const prevMsg  = recentMsgsDesc.length > 0 ? recentMsgsDesc[0] : null;
       const prev2Msg = recentMsgsDesc.length > 1 ? recentMsgsDesc[1] : null;
+
+      // Só conta como "não reconhecida" a mensagem que de fato caiu em
+      // general_query. Antes, escalation_offered também contava — e como a
+      // própria oferta vira a mensagem anterior, cada nova mensagem
+      // reofertava suporte indefinidamente.
       const twoConsecutiveUnrecognized =
-        prevMsg && prev2Msg &&
-        (prevMsg.type === "general_query" || prevMsg.type === "escalation_offered") &&
-        (prev2Msg.type === "general_query" || prev2Msg.type === "escalation_offered");
-      if (!isNewUser && twoConsecutiveUnrecognized) {
+        prevMsg?.type === "general_query" && prev2Msg?.type === "general_query";
+
+      // Se já ofertamos ou já abrimos chamado recentemente, não insistir.
+      const alreadyEscalatedRecently = recentMsgsDesc.some(
+        (m: any) => m.type === "escalation_offered" || m.type === "support_requested"
+      );
+
+      if (!isNewUser && twoConsecutiveUnrecognized && !alreadyEscalatedRecently) {
         reply = "Não consegui te ajudar com isso ainda. Quer que eu avise o suporte humano? Responda *sim* para confirmar. 🆘";
         finalIntent = "escalation_offered";
       }

@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Legend, Area, AreaChart,
+  Legend, Area, AreaChart, ComposedChart, Line,
 } from "recharts";
 
 type PeriodFilter = "today" | "week" | "month" | "year";
@@ -30,13 +30,35 @@ const EXPENSE_COLORS = [
 const INCOME_COLOR = "#22c55e";
 const EXPENSE_COLOR = "#ef4444";
 
-function getPeriodStart(period: PeriodFilter): Date {
+// O período precisa de início E fim. Sem o fim, "Mês" incluía tudo do dia 1º
+// em diante — inclusive parcelas futuras lançadas para os próximos meses, que
+// entravam no total de gastos do mês atual e inflavam o número.
+function getPeriodRange(period: PeriodFilter): { start: Date; end: Date } {
   const now = new Date();
   switch (period) {
-    case "today": return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    case "week": { const d = new Date(now); d.setDate(d.getDate() - d.getDay()); d.setHours(0,0,0,0); return d; }
-    case "month": return new Date(now.getFullYear(), now.getMonth(), 1);
-    case "year": return new Date(now.getFullYear(), 0, 1);
+    case "today": {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      return { start, end };
+    }
+    case "week": {
+      const start = new Date(now);
+      start.setDate(start.getDate() - start.getDay());
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 7);
+      return { start, end };
+    }
+    case "month":
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), 1),
+        end: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+      };
+    case "year":
+      return {
+        start: new Date(now.getFullYear(), 0, 1),
+        end: new Date(now.getFullYear() + 1, 0, 1),
+      };
   }
 }
 
@@ -315,13 +337,25 @@ export default function FinancesPage() {
   }, [transactions, limits.historyMonths]);
 
   const filtered = useMemo(() => {
-    const start = getPeriodStart(period);
+    const { start, end } = getPeriodRange(period);
     return historyFiltered.filter(t => {
-      const inPeriod = new Date(t.transaction_date) >= start;
+      const d = new Date(t.transaction_date);
+      const inPeriod = d >= start && d < end;
       const inFolder = selectedFolder === "all" || t.folder_id === selectedFolder;
       return inPeriod && inFolder;
     });
   }, [historyFiltered, period, selectedFolder]);
+
+  // Quantos lançamentos existem na pasta selecionada IGNORANDO o período.
+  // Sem isso, a pasta parece vazia quando o gasto está fora do período atual
+  // (ex: registrado dia 31/jul e o filtro está em "Mês" de agosto) — o usuário
+  // conclui que o lançamento sumiu.
+  const folderTotalIgnoringPeriod = useMemo(() => {
+    if (selectedFolder === "all") return 0;
+    return historyFiltered.filter(t => t.folder_id === selectedFolder).length;
+  }, [historyFiltered, selectedFolder]);
+
+  const hiddenByPeriod = selectedFolder !== "all" && filtered.length === 0 && folderTotalIgnoringPeriod > 0;
 
   // Transaction count this month
   const txThisMonth = useMemo(() => {
@@ -363,24 +397,32 @@ export default function FinancesPage() {
 
   const hasSharedSpending = spendingByPerson.length > 1;
 
+  // Entradas e saídas como grandezas próprias (barras) e o saldo como
+  // resultado derivado (linha). A versão anterior plotava só o saldo, que fica
+  // negativo e desenha a barra para baixo — daí a sensação de "de cabeça para
+  // baixo" e a dificuldade de ler o fluxo real.
   const cashFlowData = useMemo(() => {
     const MONTHS_SHORT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+    const now = new Date();
+    const currentKey = now.getFullYear() * 12 + now.getMonth();
+
     return cashFlow.map((r) => {
       const [year, month] = String(r.month).split("-").map(Number);
-      const realizedBalance = Number(r.realized_income) - Number(r.realized_expense);
-      const projectedBalance =
-        Number(r.realized_income) + Number(r.projected_income) -
-        Number(r.realized_expense) - Number(r.projected_expense);
+      const entradas = Number(r.realized_income) + Number(r.projected_income);
+      const saidas = Number(r.realized_expense) + Number(r.projected_expense);
+      const isFuture = (year * 12 + (month - 1)) > currentKey;
       return {
         name: `${MONTHS_SHORT[(month || 1) - 1]}/${String(year).slice(2)}`,
-        Realizado: Math.round(realizedBalance * 100) / 100,
-        Previsto: Math.round(projectedBalance * 100) / 100,
-        hasProjection: Number(r.projected_income) > 0 || Number(r.projected_expense) > 0,
+        Entradas: Math.round(entradas * 100) / 100,
+        Saídas: Math.round(saidas * 100) / 100,
+        Saldo: Math.round((entradas - saidas) * 100) / 100,
+        isFuture,
       };
     });
   }, [cashFlow]);
 
-  const hasCashFlow = cashFlowData.some((d) => d.Realizado !== 0 || d.Previsto !== 0);
+  const hasCashFlow = cashFlowData.some((d) => d.Entradas !== 0 || d.Saídas !== 0);
+  const hasProjection = cashFlowData.some((d) => d.isFuture && (d.Entradas !== 0 || d.Saídas !== 0));
 
   const dailyTrendData = useMemo(() => {
     const now = new Date();
@@ -590,30 +632,72 @@ export default function FinancesPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-56">
+              <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={cashFlowData} margin={{ top: 8, right: 8, bottom: 0, left: 8 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(240 5% 20%)" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <ComposedChart data={cashFlowData} margin={{ top: 8, right: 8, bottom: 0, left: 8 }} barGap={2}>
+                    {/* Textura nos meses previstos: codificação secundária, para que
+                        entrada/saída não dependam só da cor (par verde/vermelho é
+                        o mais hostil a daltonismo). */}
+                    <defs>
+                      <pattern id="futuroEntrada" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+                        <rect width="6" height="6" fill={INCOME_COLOR} fillOpacity={0.25} />
+                        <line x1="0" y1="0" x2="0" y2="6" stroke={INCOME_COLOR} strokeWidth="3" />
+                      </pattern>
+                      <pattern id="futuroSaida" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(135)">
+                        <rect width="6" height="6" fill={EXPENSE_COLOR} fillOpacity={0.25} />
+                        <line x1="0" y1="0" x2="0" y2="6" stroke={EXPENSE_COLOR} strokeWidth="3" />
+                      </pattern>
+                    </defs>
+
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(240 5% 18%)" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(40 15% 60%)" }} axisLine={false} tickLine={false} />
                     <YAxis
-                      tick={{ fontSize: 11 }}
+                      tick={{ fontSize: 11, fill: "hsl(40 15% 60%)" }}
                       axisLine={false}
                       tickLine={false}
-                      tickFormatter={(v) => `${v >= 0 ? "" : "-"}${Math.abs(Number(v)) >= 1000 ? `${(Math.abs(Number(v)) / 1000).toFixed(0)}k` : Math.abs(Number(v))}`}
+                      width={48}
+                      tickFormatter={(v) => {
+                        const n = Math.abs(Number(v));
+                        return `${Number(v) < 0 ? "-" : ""}${n >= 1000 ? `${(n / 1000).toFixed(0)}k` : n}`;
+                      }}
                     />
                     <Tooltip
-                      formatter={(v: any, name: any) => [`R$ ${Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, name]}
-                      contentStyle={{ background: "hsl(240 6% 10%)", border: "1px solid hsl(240 5% 20%)", borderRadius: 8 }}
+                      cursor={{ fill: "hsl(240 8% 20%)", fillOpacity: 0.35 }}
+                      contentStyle={CustomTooltipStyle}
+                      labelStyle={{ color: "hsl(40 20% 85%)", fontWeight: 600, marginBottom: 4 }}
+                      itemStyle={{ color: "hsl(40 20% 75%)" }}
+                      formatter={(v: any, name: any) => [
+                        `R$ ${Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
+                        name,
+                      ]}
                     />
-                    <Legend wrapperStyle={{ fontSize: 12 }} />
-                    <Bar dataKey="Realizado" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="Previsto" fill="hsl(var(--primary))" fillOpacity={0.35} radius={[4, 4, 0, 0]} />
-                  </BarChart>
+                    <Legend wrapperStyle={{ fontSize: 12, paddingTop: 4 }} iconType="circle" iconSize={8} />
+
+                    <Bar dataKey="Entradas" radius={[4, 4, 0, 0]} maxBarSize={22}>
+                      {cashFlowData.map((d, i) => (
+                        <Cell key={i} fill={d.isFuture ? "url(#futuroEntrada)" : INCOME_COLOR} />
+                      ))}
+                    </Bar>
+                    <Bar dataKey="Saídas" radius={[4, 4, 0, 0]} maxBarSize={22}>
+                      {cashFlowData.map((d, i) => (
+                        <Cell key={i} fill={d.isFuture ? "url(#futuroSaida)" : EXPENSE_COLOR} />
+                      ))}
+                    </Bar>
+                    <Line
+                      type="monotone"
+                      dataKey="Saldo"
+                      stroke="hsl(40 20% 88%)"
+                      strokeWidth={2}
+                      dot={{ r: 3, fill: "hsl(40 20% 88%)", strokeWidth: 0 }}
+                      activeDot={{ r: 5, stroke: "hsl(240 12% 8%)", strokeWidth: 2 }}
+                    />
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                O previsto inclui parcelas futuras e suas contas fixas, cadastradas abaixo
-                ou pelo WhatsApp: <span className="text-foreground">"todo dia 10 pago 1200 de aluguel"</span>.
+              <p className="text-xs text-muted-foreground mt-3">
+                {hasProjection && <>Barras <span className="text-foreground">listradas</span> são previsão (parcelas futuras e contas fixas). </>}
+                A linha clara é o saldo do mês. Cadastre contas fixas abaixo ou pelo
+                WhatsApp: <span className="text-foreground">"todo dia 10 pago 1200 de aluguel"</span>.
               </p>
             </CardContent>
           </Card>
@@ -1010,7 +1094,21 @@ export default function FinancesPage() {
                 </div>
               ))}
               {filtered.length === 0 && (
-                <p className="text-center py-8 text-muted-foreground">Nenhuma transação encontrada.</p>
+                hiddenByPeriod ? (
+                  <div className="text-center py-8 space-y-3">
+                    <p className="text-muted-foreground">
+                      Nenhum lançamento nesta pasta no período <strong>{periodLabels[period]}</strong>.
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Mas ela tem {folderTotalIgnoringPeriod} lançamento{folderTotalIgnoringPeriod > 1 ? "s" : ""} em outros períodos.
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => setPeriod("year")}>
+                      Ver o ano todo
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-center py-8 text-muted-foreground">Nenhuma transação encontrada.</p>
+                )
               )}
             </div>
           </CardContent>
