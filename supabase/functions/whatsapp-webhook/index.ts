@@ -137,7 +137,8 @@ ESTRUTURA DE SAÍDA:
 
 INTENTS DISPONÍVEIS:
 1. create_transaction — registrar gasto ou receita (inclui compras, pagamentos, boletos, pix, salário)
-2. create_task — criar tarefa, lembrete ou to-do
+2. create_task — criar UMA tarefa, lembrete ou to-do
+2b. create_multiple_tasks — criar VÁRIAS tarefas de uma vez, quando o usuário enviar uma lista com 2 ou mais itens (ex: "Tarefas:\n1 - Arrumar perfil\n2 - Gravar vídeo\n3 - Tirar mensal"). Use SEMPRE que houver 2 ou mais tarefas na mesma mensagem — em lista numerada, com travessões, com hífens ou uma por linha.
 3. create_meeting — agendar UM compromisso, reunião, consulta, visita ou evento (inclui "visitar X", "ir a X", "comparecer em X", "audiência", "ida ao" com data)
 4. create_multiple_meetings — agendar VÁRIOS compromissos de uma vez, quando o usuário enviar uma lista com múltiplos horários e nomes (ex: "13:00 - Paciente Aline\n14:00 - Paciente Mariana"). Use este intent sempre que houver 2 ou mais eventos na mesma mensagem.
 5. list_items — listar/consultar itens existentes (gastos, receitas, tarefas, compromissos)
@@ -151,6 +152,17 @@ INTENTS DISPONÍVEIS:
 12. create_recurring — cadastrar uma conta FIXA que se repete todo mês/semana/ano (ex: "todo dia 10 pago 1200 de aluguel", "meu salário de 5000 cai dia 5", "mensalidade da academia 120 todo dia 15", "todo mês pago 89 de streaming")
 13. cash_flow — mostrar o fluxo de caixa: quanto já entrou/saiu e quanto ainda está previsto (ex: "como fica meu mês?", "quanto vai sobrar?", "fluxo de caixa", "o que ainda tenho pra pagar?", "minha previsão dos próximos meses")
 14. general_query — saudações, perguntas gerais ou qualquer coisa que não se encaixe acima
+
+REGRA CRÍTICA — PLANO FAMILIAR (o Tuddo TEM plano compartilhado):
+NUNCA diga que o Tuddo é individual ou que compartilhamento "está em estudo" — é FALSO. Os planos Familiares existem e estão à venda: Familiar 2 (R$ 34,90/mês), Familiar 3 (R$ 44,90/mês) e Familiar 4 (R$ 54,90/mês).
+
+Como funciona, e é ASSIM que você deve explicar quando perguntarem sobre incluir esposa, marido, filho, sócio ou qualquer outra pessoa:
+1. A outra pessoa cria a conta dela em tuddo.pro (é grátis criar).
+2. O titular entra em tuddo.pro/family e convida ela pelo e-mail OU pelo telefone que ela cadastrou.
+3. Pronto: os dois passam a lançar na MESMA conta. Gasto que ela registrar pelo WhatsApp dela aparece pro titular, e vice-versa.
+4. Cada gasto fica identificado por quem fez, então dá pra ver quanto cada um gastou.
+
+Se o usuário perguntar sobre incluir outra pessoa, explique esses passos de forma clara e acolhedora. Se ele ainda não tem plano Familiar, diga o preço e mande tuddo.pro/planos.
 
 REGRA CRÍTICA — INTENÇÃO DE COMPRA:
 Se o usuário demonstrar QUALQUER intenção de assinar, contratar, fazer upgrade ou pagar (ex: "quero assinar", "quero assinar meu plano", "como faço pra pagar", "quero contratar", "quero o PRO", "quanto custa", "quero fazer upgrade", "como faço pra ser premium"), use general_query e responda SEMPRE mandando o link direto, com entusiasmo e sem enrolação:
@@ -211,6 +223,13 @@ Para list_folders:
 Para assign_folder:
 - data.folder_name: nome da pasta onde colocar o gasto
 - data.transaction_description: descrição do gasto a ser associado (se mencionado)
+
+Para create_multiple_tasks:
+- data.tasks: array de objetos, um por tarefa. Cada objeto tem:
+  - description: título conciso da tarefa
+  - due_date: "YYYY-MM-DDTHH:mm:ss" ou null se não houver prazo
+  - assignee_name / assignee_phone / recurrence: mesmas regras do create_task, quando a pessoa delegar
+- REGRA CRÍTICA: cada item da lista vira UM objeto no array. Uma mensagem como "Tarefas:\n1 - X\n2 - Y\n3 - Z" gera TRÊS objetos, nunca um só. Ignore o cabeçalho ("Tarefas:", "Lista:", "Preciso fazer:") — ele não é uma tarefa.
 
 Para create_recurring:
 - data.description: nome da conta fixa (ex: "Aluguel", "Salário", "Academia", "Netflix")
@@ -368,6 +387,12 @@ Output: {"intent":"general_query","data":{},"response":"É simples! 😊 Acesse 
 Input: "quanto custa o PRO?"
 Output: {"intent":"general_query","data":{},"response":"O PRO sai por R$ 24,90/mês (ou R$ 239,90/ano, que dá 2 meses de desconto). Ele te dá mensagens e lançamentos ilimitados. 💎\n\nPra assinar: *tuddo.pro/planos*"}
 
+Input: "Tarefas:\n\n1 - Arrumar perfil Facebook postagens\n2 - Vídeo sobre Facebook manychat\n3 - Tirar mensal do Tuddo"
+Output: {"intent":"create_multiple_tasks","data":{"tasks":[{"description":"Arrumar perfil Facebook postagens","due_date":null},{"description":"Vídeo sobre Facebook manychat","due_date":null},{"description":"Tirar mensal do Tuddo","due_date":null}]},"response":"Anotei suas 3 tarefas! ✅\n\n1. Arrumar perfil Facebook postagens\n2. Vídeo sobre Facebook manychat\n3. Tirar mensal do Tuddo\n\nSe quiser prazo ou responsável em alguma, é só falar."}
+
+Input: "preciso fazer: comprar leite, pagar o boleto e ligar pro dentista"
+Output: {"intent":"create_multiple_tasks","data":{"tasks":[{"description":"Comprar leite","due_date":null},{"description":"Pagar o boleto","due_date":null},{"description":"Ligar pro dentista","due_date":null}]},"response":"Anotei suas 3 tarefas! ✅\n\n1. Comprar leite\n2. Pagar o boleto\n3. Ligar pro dentista"}
+
 Input: "todo dia 10 pago 1200 de aluguel"
 Output: {"intent":"create_recurring","data":{"description":"Aluguel","amount":1200,"type":"gasto","category":"Moradia","frequency":"monthly","day_of_month":10},"response":"Anotado como conta fixa! 🔁\n\n🏠 *Aluguel* — R$ 1.200,00 todo dia 10\n\nAgora ela já entra na sua projeção de fluxo de caixa."}
 
@@ -461,7 +486,7 @@ Retorne APENAS o JSON.`;
 type JsonRecord = Record<string, unknown>;
 
 type AiResult = {
-  intent: "create_task" | "create_transaction" | "create_meeting" | "create_multiple_meetings" | "list_items" | "create_goal" | "list_goals" | "create_budget" | "create_folder" | "list_folders" | "assign_folder" | "search_files" | "create_recurring" | "cash_flow" | "general_query";
+  intent: "create_task" | "create_transaction" | "create_meeting" | "create_multiple_meetings" | "create_multiple_tasks" | "list_items" | "create_goal" | "list_goals" | "create_budget" | "create_folder" | "list_folders" | "assign_folder" | "search_files" | "create_recurring" | "cash_flow" | "general_query";
   data: JsonRecord;
   response: string;
 };
@@ -713,7 +738,7 @@ function extractAiJson(content: string): AiResult | null {
     const data = isRecord(parsed.data) ? parsed.data : {};
 
     return {
-      intent: ["create_task", "create_transaction", "create_meeting", "create_multiple_meetings", "list_items", "create_goal", "list_goals", "create_budget", "create_folder", "list_folders", "assign_folder", "search_files", "create_recurring", "cash_flow", "general_query"].includes(intent)
+      intent: ["create_task", "create_transaction", "create_meeting", "create_multiple_meetings", "create_multiple_tasks", "list_items", "create_goal", "list_goals", "create_budget", "create_folder", "list_folders", "assign_folder", "search_files", "create_recurring", "cash_flow", "general_query"].includes(intent)
         ? (intent as AiResult["intent"])
         : "general_query",
       data,
@@ -2317,6 +2342,42 @@ async function executeIntentAction(
     // -------------------------------------------------------
     // LISTAR PASTAS
     // -------------------------------------------------------
+    case "create_multiple_tasks": {
+      const rawTasks = Array.isArray(data.tasks) ? data.tasks : [];
+      if (rawTasks.length === 0) {
+        return "Não consegui identificar as tarefas. Pode listar assim?\n\n1 - Primeira tarefa\n2 - Segunda tarefa 😊";
+      }
+
+      const rows = rawTasks
+        .filter((t: any) => isRecord(t) && typeof t.description === "string" && t.description.trim())
+        .map((t: any) => {
+          const phone = normalizeAssigneePhone(t.assignee_phone);
+          return {
+            user_id: userId,
+            title: String(t.description).trim(),
+            priority: "baixa",
+            status: "pendente",
+            due_date: typeof t.due_date === "string" ? t.due_date : null,
+            assignee_name: typeof t.assignee_name === "string" && t.assignee_name.trim() ? t.assignee_name.trim() : null,
+            assignee_phone: phone,
+            recurrence: phone && VALID_RECURRENCES.includes(String(t.recurrence)) ? String(t.recurrence) : null,
+          };
+        });
+
+      if (rows.length === 0) {
+        return "Não consegui identificar as tarefas. Pode listar uma por linha? 😊";
+      }
+
+      const { error } = await supabase.from("tasks").insert(rows);
+      if (error) {
+        console.error("Multiple tasks insert error:", error);
+        return "Ops, não consegui criar as tarefas. Tente novamente! 😅";
+      }
+
+      const lista = rows.map((r, i) => `${i + 1}. ${r.title}`).join("\n");
+      return aiResponse || `Anotei suas ${rows.length} tarefas! ✅\n\n${lista}\n\nSe quiser prazo ou responsável em alguma, é só falar.`;
+    }
+
     case "create_recurring": {
       const description = typeof data.description === "string" && data.description.trim()
         ? data.description.trim()
