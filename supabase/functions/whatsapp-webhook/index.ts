@@ -3392,13 +3392,58 @@ serve(async (req) => {
       console.error("Folder context error:", folderCtxErr);
     }
 
-    // Montar mensagem com histórico + contexto de pastas + mensagem atual
+    // Contexto do plano — sem isso a IA não sabe o que o cliente já tem e
+    // acaba oferecendo um plano que ele acabou de assinar (aconteceu de
+    // verdade: cliente no Familiar 2 recebeu "está disponível a partir de
+    // R$ 34,90/mês"). Também evita empurrar upgrade para quem já é PRO.
+    let planContext = "";
+    try {
+      const planLabels: Record<string, string> = {
+        FREE: "Grátis", STARTER: "Starter", PRO: "PRO",
+        FAMILY_2: "Familiar 2 (casal)", FAMILY_3: "Familiar 3", FAMILY_4: "Familiar 4",
+      };
+      const label = planLabels[userPlan] ?? userPlan;
+
+      if (userPlan.startsWith("FAMILY")) {
+        const { data: fg } = await supabase
+          .from("family_groups")
+          .select("id, max_members")
+          .eq("owner_id", userId)
+          .maybeSingle();
+
+        if (fg) {
+          const { count } = await supabase
+            .from("family_members")
+            .select("id", { count: "exact", head: true })
+            .eq("family_id", fg.id);
+
+          const usados = count ?? 1;
+          const vagas = Math.max((fg.max_members ?? 2) - usados, 0);
+          planContext =
+            `\n\n[PLANO ATUAL DO USUÁRIO: ${label} — ele é o TITULAR. ` +
+            `${usados} de ${fg.max_members} pessoas usando, ${vagas} vaga(s) livre(s). ` +
+            `NÃO ofereça vender plano familiar: ele JÁ TEM. Se perguntar sobre incluir alguém, ` +
+            `explique os passos do convite.]`;
+        } else {
+          planContext = `\n\n[PLANO ATUAL DO USUÁRIO: ${label} — é MEMBRO de uma família, não o titular. Só o titular convida novas pessoas.]`;
+        }
+      } else {
+        planContext = `\n\n[PLANO ATUAL DO USUÁRIO: ${label}. Só sugira upgrade se fizer sentido para o que ele pediu.]`;
+      }
+    } catch (planCtxErr) {
+      console.error("Plan context error:", planCtxErr);
+    }
+
+    // Montar mensagem com histórico + contexto de pastas + plano + mensagem atual
     let messageWithContext = "";
     if (conversationHistory) {
       messageWithContext += conversationHistory;
     }
     if (userFoldersContext) {
       messageWithContext += userFoldersContext;
+    }
+    if (planContext) {
+      messageWithContext += planContext;
     }
     messageWithContext += `\n\nMensagem atual: "${text}"`;
 
