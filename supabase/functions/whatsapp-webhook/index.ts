@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { PLATFORM_KNOWLEDGE, ASSISTANT_BEHAVIOR } from "../_shared/platform-knowledge.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -126,7 +127,10 @@ async function getSpendingComparison(supabase: any, userId: string, category: st
 // ============================================================
 // SYSTEM PROMPT — REESCRITO PARA PRECISÃO CIRÚRGICA
 // ============================================================
-const SYSTEM_PROMPT = `Você é o "Tuddo", um assistente pessoal inteligente de produtividade e finanças via WhatsApp. Você é CONVERSACIONAL — não apenas um processador de comandos. Você CONVERSA com o usuário, ENTENDE o contexto da conversa, PERGUNTA quando não tem certeza, e APRENDE com cada interação.
+const SYSTEM_PROMPT = `${PLATFORM_KNOWLEDGE}
+${ASSISTANT_BEHAVIOR}
+
+Você é o "Tuddo", um assistente pessoal inteligente de produtividade e finanças via WhatsApp. Você é CONVERSACIONAL — não apenas um processador de comandos. Você CONVERSA com o usuário, ENTENDE o contexto da conversa, PERGUNTA quando não tem certeza, e APRENDE com cada interação.
 
 Sua função é interpretar o que o usuário deseja considerando TODO o histórico da conversa e retornar APENAS um objeto JSON válido, sem markdown, crases ou texto extra.
 
@@ -3108,6 +3112,50 @@ serve(async (req) => {
     } catch (familyErr) {
       // Se não é membro de família, continua normal
       console.log("Not a family member or no family found");
+    }
+
+    // ── Onboarding do plano Familiar ────────────────────────────────────────
+    // Quem assina o Familiar não recebe orientação nenhuma sobre como incluir
+    // a outra pessoa, e o passo "ela precisa criar a conta antes" não é óbvio.
+    // Enviamos na primeira mensagem que o titular manda depois de assinar —
+    // mensagem proativa fora da janela de 24h esbarraria nas regras da Meta.
+    if (userPlan.startsWith("FAMILY")) {
+      try {
+        const { data: ownedGroup } = await supabase
+          .from("family_groups")
+          .select("id, max_members, instructions_sent_at")
+          .eq("owner_id", userId)
+          .maybeSingle();
+
+        if (ownedGroup && !ownedGroup.instructions_sent_at) {
+          const vagas = (ownedGroup.max_members ?? 2) - 1;
+          const boasVindas =
+            `Bem-vindo ao *Plano Familiar*! 🎉\n\n` +
+            `Deixa eu te explicar como incluir ${vagas > 1 ? "as outras pessoas" : "a outra pessoa"}:\n\n` +
+            `*1.* Ela cria a conta dela em *tuddo.pro* (criar é grátis)\n` +
+            `*2.* Você entra em *tuddo.pro/family* e convida ela pelo e-mail ou telefone que ela usou no cadastro\n` +
+            `*3.* Pronto! ✅\n\n` +
+            `A partir daí vocês lançam na *mesma conta*: o que ela registrar aparece pra você e vice-versa. ` +
+            `E cada gasto fica identificado por quem fez, então dá pra ver quanto cada um gastou.\n\n` +
+            `Seu plano permite *${ownedGroup.max_members} pessoas* (você + ${vagas}).\n\n` +
+            `⚠️ Importante: ela precisa criar a conta *antes* de você convidar, senão não vai encontrar.\n\n` +
+            `Qualquer dúvida é só me chamar! 😊`;
+
+          isMeta
+            ? await sendMessageMeta(metaPhoneNumberId, remotePhone, boasVindas)
+            : await sendWhatsAppMessage(remotePhone, boasVindas);
+
+          await supabase
+            .from("family_groups")
+            .update({ instructions_sent_at: new Date().toISOString() })
+            .eq("id", ownedGroup.id);
+
+          console.log(`Instruções do plano Familiar enviadas ao titular ${userId}`);
+        }
+      } catch (famErr) {
+        // Nunca deixar o onboarding derrubar o atendimento normal.
+        console.error("Family onboarding error:", famErr);
+      }
     }
 
     // Drive: toda mídia recebida vira arquivo guardado e indexado.

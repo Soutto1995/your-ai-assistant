@@ -33,6 +33,19 @@ const EXPENSE_COLOR = "#ef4444";
 // O período precisa de início E fim. Sem o fim, "Mês" incluía tudo do dia 1º
 // em diante — inclusive parcelas futuras lançadas para os próximos meses, que
 // entravam no total de gastos do mês atual e inflavam o número.
+// "2026-08" -> intervalo daquele mês. Permite escolher QUALQUER mês, não só o
+// atual — sem isso o cliente não conseguia auditar uma pasta em meses passados.
+function formatMonthLabel(monthKey: string): string {
+  const [y, m] = monthKey.split("-").map(Number);
+  const nome = new Date(y, m - 1, 1).toLocaleDateString("pt-BR", { month: "long" });
+  return `${nome.charAt(0).toUpperCase()}${nome.slice(1)} ${y}`;
+}
+
+function getMonthRange(monthKey: string): { start: Date; end: Date } {
+  const [y, m] = monthKey.split("-").map(Number);
+  return { start: new Date(y, m - 1, 1), end: new Date(y, m, 1) };
+}
+
 function getPeriodRange(period: PeriodFilter): { start: Date; end: Date } {
   const now = new Date();
   switch (period) {
@@ -101,6 +114,9 @@ export default function FinancesPage() {
   const [period, setPeriod] = useState<PeriodFilter>("month");
   const [folders, setFolders] = useState<Array<{ id: string; name: string; emoji: string }>>([]);
   const [selectedFolder, setSelectedFolder] = useState<string>("all");
+  // "all" = usa o filtro de período (Hoje/Semana/Mês/Ano). Caso contrário é um
+  // mês específico no formato "YYYY-MM".
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderEmoji, setNewFolderEmoji] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
@@ -336,15 +352,29 @@ export default function FinancesPage() {
     return transactions.filter(t => new Date(t.transaction_date) >= cutoff);
   }, [transactions, limits.historyMonths]);
 
+  // Meses que realmente têm lançamentos — alimenta o seletor de mês.
+  const availableMonths = useMemo(() => {
+    const set = new Set<string>();
+    historyFiltered.forEach(t => {
+      const d = new Date(t.transaction_date);
+      set.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    });
+    const now = new Date();
+    set.add(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
+    return [...set].sort().reverse();
+  }, [historyFiltered]);
+
   const filtered = useMemo(() => {
-    const { start, end } = getPeriodRange(period);
+    const { start, end } = selectedMonth === "all"
+      ? getPeriodRange(period)
+      : getMonthRange(selectedMonth);
     return historyFiltered.filter(t => {
       const d = new Date(t.transaction_date);
       const inPeriod = d >= start && d < end;
       const inFolder = selectedFolder === "all" || t.folder_id === selectedFolder;
       return inPeriod && inFolder;
     });
-  }, [historyFiltered, period, selectedFolder]);
+  }, [historyFiltered, period, selectedFolder, selectedMonth]);
 
   // Quantos lançamentos existem na pasta selecionada IGNORANDO o período.
   // Sem isso, a pasta parece vazia quando o gasto está fora do período atual
@@ -521,13 +551,51 @@ export default function FinancesPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Period filter + pasta */}
+        {/* Period filter + mês + pasta */}
         <div className="flex gap-2 flex-wrap items-center">
           {(Object.keys(periodLabels) as PeriodFilter[]).map(p => (
-            <Button key={p} variant={period === p ? "default" : "outline"} size="sm" onClick={() => setPeriod(p)}>
+            <Button
+              key={p}
+              variant={period === p && selectedMonth === "all" ? "default" : "outline"}
+              size="sm"
+              onClick={() => { setPeriod(p); setSelectedMonth("all"); }}
+            >
               {periodLabels[p]}
             </Button>
           ))}
+
+          {/* Escolher um mês específico — essencial para auditar uma pasta
+              em meses passados, não só no mês corrente. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant={selectedMonth === "all" ? "outline" : "default"}
+                size="sm"
+                className="gap-1.5"
+              >
+                <CalendarClock className="w-3.5 h-3.5" />
+                {selectedMonth === "all" ? "Escolher mês" : formatMonthLabel(selectedMonth)}
+                <ChevronDown className="w-3 h-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-h-72 overflow-y-auto">
+              <DropdownMenuItem onClick={() => setSelectedMonth("all")}>
+                <span className={selectedMonth === "all" ? "ml-0" : "ml-5"}>
+                  {selectedMonth === "all" && <Check className="w-3.5 h-3.5 inline mr-1.5" />}
+                  Usar o período acima
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {availableMonths.map(m => (
+                <DropdownMenuItem key={m} onClick={() => setSelectedMonth(m)}>
+                  <span className={selectedMonth === m ? "ml-0" : "ml-5"}>
+                    {selectedMonth === m && <Check className="w-3.5 h-3.5 inline mr-1.5" />}
+                    {formatMonthLabel(m)}
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -1097,12 +1165,12 @@ export default function FinancesPage() {
                 hiddenByPeriod ? (
                   <div className="text-center py-8 space-y-3">
                     <p className="text-muted-foreground">
-                      Nenhum lançamento nesta pasta no período <strong>{periodLabels[period]}</strong>.
+                      Nenhum lançamento nesta pasta em <strong>{selectedMonth === "all" ? periodLabels[period] : formatMonthLabel(selectedMonth)}</strong>.
                     </p>
                     <p className="text-sm text-muted-foreground">
                       Mas ela tem {folderTotalIgnoringPeriod} lançamento{folderTotalIgnoringPeriod > 1 ? "s" : ""} em outros períodos.
                     </p>
-                    <Button variant="outline" size="sm" onClick={() => setPeriod("year")}>
+                    <Button variant="outline" size="sm" onClick={() => { setSelectedMonth("all"); setPeriod("year"); }}>
                       Ver o ano todo
                     </Button>
                   </div>

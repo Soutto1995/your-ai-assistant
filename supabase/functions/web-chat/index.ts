@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { PLATFORM_KNOWLEDGE, ASSISTANT_BEHAVIOR } from "../_shared/platform-knowledge.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,7 +20,10 @@ const categoryDictionary: Record<string, string[]> = {
   "Outros": ["taxa", "imposto", "doação", "pet", "veterinario", "veterinário", "ração"],
 };
 
-const SYSTEM_PROMPT = `Você é o "Tuddo", um assistente pessoal inteligente de produtividade e finanças. Você é CONVERSACIONAL — não apenas um processador de comandos.
+const SYSTEM_PROMPT = `${PLATFORM_KNOWLEDGE}
+${ASSISTANT_BEHAVIOR}
+
+Você é o "Tuddo", um assistente pessoal inteligente de produtividade e finanças. Você é CONVERSACIONAL — não apenas um processador de comandos.
 
 Sua função é interpretar o que o usuário deseja considerando TODO o histórico da conversa e retornar APENAS um objeto JSON válido, sem markdown, crases ou texto extra.
 
@@ -30,7 +34,8 @@ ESTRUTURA DE SAÍDA:
 
 INTENTS DISPONÍVEIS:
 1. create_transaction — registrar gasto ou receita
-2. create_task — criar tarefa, lembrete ou to-do
+2. create_task — criar UMA tarefa, lembrete ou to-do
+2b. create_multiple_tasks — criar VÁRIAS tarefas quando o cliente mandar 2 ou mais numa mensagem (lista numerada, com hífen, ou uma por linha). Cada item vira UMA tarefa.
 3. create_meeting — agendar compromisso, reunião, consulta, visita ou evento
 4. create_multiple_meetings — agendar VÁRIOS compromissos de uma vez (2 ou mais na mesma mensagem)
 5. list_items — listar/consultar itens existentes (gastos, receitas, tarefas, compromissos)
@@ -58,6 +63,10 @@ Para create_meeting:
 Para create_multiple_meetings:
 - data.events: array de objetos com {description, meeting_date}
 
+Para create_multiple_tasks:
+- data.tasks: array de objetos com {description, due_date}
+- REGRA CRÍTICA: cada item da lista vira UM objeto. Uma mensagem com 3 tarefas gera TRÊS objetos, nunca um. Ignore o cabeçalho ("Tarefas:", "Preciso fazer:").
+
 Para create_goal:
 - data.title, data.target_amount, data.current_amount (padrão 0), data.deadline (null se não informado), data.category
 
@@ -78,6 +87,7 @@ REGRAS CRÍTICAS:
 6. RESPONSE: Breve, direto, confirme a ação. Use emojis com moderação (✅, 💰, 📅, 📌).
 7. CONTEXTO: Leia o histórico entre [HISTÓRICO] e [/HISTÓRICO] antes de decidir.
 8. NA DÚVIDA: Se a mensagem é ambígua, use general_query e PERGUNTE.
+9. DÚVIDAS SOBRE A PLATAFORMA: se o cliente perguntar como algo funciona, quanto custa, como incluir alguém no plano familiar, como criar pastas, como delegar tarefa, como funciona o drive — use general_query e RESPONDA de verdade, com precisão, usando o conhecimento da plataforma acima. Você é também o suporte: essa é uma das suas funções mais importantes. Nunca responda "não consigo te ajudar com isso" para algo que a plataforma faz.
 
 EXEMPLOS:
 Input: "amanhã visitar presídio"
@@ -168,6 +178,29 @@ async function executeIntent(supabase: any, userId: string, aiResult: AiResult, 
       });
       if (error) return "Ops, não consegui criar a tarefa. Tente novamente! 😅";
       return aiResponse || `✅ Tarefa criada: "${data.description || fallbackText}"`;
+    }
+
+    case "create_multiple_tasks": {
+      const rawTasks = Array.isArray(data.tasks) ? data.tasks : [];
+      const rows = rawTasks
+        .filter((t: any) => t && typeof t.description === "string" && t.description.trim())
+        .map((t: any) => ({
+          user_id: userId,
+          title: String(t.description).trim(),
+          due_date: typeof t.due_date === "string" ? t.due_date : null,
+          status: "pendente",
+          priority: "média",
+        }));
+
+      if (rows.length === 0) {
+        return "Não consegui identificar as tarefas. Pode listar uma por linha? 😊";
+      }
+
+      const { error } = await supabase.from("tasks").insert(rows);
+      if (error) return "Ops, não consegui criar as tarefas. Tente novamente! 😅";
+
+      const lista = rows.map((r: any, i: number) => `${i + 1}. ${r.title}`).join("\n");
+      return aiResponse || `Anotei suas ${rows.length} tarefas! ✅\n\n${lista}`;
     }
 
     case "create_meeting": {
