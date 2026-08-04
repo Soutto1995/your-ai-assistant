@@ -66,6 +66,15 @@ CREATE POLICY "Members can view their family"
     OR family_id = ANY (public.my_owned_family_ids())
   );
 
+-- Estas duas funções PRECISAM ficar executáveis por anon. As policies são
+-- avaliadas com o papel de quem chama, então revogar de anon não esconde nada:
+-- só troca "nenhuma linha" por erro 42501 em qualquer consulta de visitante
+-- não logado (inclusive durante a renovação de sessão). Testado. Não é furo de
+-- segurança: as duas filtram por auth.uid(), que para anon é NULL — o retorno
+-- é um array vazio.
+GRANT EXECUTE ON FUNCTION public.my_family_ids()       TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.my_owned_family_ids() TO anon, authenticated;
+
 -- Só o titular inclui/remove membros.
 DROP POLICY IF EXISTS "Owner can manage members" ON public.family_members;
 CREATE POLICY "Owner can manage members"
