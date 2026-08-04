@@ -2,7 +2,8 @@ import { useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { CheckCircle, Crown, Zap } from "lucide-react";
+import { CheckCircle, Crown, Zap, Users } from "lucide-react";
+import { getPlanLabel, isFamilyPlan } from "@/lib/planLimits";
 
 const PLAN_VALUES_MONTHLY: Record<string, number> = {
   STARTER: 19.9,
@@ -25,8 +26,11 @@ export default function SuccessPage() {
   const navigate = useNavigate();
   const plan = searchParams.get("plan") || "starter";
 
-  const planLabel = plan.toUpperCase() === "PRO" ? "PRO" : "Starter";
-  const PlanIcon = plan.toUpperCase() === "PRO" ? Crown : Zap;
+  // Quem comprava o Familiar via "Starter" nesta tela — a primeira coisa
+  // depois de pagar R$ 34,90+. O rótulo agora sai da tabela oficial de planos.
+  const planUpper = plan.toUpperCase();
+  const planLabel = getPlanLabel(planUpper);
+  const PlanIcon = isFamilyPlan(planUpper) ? Users : planUpper === "PRO" ? Crown : Zap;
 
   useEffect(() => {
     const period = searchParams.get("period");

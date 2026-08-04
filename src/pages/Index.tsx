@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { hasProFeatures } from "@/lib/planLimits";
 import AppLayout from "@/components/AppLayout";
 import StatCard from "@/components/StatCard";
 import OnboardingGuide from "@/components/OnboardingGuide";
@@ -28,6 +29,11 @@ const PLAN_MONTHLY_LIMITS: Record<string, number> = {
   FREE: 20,
   STARTER: 200,
   PRO: 99999,
+  // Sem estas três, quem assinava o Familiar caía no fallback FREE e o painel
+  // mostrava "x / 20 mensagens" com barra de uso enchendo, como plano grátis.
+  FAMILY_2: 99999,
+  FAMILY_3: 99999,
+  FAMILY_4: 99999,
 };
 
 const priorityColor: Record<string, string> = {
@@ -43,14 +49,16 @@ function clamp(n: number, min: number, max: number) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { profile, signOut, user } = useAuth();
+  const { profile, effectivePlan, signOut, user } = useAuth();
   const userName = profile?.full_name || "Usuário";
-  const planName = (profile?.plan || "FREE").toUpperCase();
+  // effectivePlan: quem foi convidado para um Familiar usa uma conta paga,
+  // mesmo com o próprio perfil marcado como FREE.
+  const planName = (effectivePlan || "FREE").toUpperCase();
   const whatsappConnected = !!profile?.phone;
   const whatsappLink = getWhatsAppLink();
 
   const messagesLimit = PLAN_MONTHLY_LIMITS[planName] || PLAN_MONTHLY_LIMITS.FREE;
-  const isPro = planName === "PRO";
+  const isPro = hasProFeatures(planName);
 
   const [pendingTasksCount, setPendingTasksCount] = useState(0);
   const [monthExpenses, setMonthExpenses] = useState(0);

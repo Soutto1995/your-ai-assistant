@@ -66,3 +66,19 @@ export function getPlanLabel(plan: string): string {
 export function isFamilyPlan(plan?: string | null): boolean {
   return !!plan && plan.toUpperCase().startsWith("FAMILY");
 }
+
+/**
+ * Plano pago de qualquer tipo. Existia código comparando com "STARTER"/"PRO"
+ * na mão, o que deixava quem assina o Familiar de fora — em Indicações a
+ * página nem carregava para eles.
+ */
+export function isPaidPlan(plan?: string | null): boolean {
+  const p = (plan || "FREE").toUpperCase();
+  return p === "STARTER" || p === "PRO" || p.startsWith("FAMILY");
+}
+
+/** Os planos Familiares liberam tudo que o PRO libera. */
+export function hasProFeatures(plan?: string | null): boolean {
+  const p = (plan || "FREE").toUpperCase();
+  return p === "PRO" || p.startsWith("FAMILY");
+}

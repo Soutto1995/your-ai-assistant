@@ -157,6 +157,10 @@ export default function FamilyPage() {
       loadFamily();
     } else if (result?.status === "already_member") {
       toast.info("Este usuário já é membro da sua família.");
+    } else if (result?.status === "self") {
+      toast.info("Você já faz parte da família — é o titular.");
+    } else if (result?.status === "invalid") {
+      toast.error("Digite um e-mail completo ou um telefone com DDD.");
     } else if (result?.status === "full") {
       toast.error("Sua família atingiu o limite de membros do plano.");
     } else if (result?.status === "not_found") {

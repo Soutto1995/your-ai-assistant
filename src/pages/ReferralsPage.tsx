@@ -11,6 +11,7 @@ import {
   Gift, Copy, Check, Users, Crown, ChevronRight,
   UserPlus, CreditCard, PartyPopper,
 } from "lucide-react";
+import { isPaidPlan } from "@/lib/planLimits";
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   pendente: { label: "Link criado", color: "bg-muted text-muted-foreground", icon: <UserPlus className="w-3 h-3" /> },
@@ -23,6 +24,14 @@ function generateCode(userId: string): string {
   return userId.replace(/-/g, "").slice(0, 8).toUpperCase();
 }
 
+const MONTHLY_PRICE: Record<string, number> = {
+  STARTER: 19.9,
+  PRO: 24.9,
+  FAMILY_2: 34.9,
+  FAMILY_3: 44.9,
+  FAMILY_4: 54.9,
+};
+
 export default function ReferralsPage() {
   const { session, profile, loading } = useAuth();
   const { toast } = useToast();
@@ -32,7 +41,10 @@ export default function ReferralsPage() {
   const [loadingData, setLoadingData] = useState(true);
 
   const plan = (profile?.plan || "FREE").toUpperCase();
-  const isPaid = plan === "STARTER" || plan === "PRO";
+
+  // Inclui os Familiares: antes, quem pagava R$ 34,90+ não conseguia nem
+  // abrir a página de Indicações.
+  const isPaid = isPaidPlan(plan);
 
   useEffect(() => {
     if (!session?.user?.id || !isPaid) {
@@ -165,7 +177,7 @@ export default function ReferralsPage() {
           </Card>
           <Card className="p-4 text-center">
             <p className="text-2xl font-display font-bold text-foreground">
-              R$ {(rewardedCount * (plan === "PRO" ? 24.9 : 12.9)).toFixed(2)}
+              R$ {(rewardedCount * (MONTHLY_PRICE[plan] ?? 12.9)).toFixed(2)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">Economia total</p>
           </Card>

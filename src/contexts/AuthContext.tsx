@@ -14,6 +14,18 @@ interface AuthContextType {
   session: Session | null;
   user: User | null;
   profile: Profile | null;
+  /**
+   * Plano que vale para liberar funcionalidades.
+   *
+   * Quem é convidado para um plano Familiar continua com plan="FREE" no
+   * próprio perfil — quem paga é o titular. Sem esta distinção o familiar
+   * enxergava os dados da conta paga, mas com as travas do grátis: Orçamento
+   * bloqueado, histórico cortado em 3 meses e aviso de "20/20 transações".
+   *
+   * profile.plan continua sendo o plano de COBRANÇA da pessoa, e é o que a
+   * tela de Planos deve mostrar. Este aqui é só para permissões.
+   */
+  effectivePlan: string;
   loading: boolean;
   signOut: () => Promise<void>;
 }
@@ -22,6 +34,7 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   user: null,
   profile: null,
+  effectivePlan: "FREE",
   loading: true,
   signOut: async () => {},
 });
@@ -31,6 +44,7 @@ export const useAuth = () => useContext(AuthContext);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [familyPlan, setFamilyPlan] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
@@ -40,6 +54,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq("id", userId)
       .single();
     setProfile(data);
+
+    // Se a pessoa faz parte de uma família, o plano do grupo é que manda.
+    const { data: membership, error } = await supabase
+      .from("family_members")
+      .select("family_groups(plan)")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) {
+      console.error("family membership lookup error:", error);
+      setFamilyPlan(null);
+      return;
+    }
+    const groupPlan = (membership?.family_groups as any)?.plan;
+    setFamilyPlan(typeof groupPlan === "string" ? groupPlan : null);
   };
 
   useEffect(() => {
@@ -51,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setTimeout(() => fetchProfile(session.user.id), 0);
         } else {
           setProfile(null);
+          setFamilyPlan(null);
         }
         setLoading(false);
       }
@@ -71,11 +100,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setSession(null);
     setProfile(null);
+    setFamilyPlan(null);
   };
+
+  // O plano do grupo só substitui o próprio quando é melhor: um titular do
+  // Familiar 4 que também tenha sido convidado para o Familiar 2 de outra
+  // pessoa não pode ser rebaixado por causa disso.
+  const ownPlan = (profile?.plan || "FREE").toUpperCase();
+  const effectivePlan =
+    familyPlan && !ownPlan.startsWith("FAMILY") ? familyPlan.toUpperCase() : ownPlan;
 
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, profile, loading, signOut }}
+      value={{ session, user: session?.user ?? null, profile, effectivePlan, loading, signOut }}
     >
       {children}
     </AuthContext.Provider>

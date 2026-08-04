@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { isFamilyPlan } from "@/lib/planLimits";
+import { isFamilyPlan, getPlanLabel } from "@/lib/planLimits";
 import {
   LayoutDashboard,
   Inbox,
@@ -45,7 +45,7 @@ export default function AppSidebar({ onNavigate }: { onNavigate?: () => void } =
   const [collapsed, setCollapsed] = useState(false);
   const [pendingSupport, setPendingSupport] = useState(0);
   const location = useLocation();
-  const { profile, signOut, user } = useAuth();
+  const { profile, effectivePlan, signOut, user } = useAuth();
   const isAdmin = user?.email === ADMIN_EMAIL;
 
   useEffect(() => {
@@ -62,7 +62,9 @@ export default function AppSidebar({ onNavigate }: { onNavigate?: () => void } =
     return () => clearInterval(timer);
   }, [isAdmin]);
 
-  const navItems = isFamilyPlan(profile?.plan)
+  // effectivePlan: o familiar convidado também precisa ver o menu Família
+  // para saber quem está no grupo, mesmo com o perfil dele marcado como FREE.
+  const navItems = isFamilyPlan(effectivePlan)
     ? [...baseNavItems, { icon: Users, label: "Família", path: "/family" }]
     : baseNavItems;
 
@@ -171,7 +173,7 @@ export default function AppSidebar({ onNavigate }: { onNavigate?: () => void } =
             <p className="text-sm font-medium text-sidebar-foreground truncate">
               {profile.full_name || "Usuário"}
             </p>
-            <p className="text-xs text-muted-foreground">{profile.plan}</p>
+            <p className="text-xs text-muted-foreground">{getPlanLabel(profile.plan)}</p>
           </div>
         )}
         <button
