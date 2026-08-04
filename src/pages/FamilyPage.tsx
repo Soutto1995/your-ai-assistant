@@ -34,33 +34,58 @@ export default function FamilyPage() {
   const [loading, setLoading] = useState(true);
   const [contact, setContact] = useState("");
   const [inviting, setInviting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const isOwner = !!user && !!family && family.owner_id === user.id;
   const hasFamilyPlan = isFamilyPlan(profile?.plan);
 
+  // Falhas de banco não podem virar "você não tem plano Familiar". Uma recursão
+  // nas policies (42P17) fazia exatamente isso: a query estourava, o erro era
+  // descartado e um assinante do Familiar via a tela de quem não assinou.
   const loadFamily = async () => {
     if (!user) return;
     setLoading(true);
-    let { data: owned } = await supabase
+    setLoadError(null);
+
+    const { data: owned, error: ownedError } = await supabase
       .from("family_groups")
       .select("*")
       .eq("owner_id", user.id)
       .maybeSingle();
 
+    if (ownedError) {
+      console.error("family_groups (owner) error:", ownedError);
+      setLoadError(ownedError.message);
+      setLoading(false);
+      return;
+    }
+
     let group: FamilyGroup | null = owned as any;
 
     if (!group) {
-      const { data: membership } = await supabase
+      const { data: membership, error: membershipError } = await supabase
         .from("family_members")
         .select("family_id")
         .eq("user_id", user.id)
         .maybeSingle();
+      if (membershipError) {
+        console.error("family_members error:", membershipError);
+        setLoadError(membershipError.message);
+        setLoading(false);
+        return;
+      }
       if (membership?.family_id) {
-        const { data: g } = await supabase
+        const { data: g, error: groupError } = await supabase
           .from("family_groups")
           .select("*")
           .eq("id", membership.family_id)
           .maybeSingle();
+        if (groupError) {
+          console.error("family_groups (member) error:", groupError);
+          setLoadError(groupError.message);
+          setLoading(false);
+          return;
+        }
         group = g as any;
       }
     }
@@ -69,11 +94,17 @@ export default function FamilyPage() {
     if (!group && hasFamilyPlan) {
       const maxByPlan: Record<string, number> = { FAMILY_2: 2, FAMILY_3: 3, FAMILY_4: 4 };
       const plan = (profile!.plan || "FAMILY_2").toUpperCase();
-      const { data: created } = await supabase
+      const { data: created, error: createError } = await supabase
         .from("family_groups")
         .insert({ owner_id: user.id, plan, max_members: maxByPlan[plan] ?? 2 })
         .select("*")
         .single();
+      if (createError) {
+        console.error("family_groups insert error:", createError);
+        setLoadError(createError.message);
+        setLoading(false);
+        return;
+      }
       group = created as any;
       if (group) {
         await supabase
@@ -85,8 +116,16 @@ export default function FamilyPage() {
     setFamily(group);
 
     if (group) {
-      const { data: m, error } = await supabase.rpc("get_family_members", { p_family_id: group.id });
-      if (!error) setMembers((m as any[]) ?? []);
+      const { data: m, error: membersError } = await supabase.rpc("get_family_members", {
+        p_family_id: group.id,
+      });
+      if (membersError) {
+        console.error("get_family_members error:", membersError);
+        setLoadError(membersError.message);
+        setLoading(false);
+        return;
+      }
+      setMembers((m as any[]) ?? []);
     } else {
       setMembers([]);
     }
@@ -150,6 +189,27 @@ export default function FamilyPage() {
       <AppLayout>
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-6 h-6 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Assinante do Familiar nunca deve cair na tela de "não tem plano" por causa
+  // de uma falha técnica — é o que gerou reclamação de cliente pagante.
+  if (loadError || (!family && hasFamilyPlan)) {
+    return (
+      <AppLayout>
+        <div className="max-w-2xl mx-auto text-center space-y-4 py-12">
+          <Users className="w-12 h-12 text-muted-foreground mx-auto" />
+          <h1 className="text-2xl font-display font-bold">Não consegui carregar sua família</h1>
+          <p className="text-muted-foreground">
+            Seu plano <strong>{getPlanLabel(profile?.plan || "")}</strong> está ativo — isso é uma
+            falha temporária ao buscar os dados, não um problema na sua assinatura.
+          </p>
+          <Button onClick={loadFamily}>Tentar de novo</Button>
+          {loadError && (
+            <p className="text-xs text-muted-foreground/70 pt-2">Detalhe técnico: {loadError}</p>
+          )}
         </div>
       </AppLayout>
     );

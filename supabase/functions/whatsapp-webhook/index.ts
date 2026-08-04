@@ -44,8 +44,17 @@ const FEATURE_LIMITS: Record<string, { transactionsPerMonth: number; budgets: nu
   PRO: { transactionsPerMonth: Infinity, budgets: Infinity, categories: Infinity },
 };
 
+// Os planos Familiares liberam exatamente o mesmo que o PRO — o que muda é
+// quantas pessoas dividem a conta, não o que cada uma pode fazer. As tabelas de
+// limite só conhecem FREE/STARTER/PRO, e sem esta tradução um assinante do
+// Familiar caía no fallback FREE (20 lançamentos/mês).
+function planTier(plan: string): string {
+  const p = String(plan || "FREE").toUpperCase();
+  return p.startsWith("FAMILY") ? "PRO" : p;
+}
+
 async function checkFeatureLimit(supabase: any, userId: string, plan: string, feature: "transaction" | "budget"): Promise<string | null> {
-  const limits = FEATURE_LIMITS[plan] || FEATURE_LIMITS.FREE;
+  const limits = FEATURE_LIMITS[planTier(plan)] || FEATURE_LIMITS.FREE;
 
   if (feature === "transaction") {
     if (limits.transactionsPerMonth === Infinity) return null;
@@ -760,7 +769,7 @@ function extractAiJson(content: string): AiResult | null {
 }
 
 async function checkMessageLimit(supabase: any, userId: string, plan: string): Promise<boolean> {
-  const planConfig = PLAN_LIMITS[plan] ?? PLAN_LIMITS.FREE;
+  const planConfig = PLAN_LIMITS[planTier(plan)] ?? PLAN_LIMITS.FREE;
   if (planConfig.limit === Infinity) return false;
 
   const monthStart = new Date();
@@ -1840,8 +1849,8 @@ async function executeIntentAction(
             }
           }
 
-          // Comparação PRO
-          if (userPlan === "PRO") {
+          // Comparação PRO (os planos Familiares também têm direito)
+          if (planTier(userPlan) === "PRO") {
             try {
               const comparison = await getSpendingComparison(supabase, userId, category, amount);
               if (comparison) reply += comparison;
@@ -3106,8 +3115,12 @@ serve(async (req) => {
           sender.name = senderProfile?.full_name?.trim() || null;
           userId = familyOwnerId;
         }
-        // Plano familiar = PRO (acesso completo)
-        userPlan = "PRO";
+        // Mantemos o plano REAL (FAMILY_2/3/4). Achatar para "PRO" aqui fazia
+        // todo teste de startsWith("FAMILY") falhar depois — era por isso que o
+        // titular nunca recebia as instruções de onboarding e a IA achava que
+        // ele estava no PRO, chegando a oferecer o Familiar a quem já assinava.
+        // As liberações continuam iguais às do PRO via planTier().
+        userPlan = String(familyPlan).toUpperCase();
       }
     } catch (familyErr) {
       // Se não é membro de família, continua normal
@@ -3119,7 +3132,11 @@ serve(async (req) => {
     // a outra pessoa, e o passo "ela precisa criar a conta antes" não é óbvio.
     // Enviamos na primeira mensagem que o titular manda depois de assinar —
     // mensagem proativa fora da janela de 24h esbarraria nas regras da Meta.
-    if (userPlan.startsWith("FAMILY")) {
+    //
+    // sender.userId só é preenchido quando quem escreveu é MEMBRO e o userId já
+    // foi trocado pelo do titular. Sem essa checagem, a instrução de "como
+    // convidar alguém" iria para o familiar convidado, que não convida ninguém.
+    if (userPlan.startsWith("FAMILY") && !sender.userId) {
       try {
         const { data: ownedGroup } = await supabase
           .from("family_groups")
@@ -3175,7 +3192,7 @@ serve(async (req) => {
     if (!isAdmin) {
       const limitExceeded = await checkMessageLimit(supabase, userId, userPlan);
       if (limitExceeded) {
-        const limitMessage = PLAN_LIMITS[userPlan]?.message || PLAN_LIMITS.FREE.message;
+        const limitMessage = PLAN_LIMITS[planTier(userPlan)]?.message || PLAN_LIMITS.FREE.message;
         isMeta ? await sendMessageMeta(metaPhoneNumberId, remotePhone, limitMessage) : await sendWhatsAppMessage(remotePhone, limitMessage);
 
         return new Response(JSON.stringify({ status: "limit_exceeded", plan: userPlan }), {
@@ -3405,11 +3422,17 @@ serve(async (req) => {
       const label = planLabels[userPlan] ?? userPlan;
 
       if (userPlan.startsWith("FAMILY")) {
-        const { data: fg } = await supabase
-          .from("family_groups")
-          .select("id, max_members")
-          .eq("owner_id", userId)
-          .maybeSingle();
+        // Quem é membro tem o userId já trocado pelo do titular, então buscar
+        // por owner_id acharia o grupo e trataria o familiar como se fosse o
+        // dono da assinatura. sender.userId é o que distingue os dois.
+        const ehTitular = !sender.userId;
+        const { data: fg } = ehTitular
+          ? await supabase
+              .from("family_groups")
+              .select("id, max_members")
+              .eq("owner_id", userId)
+              .maybeSingle()
+          : { data: null };
 
         if (fg) {
           const { count } = await supabase
