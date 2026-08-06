@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PLATFORM_KNOWLEDGE, ASSISTANT_BEHAVIOR } from "../_shared/platform-knowledge.ts";
+import { PLATFORM_KNOWLEDGE, ASSISTANT_BEHAVIOR, buildWelcomeMessage } from "../_shared/platform-knowledge.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -866,24 +866,34 @@ async function interpretMessage(message: string, now: Date = new Date()): Promis
 
     const systemPromptWithTime = SYSTEM_PROMPT.replace("{{current_time}}", saoPauloTime);
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${openaiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4.1",
-        temperature: 0,
-        messages: [
-          { role: "system", content: systemPromptWithTime },
-          { role: "user", content: message },
-        ],
-      }),
-    });
+    // response_format json_object: o modelo passa a ser OBRIGADO a devolver JSON
+    // válido. Sem isso ele às vezes respondia em prosa, o extractAiJson falhava
+    // e o cliente recebia "não consegui interpretar com precisão" para uma
+    // pergunta perfeitamente clara — aconteceu duas vezes seguidas com um
+    // cliente pagante que só queria saber por que a tela da família não abria.
+    const askOpenAI = async () =>
+      await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${openaiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4.1",
+          temperature: 0,
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: systemPromptWithTime },
+            { role: "user", content: message },
+          ],
+        }),
+      });
+
+    let response = await askOpenAI();
 
     if (!response.ok) {
-      console.error("OpenAI error:", response.status, await response.text());
+      const detalhe = await response.text();
+      console.error("OpenAI error:", response.status, detalhe);
       return {
         intent: "general_query",
         data: {},
@@ -891,23 +901,30 @@ async function interpretMessage(message: string, now: Date = new Date()): Promis
       };
     }
 
-    const payload = await response.json();
-    const content = payload?.choices?.[0]?.message?.content;
+    let payload = await response.json();
+    let content = payload?.choices?.[0]?.message?.content;
+    let aiJson = typeof content === "string" ? extractAiJson(content) : null;
 
-    if (typeof content !== "string" || content.trim().length === 0) {
-      return {
-        intent: "general_query",
-        data: {},
-        response: "Recebi sua mensagem! Pode me dar mais detalhes?",
-      };
+    // Cinto e suspensório: se ainda assim vier algo inesperado, tenta uma vez
+    // mais antes de admitir derrota para o cliente.
+    if (!aiJson) {
+      console.warn("Resposta da IA fora do formato esperado, tentando novamente");
+      response = await askOpenAI();
+      if (response.ok) {
+        payload = await response.json();
+        content = payload?.choices?.[0]?.message?.content;
+        aiJson = typeof content === "string" ? extractAiJson(content) : null;
+      }
     }
 
-    const aiJson = extractAiJson(content);
     if (!aiJson) {
+      console.error("IA falhou duas vezes em devolver JSON válido");
       return {
         intent: "general_query",
         data: {},
-        response: "Entendi! Mas não consegui interpretar com precisão. Pode reformular?",
+        response:
+          "Puxa, me embananei aqui e não consegui processar isso agora. 😅\n\n" +
+          "Tenta de novo em instantes? Se continuar, me avisa que eu chamo alguém do time pra te ajudar.",
       };
     }
 
@@ -1579,6 +1596,41 @@ function isAffirmativeMessage(text: string): boolean {
   const t = text.toLowerCase().trim().replace(/[!.?]+$/, "");
   const positives = ["sim", "s", "ok", "pode", "quero", "confirma", "confirmo", "avise", "chama", "por favor", "pfv", "claro", "vai", "yes", "ta", "tá", "bora", "pode sim", "claro que sim", "com certeza", "pode ser"];
   return positives.some(p => t === p || t.startsWith(p + " ") || t.endsWith(" " + p));
+}
+
+// Pedido explícito de falar com uma pessoa. Quem pede atendente tem que ser
+// atendido — não adianta o assistente tentar resolver mais uma vez.
+function wantsHumanSupport(text: string): boolean {
+  const t = text.toLowerCase().trim();
+  const pedidos = [
+    "falar com humano", "falar com uma pessoa", "falar com alguem", "falar com alguém",
+    "falar com atendente", "falar com o suporte", "falar com suporte",
+    "quero suporte", "chamar o suporte", "chama o suporte", "aciona o suporte",
+    "atendimento humano", "atendente humano", "pessoa de verdade",
+    "me transfere", "transferir para",
+  ];
+  if (pedidos.some((p) => t.includes(p))) return true;
+  // "suporte" / "atendente" sozinhos, ou quase, também contam.
+  const curto = t.replace(/[!.?,]+$/, "");
+  return ["suporte", "atendente", "humano", "atendimento"].includes(curto);
+}
+
+// Relato de coisa quebrada. O assistente não conserta defeito nem mexe em
+// cobrança — insistir aqui só faz o cliente repetir o problema várias vezes,
+// que foi exatamente o que aconteceu com quem não conseguia abrir a tela da
+// família.
+function reportsSomethingBroken(text: string): boolean {
+  const t = text.toLowerCase();
+  const sintomas = [
+    "não funciona", "nao funciona", "não está funcionando", "nao esta funcionando",
+    "não abre", "nao abre", "não carrega", "nao carrega", "não consigo", "nao consigo",
+    "deu erro", "dá erro", "da erro", "deu problema", "está com problema", "ta com problema",
+    "não aparece", "nao aparece", "sumiu", "desapareceu", "travou", "bugou", "com bug",
+    "cobrado", "cobrança", "cobranca", "cobrou", "paguei e", "não recebi", "nao recebi",
+    "reembolso", "estorno", "duplicado", "em dobro",
+    "diz que não", "diz que nao", "consta que não", "consta que nao",
+  ];
+  return sintomas.some((s) => t.includes(s));
 }
 
 async function createSupportRequest(
@@ -2657,6 +2709,30 @@ serve(async (req) => {
     // aí vai para o drive (bucket + índice semântico).
     let pendingMedia: PendingMedia | null = null;
 
+    // A Meta manda webhook para MUITO mais coisa do que mensagem de cliente:
+    // cada resposta nossa gera aviso de "enviada", "entregue" e "lida", e ainda
+    // há eventos de conta e de template. Nada disso tem messages[0].from, então
+    // caía na verificação de assinatura da Evolution e levava 401.
+    //
+    // Isso não era só ruído: a Meta REENVIA o que falha, e desativa webhook que
+    // falha de forma consistente. Chegamos a 526 rejeições em 4 horas contra 1
+    // entrega bem-sucedida — e o cliente ficou sem resposta.
+    //
+    // Qualquer coisa com cara de Meta responde 200. Confirmar recebimento não é
+    // brecha de segurança: nada é processado, só evita a tempestade de retentativa.
+    const looksLikeMeta =
+      body.object === "whatsapp_business_account" ||
+      (Array.isArray(body.entry) &&
+        body.entry.some((e) => isRecord(e) && Array.isArray((e as JsonRecord).changes)));
+
+    if (!isMeta && looksLikeMeta) {
+      console.log("Evento Meta sem mensagem de cliente (status/conta) — confirmado e ignorado");
+      return new Response(JSON.stringify({ status: "ignored_meta_event" }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!isMeta) {
       const isAuthorized = await verifyRequest(req, rawBody, body);
       if (!isAuthorized) {
@@ -2717,17 +2793,56 @@ serve(async (req) => {
       }
     }
 
-    if (isMeta && (!text || !remotePhone)) {
-      return new Response(JSON.stringify({ status: "ignored_non_text" }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
+
+    // O cliente mandou algo que não conseguimos ler como texto: figurinha,
+    // vídeo, localização, contato, resposta de botão — ou uma foto/áudio cujo
+    // download falhou. Isso era descartado CALADO, e a pessoa ficava falando
+    // sozinha achando que o Tuddo tinha morrido. Silêncio parece produto
+    // quebrado; responder custa nada.
+    if (isMeta && !text) {
+      if (!remotePhone) {
+        return new Response(JSON.stringify({ status: "ignored_no_phone" }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Trava própria: a geral só roda mais abaixo, e a Meta reenvia o webhook.
+      // Sem isto o cliente levaria o mesmo aviso três ou quatro vezes.
+      if (inboundMessageId) {
+        const { error: dupErr } = await supabase
+          .from("processed_messages")
+          .insert({ message_id: inboundMessageId });
+        if (dupErr?.code === "23505") {
+          return new Response(JSON.stringify({ status: "duplicate_ignored" }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      const tipo = _metaExtracted?.type ?? "";
+      const aviso =
+        tipo === "sticker"
+          ? "Recebi sua figurinha! 😄 Mas eu trabalho com texto, áudio, foto e documento. Me conta em palavras o que você precisa?"
+          : tipo === "video"
+          ? "Recebi seu vídeo, mas ainda não consigo assistir. 😅 Se for um comprovante, me manda como *foto* que eu leio e registro!"
+          : tipo === "location"
+          ? "Recebi sua localização! 📍 Ainda não faço nada com ela. Se quiser registrar um gasto ou compromisso, é só me escrever."
+          : "Recebi sua mensagem, mas não consegui ler esse formato. 😅\n\nEu entendo *texto*, *áudio*, *foto* e *documento*. Pode mandar de novo assim?";
+
+      await sendMessageMeta(metaPhoneNumberId, remotePhone, aviso);
+      console.log(`Tipo não suportado (${tipo}) — cliente avisado em vez de ignorado`);
+
+      return new Response(JSON.stringify({ status: "unsupported_type", tipo }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Persistir phone_number_id Meta para uso proativo (ex: budget-alerts)
     if (isMeta && metaPhoneNumberId) {
@@ -3127,6 +3242,50 @@ serve(async (req) => {
       console.log("Not a family member or no family found");
     }
 
+    // ── Primeiro contato: explicar o que o Tuddo é ──────────────────────────
+    // A pessoa se cadastrava, mandava "oi", recebia uma saudação genérica e
+    // seguia sem saber o que o produto faz — nem que ele não é um chat de IA
+    // de assunto livre. Isso virava pergunta fora do escopo, resposta confusa e
+    // a impressão de que o Tuddo não funciona.
+    //
+    // Vai só para quem escreveu de fato: sender.userId preenchido significa que
+    // quem mandou é membro de família e o userId já é o do titular — nesse caso
+    // a orientação seria gravada na conta errada.
+    if (!sender.userId) {
+      try {
+        const { data: perfil, error: perfilErr } = await supabase
+          .from("profiles")
+          .select("full_name, welcome_sent_at")
+          .eq("id", userId)
+          .maybeSingle();
+
+        if (perfilErr) {
+          console.error("Welcome lookup error:", perfilErr);
+        } else if (perfil && !perfil.welcome_sent_at) {
+          const boasVindas = buildWelcomeMessage(perfil.full_name);
+
+          const envio = isMeta
+            ? await sendMessageMeta(metaPhoneNumberId, remotePhone, boasVindas)
+            : await sendWhatsAppMessage(remotePhone, boasVindas);
+
+          // Só marca como enviada se saiu mesmo. Marcar antes faria o cliente
+          // perder a orientação para sempre por causa de uma falha de envio.
+          if (!String(envio).startsWith("error")) {
+            await supabase
+              .from("profiles")
+              .update({ welcome_sent_at: new Date().toISOString() })
+              .eq("id", userId);
+            console.log(`Orientação de boas-vindas enviada a ${userId}`);
+          } else {
+            console.error("Falha ao enviar boas-vindas:", envio);
+          }
+        }
+      } catch (welcomeErr) {
+        // Nunca deixar a orientação derrubar o atendimento normal.
+        console.error("Welcome error:", welcomeErr);
+      }
+    }
+
     // ── Onboarding do plano Familiar ────────────────────────────────────────
     // Quem assina o Familiar não recebe orientação nenhuma sobre como incluir
     // a outra pessoa, e o passo "ela precisa criar a conta antes" não é óbvio.
@@ -3478,29 +3637,52 @@ serve(async (req) => {
     let reply = await executeIntentAction(supabase, userId, userPlan, aiResult, text, sender);
     let finalIntent: string = intent;
 
-    // Escalonamento: 3+ mensagens consecutivas não reconhecidas → oferecer suporte humano
-    // Não escalona durante onboarding (primeiras mensagens do usuário)
-    if (intent === "general_query") {
-      const totalMessages = recentMsgsDesc.length;
-      const isNewUser = totalMessages <= 3;
-      const prevMsg  = recentMsgsDesc.length > 0 ? recentMsgsDesc[0] : null;
-      const prev2Msg = recentMsgsDesc.length > 1 ? recentMsgsDesc[1] : null;
+    // ── Quando chamar gente de verdade ──────────────────────────────────────
+    // Suporte humano é o ÚLTIMO recurso, mas "último" não pode virar "nunca":
+    // quem pede atendente tem que ser atendido, e defeito o assistente não
+    // conserta. Ordem: pedido explícito > relato de defeito > insistência.
 
-      // Só conta como "não reconhecida" a mensagem que de fato caiu em
-      // general_query. Antes, escalation_offered também contava — e como a
-      // própria oferta vira a mensagem anterior, cada nova mensagem
-      // reofertava suporte indefinidamente.
-      const twoConsecutiveUnrecognized =
-        prevMsg?.type === "general_query" && prev2Msg?.type === "general_query";
+    // Se já ofertamos ou já abrimos chamado recentemente, não insistir.
+    const alreadyEscalatedRecently = recentMsgsDesc.some(
+      (m: any) => m.type === "escalation_offered" || m.type === "support_requested"
+    );
 
-      // Se já ofertamos ou já abrimos chamado recentemente, não insistir.
-      const alreadyEscalatedRecently = recentMsgsDesc.some(
-        (m: any) => m.type === "escalation_offered" || m.type === "support_requested"
-      );
-
-      if (!isNewUser && twoConsecutiveUnrecognized && !alreadyEscalatedRecently) {
-        reply = "Não consegui te ajudar com isso ainda. Quer que eu avise o suporte humano? Responda *sim* para confirmar. 🆘";
+    if (!alreadyEscalatedRecently) {
+      if (wantsHumanSupport(text)) {
+        // Pediu pessoa: não tentar resolver de novo, não empurrar link.
+        reply =
+          "Claro! 🤝 Quer que eu acione o time do Tuddo pra falar com você por aqui? " +
+          "Responda *sim* que eu chamo agora.";
         finalIntent = "escalation_offered";
+      } else if (intent === "general_query") {
+        const isNewUser = recentMsgsDesc.length <= 3;
+        const prevMsg = recentMsgsDesc.length > 0 ? recentMsgsDesc[0] : null;
+        const prev2Msg = recentMsgsDesc.length > 1 ? recentMsgsDesc[1] : null;
+
+        // Só conta como "não reconhecida" a mensagem que de fato caiu em
+        // general_query. Antes, escalation_offered também contava — e como a
+        // própria oferta vira a mensagem anterior, cada nova mensagem
+        // reofertava suporte indefinidamente.
+        const twoConsecutiveUnrecognized =
+          prevMsg?.type === "general_query" && prev2Msg?.type === "general_query";
+
+        // Defeito, cobrança e conta travada não se resolvem conversando. Aqui
+        // basta UMA repetição — o cliente que relatou a tela da família quebrada
+        // perguntou duas vezes e não foi encaminhado nenhuma vez.
+        const relataProblema = reportsSomethingBroken(text);
+        const jaTentouAntes = prevMsg?.type === "general_query";
+
+        if (!isNewUser && relataProblema && jaTentouAntes) {
+          reply =
+            "Pelo jeito isso é algo que eu não consigo resolver sozinho por aqui. 😕\n\n" +
+            "Quer que eu acione o time do Tuddo pra olhar sua conta? Responda *sim* que eu chamo.";
+          finalIntent = "escalation_offered";
+        } else if (!isNewUser && twoConsecutiveUnrecognized) {
+          reply =
+            "Não consegui te ajudar com isso ainda. Quer que eu avise o suporte humano? " +
+            "Responda *sim* para confirmar. 🆘";
+          finalIntent = "escalation_offered";
+        }
       }
     }
 
