@@ -135,33 +135,65 @@ async function interpretMessage(message: string): Promise<AiResult> {
   });
   const systemPromptWithTime = SYSTEM_PROMPT.replace("{{current_time}}", saoPauloTime);
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${openaiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "gpt-4.1",
-      temperature: 0,
-      messages: [
-        { role: "system", content: systemPromptWithTime },
-        { role: "user", content: message },
-      ],
-    }),
-  });
+  // Mesmo tratamento do WhatsApp: response_format json_object obriga o modelo a
+  // devolver JSON válido. Sem isso ele às vezes respondia em prosa, o
+  // JSON.parse falhava e o cliente via o texto cru na tela — às vezes um JSON
+  // meio montado, que é pior do que não responder.
+  const askOpenAI = async () =>
+    await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${openaiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "gpt-4.1",
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: systemPromptWithTime },
+          { role: "user", content: message },
+        ],
+      }),
+    });
 
+  const parse = (texto: string): AiResult | null => {
+    try {
+      const cleaned = texto.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+      const obj = JSON.parse(cleaned);
+      return obj && typeof obj === "object" ? obj as AiResult : null;
+    } catch {
+      return null;
+    }
+  };
+
+  let response = await askOpenAI();
   if (!response.ok) {
+    console.error("OpenAI error:", response.status, await response.text());
     return { intent: "general_query", data: {}, response: "Recebi sua mensagem, mas estou com dificuldade agora. Tente novamente! 🙏" };
   }
 
-  const aiData = await response.json();
-  const rawText = aiData.choices?.[0]?.message?.content?.trim() ?? "";
+  let aiData = await response.json();
+  let result = parse(aiData.choices?.[0]?.message?.content?.trim() ?? "");
 
-  try {
-    // Strip markdown fences if present
-    const cleaned = rawText.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
-    return JSON.parse(cleaned);
-  } catch {
-    return { intent: "general_query", data: {}, response: rawText || "Entendi! Como posso ajudar?" };
+  if (!result) {
+    console.warn("Resposta da IA fora do formato esperado, tentando novamente");
+    response = await askOpenAI();
+    if (response.ok) {
+      aiData = await response.json();
+      result = parse(aiData.choices?.[0]?.message?.content?.trim() ?? "");
+    }
   }
+
+  if (!result) {
+    console.error("IA falhou duas vezes em devolver JSON válido");
+    return {
+      intent: "general_query",
+      data: {},
+      response:
+        "Puxa, me embananei aqui e não consegui processar isso agora. 😅 " +
+        "Tenta de novo em instantes? Se continuar, fala com a gente pelo WhatsApp.",
+    };
+  }
+
+  return result;
 }
 
 async function executeIntent(supabase: any, userId: string, aiResult: AiResult, fallbackText: string): Promise<string> {

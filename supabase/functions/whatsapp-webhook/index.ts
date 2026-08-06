@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PLATFORM_KNOWLEDGE, ASSISTANT_BEHAVIOR, buildWelcomeMessage } from "../_shared/platform-knowledge.ts";
+import { PLATFORM_KNOWLEDGE, ASSISTANT_BEHAVIOR } from "../_shared/platform-knowledge.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1594,24 +1594,45 @@ async function handleAssigneeReply(
 
 function isAffirmativeMessage(text: string): boolean {
   const t = text.toLowerCase().trim().replace(/[!.?]+$/, "");
+
+  // Confirmação é curta por natureza. Sem este limite, "quero falar com um
+  // atendente" era lido como "sim" só porque começa com "quero" — e disparava
+  // a confirmação de um chamado que o cliente nem tinha pedido ainda.
+  if (t.split(/\s+/).length > 3) return false;
+
   const positives = ["sim", "s", "ok", "pode", "quero", "confirma", "confirmo", "avise", "chama", "por favor", "pfv", "claro", "vai", "yes", "ta", "tá", "bora", "pode sim", "claro que sim", "com certeza", "pode ser"];
   return positives.some(p => t === p || t.startsWith(p + " ") || t.endsWith(" " + p));
 }
 
 // Pedido explícito de falar com uma pessoa. Quem pede atendente tem que ser
 // atendido — não adianta o assistente tentar resolver mais uma vez.
+//
+// Usa padrão em vez de lista de frases prontas: comparar texto literal não
+// tolera artigo, e "falar com UM atendente" passava batido porque a lista só
+// tinha "falar com atendente". O cliente não escreve do jeito que a gente
+// imagina.
 function wantsHumanSupport(text: string): boolean {
-  const t = text.toLowerCase().trim();
-  const pedidos = [
-    "falar com humano", "falar com uma pessoa", "falar com alguem", "falar com alguém",
-    "falar com atendente", "falar com o suporte", "falar com suporte",
-    "quero suporte", "chamar o suporte", "chama o suporte", "aciona o suporte",
-    "atendimento humano", "atendente humano", "pessoa de verdade",
-    "me transfere", "transferir para",
+  const t = text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // tira acento: "alguém" = "alguem"
+    .trim();
+
+  // "falar/conversar/atendimento com (um/uma/o/a) atendente|humano|pessoa|...".
+  // Os artigos e o "com" ficam opcionais para aceitar as variações naturais.
+  const pessoa = "(atendente|humano|pessoa|gente|alguem|suporte|responsavel|consultor)";
+  const artigo = "(?:\\s+(?:o|a|os|as|um|uma|algum|alguma))?";
+  const padroes = [
+    new RegExp(`\\b(falar|conversar|contato|contatar)\\b(?:\\s+com)?${artigo}\\s+${pessoa}\\b`),
+    new RegExp(`\\b(quero|queria|preciso|pode|podem|manda|chama|chamar|aciona|acionar)\\b(?:\\s+\\w+){0,2}\\s+${pessoa}\\b`),
+    new RegExp(`\\batendimento\\s+humano\\b`),
+    new RegExp(`\\b${pessoa}\\s+(humano|de verdade|real)\\b`),
+    new RegExp(`\\bme\\s+(transfere|transfira|passa)\\b`),
   ];
-  if (pedidos.some((p) => t.includes(p))) return true;
-  // "suporte" / "atendente" sozinhos, ou quase, também contam.
-  const curto = t.replace(/[!.?,]+$/, "");
+  if (padroes.some((p) => p.test(t))) return true;
+
+  // A palavra sozinha, ou quase, também conta: "suporte", "atendente?".
+  const curto = t.replace(/[!.?,\s]+$/, "");
   return ["suporte", "atendente", "humano", "atendimento"].includes(curto);
 }
 
@@ -3242,50 +3263,6 @@ serve(async (req) => {
       console.log("Not a family member or no family found");
     }
 
-    // ── Primeiro contato: explicar o que o Tuddo é ──────────────────────────
-    // A pessoa se cadastrava, mandava "oi", recebia uma saudação genérica e
-    // seguia sem saber o que o produto faz — nem que ele não é um chat de IA
-    // de assunto livre. Isso virava pergunta fora do escopo, resposta confusa e
-    // a impressão de que o Tuddo não funciona.
-    //
-    // Vai só para quem escreveu de fato: sender.userId preenchido significa que
-    // quem mandou é membro de família e o userId já é o do titular — nesse caso
-    // a orientação seria gravada na conta errada.
-    if (!sender.userId) {
-      try {
-        const { data: perfil, error: perfilErr } = await supabase
-          .from("profiles")
-          .select("full_name, welcome_sent_at")
-          .eq("id", userId)
-          .maybeSingle();
-
-        if (perfilErr) {
-          console.error("Welcome lookup error:", perfilErr);
-        } else if (perfil && !perfil.welcome_sent_at) {
-          const boasVindas = buildWelcomeMessage(perfil.full_name);
-
-          const envio = isMeta
-            ? await sendMessageMeta(metaPhoneNumberId, remotePhone, boasVindas)
-            : await sendWhatsAppMessage(remotePhone, boasVindas);
-
-          // Só marca como enviada se saiu mesmo. Marcar antes faria o cliente
-          // perder a orientação para sempre por causa de uma falha de envio.
-          if (!String(envio).startsWith("error")) {
-            await supabase
-              .from("profiles")
-              .update({ welcome_sent_at: new Date().toISOString() })
-              .eq("id", userId);
-            console.log(`Orientação de boas-vindas enviada a ${userId}`);
-          } else {
-            console.error("Falha ao enviar boas-vindas:", envio);
-          }
-        }
-      } catch (welcomeErr) {
-        // Nunca deixar a orientação derrubar o atendimento normal.
-        console.error("Welcome error:", welcomeErr);
-      }
-    }
-
     // ── Onboarding do plano Familiar ────────────────────────────────────────
     // Quem assina o Familiar não recebe orientação nenhuma sobre como incluir
     // a outra pessoa, e o passo "ela precisa criar a conta antes" não é óbvio.
@@ -3371,8 +3348,22 @@ serve(async (req) => {
 
     const ONBOARDING_DIAGNOSIS_MARKER = "[ONBOARDING_DIAGNOSIS]";
 
+    // O enquadramento "não sou um chat de IA de assunto livre" fica AQUI, na
+    // primeira coisa que o cliente lê. Sem isso ele chegava perguntando
+    // qualquer assunto, recebia resposta confusa e achava o produto quebrado.
     const ONBOARDING_MSG1 = (name: string) =>
-      `Oi, ${name}! 👋\n\nBem-vindo ao Tuddo — seu assistente financeiro pessoal aqui no WhatsApp.\n\nSou o Tuddo. Vou te ajudar a saber exatamente para onde vai o seu dinheiro, sem planilha, sem app novo, sem complicação. Tudo aqui mesmo, no WhatsApp que você já usa.\n\nPra começar, é simples: só me manda uma mensagem quando gastar alguma coisa. Tipo assim:\n\n💬 "Gastei R$18 no café"\n💬 "Mercado R$95"\n💬 "Uber R$22"\n\nEu registro, categorizo e organizo tudo automaticamente. Você só fala, eu cuido do resto.\n\nTesta agora — me manda o último gasto que você teve hoje. 👇`;
+      `Oi, ${name}! 👋\n\nBem-vindo ao Tuddo — seu assistente financeiro pessoal aqui no WhatsApp.\n\n` +
+      `Antes de tudo, deixa eu ser direto: *eu não sou um chat de inteligência artificial pra conversar sobre qualquer assunto*. ` +
+      `Eu tenho uma função só — cuidar do seu dinheiro e da sua organização. E faço isso bem. 💪\n\n` +
+      `*O que eu faço por você:*\n` +
+      `💸 Registro gastos e receitas — é só falar, ou me mandar a foto da nota\n` +
+      `✅ Anoto tarefas e lembretes\n` +
+      `📅 Marco seus compromissos\n` +
+      `📊 Respondo "quanto gastei esse mês?" na hora\n\n` +
+      `Sem planilha, sem app novo, sem complicação. Tudo aqui mesmo. Pode mandar áudio também. 🎤\n\n` +
+      `E o que você registrar aqui aparece organizado em *tuddo.pro*.\n\n` +
+      `Pra começar, me manda o último gasto que você teve hoje. Tipo assim:\n\n` +
+      `💬 "Gastei R$18 no café"\n💬 "Mercado R$95"\n💬 "Uber R$22" 👇`;
 
     const ONBOARDING_MSG2 =
       `Ótimo! Já anotei aqui. 📝\n\nAgora me conta uma coisa — assim eu consigo te ajudar de um jeito muito mais certeiro:\n\n*Qual é o seu maior desafio financeiro agora?*\n\n1️⃣ Gasto demais no cartão e não sei exatamente onde\n2️⃣ Minha conta fica no vermelho antes do fim do mês\n3️⃣ Não sei para onde vai o meu dinheiro — ele simplesmente some\n\nSó responde o número (1, 2 ou 3). 😊\n\n${ONBOARDING_DIAGNOSIS_MARKER}`;
@@ -3402,10 +3393,22 @@ serve(async (req) => {
         .limit(5);
 
       const messageCount = totalMessages ?? (allMessages?.length ?? 0);
+
+      // Contar mensagens no inbox não serve como "nunca foi recebido": enquanto
+      // o envio ia pela Evolution desconectada, a boas-vindas era GRAVADA e não
+      // entregue. Esses clientes ficavam com 1 mensagem no inbox e nunca mais
+      // entravam no estágio 0. welcome_sent_at só é marcado quando o envio
+      // confirma, então é a fonte confiável.
+      const { data: perfilWelcome } = await supabase
+        .from("profiles")
+        .select("welcome_sent_at")
+        .eq("id", userId)
+        .maybeSingle();
+      const jaRecebeuBoasVindas = Boolean(perfilWelcome?.welcome_sent_at);
       const lastBotResponse = allMessages && allMessages.length > 0 ? (allMessages[0].response || "") : "";
       const isAwaitingDiagnosis = lastBotResponse.includes(ONBOARDING_DIAGNOSIS_MARKER);
 
-      if (messageCount === 0) {
+      if (!jaRecebeuBoasVindas && messageCount < 5) {
         // ESTÁGIO 0: Primeiro contato — enviar Mensagem 1 de boas-vindas
         const userName = profiles && profiles.length > 0
           ? (profiles[0].full_name || "").split(" ")[0] || "amigo"
@@ -3421,7 +3424,17 @@ serve(async (req) => {
           response: welcomeMsg,
         });
 
-        await sendWhatsAppMessage(remotePhone, welcomeMsg);
+        // Antes ia só pela Evolution, que está desconectada: a mensagem era gravada
+        // no banco e NUNCA chegava ao cliente. Todo cliente novo desde a migração
+        // para a Meta ficou sem boas-vindas por causa disto.
+        const envioBoasVindas = isMeta
+          ? await sendMessageMeta(metaPhoneNumberId, remotePhone, welcomeMsg)
+          : await sendWhatsAppMessage(remotePhone, welcomeMsg);
+        if (!String(envioBoasVindas).startsWith("error")) {
+          await supabase.from("profiles").update({ welcome_sent_at: new Date().toISOString() }).eq("id", userId);
+        } else {
+          console.error("Falha ao enviar boas-vindas:", envioBoasVindas);
+        }
 
         // Agendar Mensagem 2 com delay de 30 minutos via Edge Function (usando setTimeout não é confiável em Deno Deploy)
         // Solução: registrar um flag no banco para que o próximo contato do usuário dispare a MSG2 se ainda não respondeu
@@ -3457,7 +3470,9 @@ serve(async (req) => {
           response: diagnosisReply,
         });
 
-        await sendWhatsAppMessage(remotePhone, diagnosisReply);
+        isMeta
+          ? await sendMessageMeta(metaPhoneNumberId, remotePhone, diagnosisReply)
+          : await sendWhatsAppMessage(remotePhone, diagnosisReply);
 
         return new Response(JSON.stringify({ status: "ok", intent: "onboarding_diagnosis", phone: remotePhone }), {
           status: 200,
@@ -3532,14 +3547,20 @@ serve(async (req) => {
         notifySupportAdmin(clientName, lastInboxMsg.message, metaPhoneNumberId).catch(() => {});
       }
 
-      await supabase.from("inbox_messages").insert({
+      // O query builder do Supabase é "thenable", mas NÃO tem .catch(). Chamar
+      // .catch() direto nele lançava TypeError e derrubava a requisição inteira
+      // com 500 — ou seja, quem confirmava "sim, quero suporte" abria o chamado
+      // e nunca recebia a confirmação. Como não recebia, pedia de novo, e o time
+      // acabava com o mesmo caso repetido várias vezes.
+      const { error: supportInboxError } = await supabase.from("inbox_messages").insert({
         user_id: userId,
         message: text,
         type: "support_requested",
         source: "whatsapp",
         status: "processado",
         response: supportReply,
-      }).catch((e: unknown) => console.error("Inbox insert error:", e));
+      });
+      if (supportInboxError) console.error("Inbox insert error:", supportInboxError);
 
       isMeta
         ? await sendMessageMeta(metaPhoneNumberId, remotePhone, supportReply)
@@ -3737,8 +3758,11 @@ serve(async (req) => {
           response: diagnosisMsg,
         });
 
-        // Enviar ao usuário SEM marcador
-        await sendWhatsAppMessage(remotePhone, diagnosisMsgClean);
+        // Enviar ao usuário SEM marcador (Meta quando veio pela Meta — antes ia
+        // só pela Evolution desconectada e nunca chegava)
+        isMeta
+          ? await sendMessageMeta(metaPhoneNumberId, remotePhone, diagnosisMsgClean)
+          : await sendWhatsAppMessage(remotePhone, diagnosisMsgClean);
       }
     } catch (onboardingFollowErr) {
       console.error("Onboarding follow-up error:", onboardingFollowErr);
