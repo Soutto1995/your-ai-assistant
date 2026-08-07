@@ -1654,6 +1654,45 @@ function reportsSomethingBroken(text: string): boolean {
   return sintomas.some((s) => t.includes(s));
 }
 
+// Identificar o cliente pelo nome de exibição do WhatsApp é o último recurso,
+// usado quando o endereço vem como LID (a Meta oculta o telefone) e o número
+// não está cadastrado.
+//
+// Era feito com ILIKE '%nome%' pegando o PRIMEIRO resultado. Isso é perigoso:
+// um desconhecido chamado "Maria" caía na conta de "Sandra Maria santos", "Ana"
+// na de "Ana Paula", e "and" — três letras, passava no filtro — casava com
+// cinco perfis. Os gastos do desconhecido iam para a conta de um cliente
+// pagante, e o cliente recebia confirmações de coisas que não fez.
+//
+// Agora exige nome EXATO (ignorando acento, caixa e espaço extra) e resultado
+// ÚNICO. Na dúvida, não identifica — melhor pedir cadastro do que escrever na
+// conta errada.
+async function findProfileByExactName(supabase: any, pushName: string) {
+  const alvo = String(pushName || "").trim();
+  // Nome curto demais não identifica ninguém com segurança.
+  if (alvo.length < 4) return null;
+
+  const norm = (v: string) =>
+    v.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, full_name, plan, phone")
+    .ilike("full_name", alvo)   // sem %: casamento exato, só ignorando caixa
+    .limit(2);
+
+  if (error) {
+    console.error("Busca por pushName falhou:", error);
+    return null;
+  }
+  const exatos = (data ?? []).filter((p: any) => norm(p.full_name ?? "") === norm(alvo));
+  if (exatos.length !== 1) {
+    console.warn(`pushName "${alvo}" nao identifica ninguem com seguranca (${exatos.length} candidatos) — ignorando`);
+    return null;
+  }
+  return exatos[0];
+}
+
 async function createSupportRequest(
   supabase: any,
   userId: string,
@@ -1704,6 +1743,17 @@ async function notifySupportAdmin(
   // POST /v23.0/{_metaPhoneId}/messages com type:"template", name:"suporte_tuddo",
   // language:{code:"pt_BR"}, components:[{type:"body",parameters:[{type:"text",text:clientName},{type:"text",text:originalMessage}]}]
 
+  // Ia SÓ pela Evolution, que está desconectada: nenhum aviso de chamado novo
+  // chegava. O cliente pedia suporte, o chamado era aberto, e ninguém do time
+  // ficava sabendo — o caso morria na fila de tuddo.pro/admin/suporte.
+  // Agora tenta a Meta primeiro (o parâmetro já vinha e não era usado) e só
+  // cai na Evolution se a Meta falhar.
+  if (_metaPhoneId) {
+    const r = await sendMessageMeta(_metaPhoneId, adminPhone, msgBody);
+    if (!String(r).startsWith("error")) return;
+    console.error("Admin notify Meta falhou, tentando Evolution:", r);
+  }
+
   const evolutionUrl = Deno.env.get("EVOLUTION_API_URL") ?? "";
   const evolutionKey = Deno.env.get("EVOLUTION_API_INSTANCE_TOKEN") ?? "";
   const instanceName = Deno.env.get("EVOLUTION_API_INSTANCE_NAME") || "Tuddo";
@@ -1715,6 +1765,8 @@ async function notifySupportAdmin(
       body: JSON.stringify({ number: adminPhone, text: msgBody }),
     }).then(r => { if (!r.ok) console.error("Admin notify Evolution error:", r.status); })
       .catch(e => console.error("Admin notify Evolution error:", e));
+  } else {
+    console.error("Chamado aberto e NINGUÉM foi notificado — sem canal de envio");
   }
 }
 
@@ -3137,17 +3189,13 @@ serve(async (req) => {
       let foundByPushName = false;
       
       if (pushName && pushName.length > 2) {
-        const { data: pushNameProfiles } = await supabase
-          .from("profiles")
-          .select("id, full_name, plan, phone")
-          .ilike("full_name", `%${pushName}%`)
-          .limit(1);
-        
-        if (pushNameProfiles && pushNameProfiles.length > 0) {
-          console.log("Found user by pushName:", pushName, "->", pushNameProfiles[0].full_name);
+        const encontrado = await findProfileByExactName(supabase, pushName);
+
+        if (encontrado) {
+          console.log("Found user by pushName:", pushName, "->", encontrado.full_name);
           foundByPushName = true;
           // Usar este perfil e atualizar remotePhone para enviar a resposta
-          remotePhone = pushNameProfiles[0].phone?.replace(/\D/g, "") || remotePhone;
+          remotePhone = encontrado.phone?.replace(/\D/g, "") || remotePhone;
           
           // Salvar mapeamento LID
           if (isLidAddress) {
@@ -3205,15 +3253,11 @@ serve(async (req) => {
     } else {
       // foundByPushName = true, buscar novamente
       const pushName = isMeta ? (_metaExtracted?.pushName ?? "") : _pushName;
-      const { data: pnProfiles } = await supabase
-        .from("profiles")
-        .select("id, full_name, plan")
-        .ilike("full_name", `%${pushName}%`)
-        .limit(1);
-      
-      if (pnProfiles && pnProfiles.length > 0) {
-        userId = pnProfiles[0].id;
-        userPlan = String(pnProfiles[0].plan || "FREE").toUpperCase();
+      const encontrado = await findProfileByExactName(supabase, pushName);
+
+      if (encontrado) {
+        userId = encontrado.id;
+        userPlan = String(encontrado.plan || "FREE").toUpperCase();
       } else {
         return new Response(JSON.stringify({ status: "user_not_found" }), {
           status: 404,

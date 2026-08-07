@@ -48,21 +48,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
+    // Se esta consulta falha e o erro é ignorado, profile fica nulo e o app
+    // trata um assinante como plano grátis: recursos bloqueados, limites do
+    // FREE, menus somem. Uma falha de rede vira "sua assinatura acabou" na cara
+    // do cliente. Por isso o erro é lido, registrado, e o perfil anterior é
+    // PRESERVADO em vez de zerado.
+    const { data, error } = await supabase
       .from("profiles")
       .select("*")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
+
+    if (error) {
+      console.error("Falha ao carregar o perfil:", error);
+      return;
+    }
     setProfile(data);
 
     // Se a pessoa faz parte de uma família, o plano do grupo é que manda.
-    const { data: membership, error } = await supabase
+    const { data: membership, error: familyError } = await supabase
       .from("family_members")
       .select("family_groups(plan)")
       .eq("user_id", userId)
       .maybeSingle();
-    if (error) {
-      console.error("family membership lookup error:", error);
+    if (familyError) {
+      console.error("family membership lookup error:", familyError);
       setFamilyPlan(null);
       return;
     }
