@@ -164,7 +164,8 @@ INTENTS DISPONÍVEIS:
 11. search_files — procurar um ARQUIVO, FOTO, ÁUDIO ou DOCUMENTO que o usuário já enviou antes (ex: "acha o comprovante do mecânico", "cadê a foto do orçamento da obra", "busca a nota fiscal da geladeira", "onde está aquele áudio que mandei sobre o projeto X", "me manda o boleto do condomínio que te enviei")
 12. create_recurring — cadastrar uma conta FIXA que se repete todo mês/semana/ano (ex: "todo dia 10 pago 1200 de aluguel", "meu salário de 5000 cai dia 5", "mensalidade da academia 120 todo dia 15", "todo mês pago 89 de streaming")
 13. cash_flow — mostrar o fluxo de caixa: quanto já entrou/saiu e quanto ainda está previsto (ex: "como fica meu mês?", "quanto vai sobrar?", "fluxo de caixa", "o que ainda tenho pra pagar?", "minha previsão dos próximos meses")
-14. general_query — saudações, perguntas gerais ou qualquer coisa que não se encaixe acima
+14. create_multiple_transactions — VÁRIOS gastos/receitas na MESMA mensagem
+15. general_query — saudações, perguntas gerais ou qualquer coisa que não se encaixe acima
 
 REGRA CRÍTICA — PLANO FAMILIAR (o Tuddo TEM plano compartilhado):
 NUNCA diga que o Tuddo é individual ou que compartilhamento "está em estudo" — é FALSO. Os planos Familiares existem e estão à venda: Familiar 2 (R$ 34,90/mês), Familiar 3 (R$ 44,90/mês) e Familiar 4 (R$ 54,90/mês).
@@ -299,6 +300,37 @@ REGRAS CRÍTICAS DE INTERPRETAÇÃO:
    c) Terceiro: Só se NÃO houver histórico ou a mensagem claramente mudar de assunto, interprete isoladamente
    d) Quarto: Na dúvida, use general_query e PERGUNTE
 10. PAGAMENTOS FUTUROS vs REALIZADOS: Se o usuário diz "Pagar X dia Y" ou "Pagar X no dia Y" com uma DATA FUTURA, é um LEMBRETE (create_task com due_date). Se diz "Paguei X" ou "Gastei X" (passado), é uma transação já realizada (create_transaction). REGRA: verbo no INFINITIVO + data futura = create_task. Verbo no PASSADO = create_transaction.
+10.1. DINHEIRO SEMPRE VENCE "ANOTAR". Verbos como "anotar", "anota", "marca",
+"registra", "coloca", "lança", "põe" NÃO transformam gasto em tarefa. Se a
+mensagem tem um VALOR + uma coisa que se COMPRA (combustível, lanche, mercado,
+farmácia, uber, padaria, gasolina, almoço...), é create_transaction — mesmo com
+o verbo no infinitivo e mesmo sem "gastei".
+  "anotar quarenta de combustível"    -> create_transaction (40, Transporte)
+  "anota 50 do mercado"               -> create_transaction (50, Mercado)
+  "por favor registrar 30 de uber"    -> create_transaction (30, Transporte)
+Só vira create_task quando NÃO há valor OU quando há data futura de PAGAMENTO
+("pagar o IPTU dia 20", "lembrar de pagar a luz sexta").
+
+10.2. VALOR POR EXTENSO É VALOR. O cliente fala como fala, principalmente por
+áudio. Converta número escrito em palavra:
+  "quarenta"              -> 40
+  "nove e cinquenta"      -> 9.50   (X e Y = reais e centavos)
+  "vinte e cinco"         -> 25     (dezena composta, NÃO 20 e 25 centavos)
+  "cento e vinte"         -> 120
+  "mil e duzentos"        -> 1200
+  "dois e cinquenta"      -> 2.50
+  "trinta reais"          -> 30
+  "quinze e noventa"      -> 15.90
+Regra para desfazer a ambiguidade do "e": se a segunda parte for 1-9 ou um
+múltiplo de 10 até 90 E a primeira parte NÃO for dezena exata seguida de
+unidade (vinte e cinco, trinta e dois), trate como CENTAVOS.
+
+10.3. VÁRIOS GASTOS NUMA FRASE = create_multiple_transactions. Se houver dois ou
+mais pares valor+item, crie TODOS, nunca só o primeiro e nunca uma tarefa.
+Formato: data.transactions = [{description, amount, type, category}, ...]
+  "quarenta de combustível e nove e cinquenta de lanche"
+  -> 2 lançamentos: Combustível 40 (Transporte), Lanche 9.50 (Alimentação)
+
 11. CONTAS A VENCER: "Conta de luz dia 15", "Boleto dia 20", "Pagar aluguel dia 10" → SEMPRE create_task com due_date, pois são lembretes de pagamentos futuros.
 12. PARCELAMENTOS: Se o usuário mencionar "em Xx", "parcelado", "em X vezes", "X parcelas", adicione data.installments (número de parcelas) e data.installment_amount (valor de cada parcela = valor total / parcelas). Ex: "Comprei TV 2000 em 10x" → amount: 2000, installments: 10, installment_amount: 200. O intent continua sendo create_transaction.
 13. CATEGORIZAÇÃO INTELIGENTE: Sempre tente inferir a categoria pelo contexto. "Bistek" = Mercado. "Shell" = Transporte. "Farmácia" = Saúde. "Netflix" = Lazer. Se não souber, use "Geral".
@@ -318,6 +350,21 @@ Output: {"intent":"create_task","data":{"description":"Fazer INSS da Luciana","d
 
 Input: "gastei 50 no mercado"
 Output: {"intent":"create_transaction","data":{"description":"Mercado","amount":50,"type":"gasto","category":"Mercado"},"response":"Registrado! Gasto de R$ 50,00 em Mercado. 💸"}
+
+Input: "tudo, por favor, anotar quarenta de combustível e nove e cinquenta de lanche."
+Output: {"intent":"create_multiple_transactions","data":{"transactions":[{"description":"Combustível","amount":40,"type":"gasto","category":"Transporte"},{"description":"Lanche","amount":9.50,"type":"gasto","category":"Alimentação"}]},"response":"Registrei seus 2 lançamentos! ✅\n\n• Combustível: R$ 40,00 (Transporte)\n• Lanche: R$ 9,50 (Alimentação)\n\nTotal de gastos: R$ 49,50 💸"}
+
+Input: "anota 30 de uber"
+Output: {"intent":"create_transaction","data":{"description":"Uber","amount":30,"type":"gasto","category":"Transporte"},"response":"Registrado! Gasto de R$ 30,00 em Transporte. 🚗"}
+
+Input: "vinte e cinco na padaria"
+Output: {"intent":"create_transaction","data":{"description":"Padaria","amount":25,"type":"gasto","category":"Alimentação"},"response":"Registrado! Gasto de R$ 25,00 em Alimentação. 🥐"}
+
+Input: "cento e vinte de farmácia e trinta e dois de estacionamento"
+Output: {"intent":"create_multiple_transactions","data":{"transactions":[{"description":"Farmácia","amount":120,"type":"gasto","category":"Saúde"},{"description":"Estacionamento","amount":32,"type":"gasto","category":"Transporte"}]},"response":"Registrei seus 2 lançamentos! ✅\n\n• Farmácia: R$ 120,00 (Saúde)\n• Estacionamento: R$ 32,00 (Transporte)\n\nTotal de gastos: R$ 152,00 💸"}
+
+Input: "anotar de pagar o IPTU dia 20"
+Output: {"intent":"create_task","data":{"description":"Pagar o IPTU","due_date":"2026-08-20"},"response":"Anotado! Lembrete: Pagar o IPTU no dia 20. ✅"}
 
 Input: "recebi 3500 de salario"
 Output: {"intent":"create_transaction","data":{"description":"Salário","amount":3500,"type":"receita","category":"Outros"},"response":"Registrado! Receita de R$ 3.500,00 (Salário). 💰"}
@@ -499,7 +546,7 @@ Retorne APENAS o JSON.`;
 type JsonRecord = Record<string, unknown>;
 
 type AiResult = {
-  intent: "create_task" | "create_transaction" | "create_meeting" | "create_multiple_meetings" | "create_multiple_tasks" | "list_items" | "create_goal" | "list_goals" | "create_budget" | "create_folder" | "list_folders" | "assign_folder" | "search_files" | "create_recurring" | "cash_flow" | "general_query";
+  intent: "create_task" | "create_transaction" | "create_multiple_transactions" | "create_meeting" | "create_multiple_meetings" | "create_multiple_tasks" | "list_items" | "create_goal" | "list_goals" | "create_budget" | "create_folder" | "list_folders" | "assign_folder" | "search_files" | "create_recurring" | "cash_flow" | "general_query";
   data: JsonRecord;
   response: string;
 };
@@ -751,7 +798,7 @@ function extractAiJson(content: string): AiResult | null {
     const data = isRecord(parsed.data) ? parsed.data : {};
 
     return {
-      intent: ["create_task", "create_transaction", "create_meeting", "create_multiple_meetings", "create_multiple_tasks", "list_items", "create_goal", "list_goals", "create_budget", "create_folder", "list_folders", "assign_folder", "search_files", "create_recurring", "cash_flow", "general_query"].includes(intent)
+      intent: ["create_task", "create_transaction", "create_multiple_transactions", "create_meeting", "create_multiple_meetings", "create_multiple_tasks", "list_items", "create_goal", "list_goals", "create_budget", "create_folder", "list_folders", "assign_folder", "search_files", "create_recurring", "cash_flow", "general_query"].includes(intent)
         ? (intent as AiResult["intent"])
         : "general_query",
       data,
@@ -891,13 +938,26 @@ async function interpretMessage(message: string, now: Date = new Date()): Promis
 
     let response = await askOpenAI();
 
+    // 429 = teto de tokens por minuto da conta OpenAI. Com o prompt atual
+    // (~15 mil tokens) e limite de 30 mil TPM, dois clientes escrevendo no
+    // mesmo minuto já estouram — e o segundo levava uma mensagem de erro.
+    // Uma espera curta costuma resolver, porque a janela é por minuto.
+    if (response.status === 429) {
+      console.warn("OpenAI 429 (teto de tokens por minuto) — aguardando e tentando de novo");
+      await new Promise((r) => setTimeout(r, 6000));
+      response = await askOpenAI();
+    }
+
     if (!response.ok) {
       const detalhe = await response.text();
       console.error("OpenAI error:", response.status, detalhe);
+      const excedeuCota = response.status === 429;
       return {
         intent: "general_query",
         data: {},
-        response: "Recebi sua mensagem, mas estou com dificuldade para processar agora. Tente novamente! 🙏",
+        response: excedeuCota
+          ? "Estou com muitas mensagens ao mesmo tempo agora. 😅 Me manda de novo em uns segundinhos que eu registro na hora!"
+          : "Recebi sua mensagem, mas estou com dificuldade para processar agora. Tente novamente! 🙏",
       };
     }
 
@@ -1994,6 +2054,76 @@ async function executeIntentAction(
     // -------------------------------------------------------
     // CRIAR COMPROMISSO / REUNIÃO
     // -------------------------------------------------------
+    // Vários gastos numa frase só. Sem este intent, "40 de combustível e 9,50
+    // de lanche" não tinha como virar dois lançamentos: existia
+    // create_multiple_tasks e create_multiple_meetings, mas nada equivalente
+    // para dinheiro. O modelo escolhia o único "múltiplo" que cabia e criava
+    // TAREFAS — foi o que um cliente recebeu.
+    case "create_multiple_transactions": {
+      const rawTx = Array.isArray(data.transactions) ? data.transactions : [];
+      if (rawTx.length === 0) {
+        return "Não consegui identificar os lançamentos. Pode mandar assim?\n\n40 de combustível\n9,50 de lanche 😊";
+      }
+
+      const txLimitMsg = await checkFeatureLimit(supabase, userId, userPlan, "transaction");
+      if (txLimitMsg) return txLimitMsg;
+
+      const explicitPayerMulti = typeof data.paid_by === "string" && data.paid_by.trim()
+        ? data.paid_by.trim()
+        : null;
+      const paidByNameMulti = explicitPayerMulti ?? sender.name;
+      const paidByUserIdMulti = explicitPayerMulti ? null : sender.userId;
+
+      const validos = rawTx.filter(
+        (t: any) => isRecord(t) && Math.abs(Number(t.amount) || 0) > 0,
+      );
+      if (validos.length === 0) {
+        return "Entendi que são lançamentos, mas não peguei os valores. Pode repetir com os números? 😊";
+      }
+
+      const linhas: Array<{ desc: string; valor: number; tipo: string; cat: string }> = [];
+      for (const t of validos) {
+        const desc = typeof t.description === "string" && t.description.trim()
+          ? t.description.trim()
+          : "Lançamento";
+        linhas.push({
+          desc,
+          valor: Math.abs(Number(t.amount) || 0),
+          tipo: typeof t.type === "string" && t.type.trim() ? t.type : "gasto",
+          cat: typeof t.category === "string" && t.category.trim()
+            ? t.category.trim()
+            : await categorizeExpense(desc),
+        });
+      }
+
+      const rows = linhas.map((l) => ({
+        user_id: userId,
+        description: l.desc,
+        amount: l.valor,
+        type: l.tipo,
+        category: l.cat,
+        paid_by_name: paidByNameMulti,
+        paid_by_user_id: paidByUserIdMulti,
+      }));
+
+      const { error: multiTxError } = await supabase.from("transactions").insert(rows);
+      if (multiTxError) {
+        console.error("Multiple transactions insert error:", multiTxError);
+        return "Ops, não consegui registrar esses lançamentos. Tente novamente! 😅";
+      }
+
+      const fmt = (v: number) => v.toLocaleString("pt-BR", { minimumFractionDigits: 2 });
+      const total = linhas.reduce((acc, l) => acc + (l.tipo === "receita" ? 0 : l.valor), 0);
+      const lista = linhas
+        .map((l) => `• ${l.desc}: R$ ${fmt(l.valor)} (${l.cat})`)
+        .join("\n");
+
+      return (
+        aiResponse ||
+        `Registrei seus ${rows.length} lançamentos! ✅\n\n${lista}\n\nTotal de gastos: R$ ${fmt(total)} 💸`
+      );
+    }
+
     case "create_meeting": {
       const meetingDateRaw = typeof data.meeting_date === "string" ? data.meeting_date : null;
 
