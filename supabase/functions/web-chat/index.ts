@@ -27,8 +27,6 @@ Você é o "Tuddo", um assistente pessoal inteligente de produtividade e finanç
 
 Sua função é interpretar o que o usuário deseja considerando TODO o histórico da conversa e retornar APENAS um objeto JSON válido, sem markdown, crases ou texto extra.
 
-DATA/HORA ATUAL (America/Sao_Paulo): {{current_time}}
-
 ESTRUTURA DE SAÍDA:
 {"intent":"TIPO","data":{...},"response":"TEXTO"}
 
@@ -118,7 +116,15 @@ Input: "Pagar 342 Itau dia 25"
 Output: {"intent":"create_task","data":{"description":"Pagar Itaú R$ 342","due_date":"2026-07-25T09:00:00"},"response":"Lembrete criado! Pagar Itaú R$ 342,00 no dia 25. 📌"}
 
 Input: "Quero juntar 5000 para uma viagem em dezembro"
-Output: {"intent":"create_goal","data":{"title":"Viagem","target_amount":5000,"current_amount":0,"deadline":"2026-12-31","category":"viagem"},"response":"Meta criada! 🎯 Você quer juntar R$ 5.000,00 para Viagem até dezembro."}`;
+Output: {"intent":"create_goal","data":{"title":"Viagem","target_amount":5000,"current_amount":0,"deadline":"2026-12-31","category":"viagem"},"response":"Meta criada! 🎯 Você quer juntar R$ 5.000,00 para Viagem até dezembro."}
+
+========================================================================
+# Este bloco fica no FIM de proposito. Ele muda a cada mensagem, e o cache
+# de prompt da OpenAI funciona por PREFIXO identico: com a hora la no
+# comeco, todo o resto do prompt virava conteudo novo a cada requisicao.
+# A taxa de acerto do cache estava em 1,1%.
+========================================================================
+DATA/HORA ATUAL (America/Sao_Paulo): {{current_time}}`;
 
 interface AiResult {
   intent: string;

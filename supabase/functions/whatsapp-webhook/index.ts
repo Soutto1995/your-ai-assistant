@@ -143,8 +143,6 @@ Você é o "Tuddo", um assistente pessoal inteligente de produtividade e finanç
 
 Sua função é interpretar o que o usuário deseja considerando TODO o histórico da conversa e retornar APENAS um objeto JSON válido, sem markdown, crases ou texto extra.
 
-DATA/HORA ATUAL (America/Sao_Paulo): {{current_time}}
-
 ESTRUTURA DE SAÍDA:
 {"intent":"TIPO","data":{...},"response":"TEXTO"}
 
@@ -541,7 +539,15 @@ TUDDO: Desculpa! Você quis dizer que Granja é o nome da segunda pasta?
 Mensagem atual: "E grupo 3 Uber"
 Output: {"intent":"create_folder","data":{"folders":[{"name":"Casa","emoji":"🏠"},{"name":"Granja","emoji":"🌾"},{"name":"Uber","emoji":"🚗"}]},"response":"Agora sim! Criei suas pastas:\n\n🏠 Casa\n🌾 Granja\n🚗 Uber\n\nQuando você mencionar o nome da pasta no gasto (ex: "gastei 50 na Granja"), eu já registro direto lá. Se esquecer, é só me pedir depois: "coloca esse gasto na Casa". 💪"}
 
-Retorne APENAS o JSON.`;
+Retorne APENAS o JSON.
+
+========================================================================
+# Este bloco fica no FIM de proposito. Ele muda a cada mensagem, e o cache
+# de prompt da OpenAI funciona por PREFIXO identico: com a hora la no
+# comeco, todo o resto do prompt virava conteudo novo a cada requisicao.
+# A taxa de acerto do cache estava em 1,1%.
+========================================================================
+DATA/HORA ATUAL (America/Sao_Paulo): {{current_time}}`;
 
 type JsonRecord = Record<string, unknown>;
 
@@ -962,6 +968,18 @@ async function interpretMessage(message: string, now: Date = new Date()): Promis
     }
 
     let payload = await response.json();
+
+    // Registra o aproveitamento do cache. A taxa estava em 1,1% porque a
+    // data/hora ficava no INÍCIO do prompt e mudava a cada segundo — o cache
+    // da OpenAI casa por PREFIXO, então tudo depois dela era recobrado.
+    try {
+      const u = payload?.usage;
+      const cache = u?.prompt_tokens_details?.cached_tokens ?? 0;
+      const entrada = u?.prompt_tokens ?? 0;
+      const pct = entrada > 0 ? Math.round((cache / entrada) * 100) : 0;
+      console.log(`Tokens: entrada=${entrada} cache=${cache} (${pct}%) saida=${u?.completion_tokens ?? 0}`);
+    } catch { /* medição nunca pode derrubar o atendimento */ }
+
     let content = payload?.choices?.[0]?.message?.content;
     let aiJson = typeof content === "string" ? extractAiJson(content) : null;
 
