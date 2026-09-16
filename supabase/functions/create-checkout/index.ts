@@ -27,6 +27,25 @@ const PRICE_TO_PLAN: Record<string, "STARTER" | "PRO" | "FAMILY_2" | "FAMILY_3" 
   "price_1U0DBoPpu2ogE0DAqULPPX1g": "FAMILY_4", // Family 4 Anual
 };
 
+// Preços MENSAIS descontinuados.
+//
+// A partir de setembro de 2026 só vendemos plano anual, com desconto já
+// aplicado. Estes IDs continuam existindo no Stripe porque quem assinou antes
+// segue sendo cobrado normalmente — arquivar preço no Stripe impede novas
+// assinaturas, não cancela as existentes.
+//
+// O bloqueio fica no SERVIDOR porque um navegador com bundle antigo em cache
+// ainda pode mandar um ID mensal. De propósito NÃO traduzimos para o anual:
+// quem clicou esperando R$ 24,90 não pode ser cobrado em R$ 239,90 sem saber.
+// Melhor pedir para atualizar a página.
+const PRECOS_MENSAIS_DESCONTINUADOS = new Set([
+  "price_1TZtTLPpu2ogE0DArUc286V7", // Starter Mensal
+  "price_1TZtTQPpu2ogE0DACHSzeF2b", // PRO Mensal
+  "price_1U0DBmPpu2ogE0DAtD4JD4NK", // Familiar 2 Mensal
+  "price_1U0DBmPpu2ogE0DAuiahuEse", // Familiar 3 Mensal
+  "price_1U0DBnPpu2ogE0DA9JcPuA2u", // Familiar 4 Mensal
+]);
+
 // Tradução de price IDs legados -> atuais.
 //
 // Os planos Familiares foram criados originalmente numa conta Stripe errada
@@ -97,6 +116,20 @@ Deno.serve(async (req) => {
       console.log(`Legacy priceId ${rawPriceId} traduzido para ${priceId}`);
     }
 
+    // Só vendemos anual. Um bundle antigo em cache ainda pode mandar um ID
+    // mensal — aí pedimos para atualizar a página, em vez de cobrar o valor
+    // anual de quem clicou esperando a mensalidade.
+    if (PRECOS_MENSAIS_DESCONTINUADOS.has(priceId)) {
+      console.warn(`Tentativa de checkout em preço mensal descontinuado: ${priceId}`);
+      return new Response(
+        JSON.stringify({
+          error:
+            "O plano mensal foi descontinuado. Atualize a página (Ctrl+Shift+R) para ver os planos anuais, que já vêm com desconto.",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Authoritative: derive plan from priceId, never trust client.
     const resolvedPlan = PRICE_TO_PLAN[priceId];
     if (!resolvedPlan) {
@@ -127,7 +160,10 @@ Deno.serve(async (req) => {
       customer: customerId,
       customer_email: customerId ? undefined : (email ?? user.email),
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+      // plan e period são LIDOS pela tela de sucesso para disparar o pixel de
+      // conversão com o valor certo. Sem eles, o pixel reportava o valor MENSAL
+      // de Starter para toda compra — inclusive um Familiar 4 anual de R$ 538,80.
+      success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}&plan=${resolvedPlan}&period=annual`,
       cancel_url: `${origin}/pricing`,
       metadata: {
         userId: user.id,

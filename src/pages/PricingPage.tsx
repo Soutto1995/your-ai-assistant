@@ -3,27 +3,27 @@ import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Check, Zap, Crown, Coffee, TrendingUp, Loader2, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const PRICE_STARTER_MONTHLY = 'price_1TZtTLPpu2ogE0DArUc286V7';
+// Só vendemos ANUAL. Os preços mensais continuam existindo no Stripe porque
+// quem já assinou no mensal segue sendo cobrado normalmente — arquivar um preço
+// no Stripe impede novas assinaturas, não cancela as existentes. Eles não são
+// mais oferecidos em lugar nenhum do site.
 const PRICE_STARTER_YEARLY = 'price_1TZtTOPpu2ogE0DAlT08sf53';
-const PRICE_PRO_MONTHLY = 'price_1TZtTQPpu2ogE0DACHSzeF2b';
 const PRICE_PRO_YEARLY = 'price_1TZtTTPpu2ogE0DAojmyQdPB';
 
 const familyPlans = [
   {
     name: "Familiar Casal",
     members: 2,
-    monthlyLabel: "R$ 34,90/mês",
+    riscado: "R$ 34,90/mês",
     annualMonthly: "R$ 29,90/mês",
     annualLabel: "R$ 358,80/ano",
     annualSavings: "Economize R$ 60/ano",
     individualSavings: "vs. 2x PRO: economize ~R$ 60/mês",
-    priceId: "price_1U0DBmPpu2ogE0DAtD4JD4NK",
     yearlyPriceId: "price_1U0DBmPpu2ogE0DARdZhvTK6",
     planKey: "FAMILY_2",
     highlight: false,
@@ -31,12 +31,11 @@ const familyPlans = [
   {
     name: "Familiar 3",
     members: 3,
-    monthlyLabel: "R$ 44,90/mês",
+    riscado: "R$ 44,90/mês",
     annualMonthly: "R$ 37,90/mês",
     annualLabel: "R$ 454,80/ano",
     annualSavings: "Economize R$ 84/ano",
     individualSavings: "vs. 3x PRO: economize ~R$ 100/mês",
-    priceId: "price_1U0DBmPpu2ogE0DAuiahuEse",
     yearlyPriceId: "price_1U0DBnPpu2ogE0DA5Law7dAV",
     planKey: "FAMILY_3",
     highlight: true,
@@ -44,12 +43,11 @@ const familyPlans = [
   {
     name: "Familiar 4",
     members: 4,
-    monthlyLabel: "R$ 54,90/mês",
+    riscado: "R$ 54,90/mês",
     annualMonthly: "R$ 44,90/mês",
     annualLabel: "R$ 538,80/ano",
     annualSavings: "Economize R$ 120/ano",
     individualSavings: "vs. 4x PRO: economize ~R$ 144/mês",
-    priceId: "price_1U0DBnPpu2ogE0DA9JcPuA2u",
     yearlyPriceId: "price_1U0DBoPpu2ogE0DAqULPPX1g",
     planKey: "FAMILY_4",
     highlight: false,
@@ -62,7 +60,7 @@ const plans = [
     icon: <Check className="w-6 h-6" />,
     monthly: 0,
     annual: 0,
-    monthlyLabel: "R$ 0",
+    riscado: "",
     annualLabel: "R$ 0",
     annualMonthly: "",
     dailyCost: "",
@@ -78,15 +76,15 @@ const plans = [
     icon: <Zap className="w-6 h-6" />,
     monthly: 19.9,
     annual: 199.9,
-    monthlyLabel: "R$ 19,90/mês",
+    riscado: "R$ 19,90/mês",
     annualLabel: "R$ 199,90/ano",
     annualMonthly: "R$ 16,65/mês",
-    dailyCost: "R$ 0,66",
+    annualSavings: "Economize R$ 39 por ano",
+    dailyCost: "R$ 0,55",
     limit: "200 mensagens/mês",
     features: ["200 mensagens por mês", "Tudo do plano Grátis", "Prioridade no suporte", "Relatórios semanais"],
     cta: "Quero o Plano Starter",
     highlight: false,
-    priceId: PRICE_STARTER_MONTHLY,
     yearlyPriceId: PRICE_STARTER_YEARLY,
     planKey: "STARTER",
   },
@@ -95,22 +93,21 @@ const plans = [
     icon: <Crown className="w-6 h-6" />,
     monthly: 24.9,
     annual: 239.9,
-    monthlyLabel: "R$ 24,90/mês",
+    riscado: "R$ 24,90/mês",
     annualLabel: "R$ 239,90/ano",
     annualMonthly: "R$ 19,99/mês",
-    dailyCost: "R$ 0,83",
+    annualSavings: "Economize R$ 59 por ano",
+    dailyCost: "R$ 0,67",
     limit: "Mensagens ilimitadas",
     features: ["Mensagens ilimitadas", "Tudo do plano Starter", "IA avançada", "Integrações premium", "Leitura de fotos e áudios"],
     cta: "Quero o Plano PRO",
     highlight: true,
-    priceId: PRICE_PRO_MONTHLY,
     yearlyPriceId: PRICE_PRO_YEARLY,
     planKey: "PRO",
   },
 ];
 
 export default function PricingPage() {
-  const [annual, setAnnual] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const { user, session } = useAuth();
   const navigate = useNavigate();
@@ -172,12 +169,9 @@ export default function PricingPage() {
           <p className="text-muted-foreground text-sm">
             Comece grátis e evolua conforme sua necessidade.
           </p>
-          <div className="flex items-center justify-center gap-3 pt-2">
-            <span className={`text-sm font-medium ${!annual ? "text-foreground" : "text-muted-foreground"}`}>Mensal</span>
-            <Switch checked={annual} onCheckedChange={setAnnual} />
-            <span className={`text-sm font-medium ${annual ? "text-foreground" : "text-muted-foreground"}`}>
-              Anual <span className="text-xs text-primary">(20% off)</span>
-            </span>
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold">
+            <TrendingUp className="w-3.5 h-3.5" />
+            PLANO ANUAL — DESCONTO JÁ APLICADO
           </div>
         </div>
 
@@ -218,29 +212,20 @@ export default function PricingPage() {
                   <div>
                     {plan.monthly === 0 ? (
                       <p className="text-2xl md:text-3xl font-bold text-foreground">Grátis</p>
-                    ) : plan.name === "PRO" ? (
-                      <>
-                        <p className="text-lg md:text-xl font-bold text-primary">
-                          apenas {annual ? "R$ 0,67" : plan.dailyCost} por dia
-                        </p>
-                        {annual ? (
-                          <>
-                            <p className="text-sm text-muted-foreground mt-1">{plan.annualMonthly}</p>
-                            <p className="text-xs text-muted-foreground">{plan.annualLabel}</p>
-                            <p className="text-xs font-semibold text-primary mt-1">Economize R$ 59 por ano!</p>
-                          </>
-                        ) : (
-                          <p className="text-sm text-muted-foreground mt-1">{plan.monthlyLabel}</p>
-                        )}
-                      </>
-                    ) : annual ? (
-                      <>
-                        <p className="text-2xl md:text-3xl font-bold text-foreground">{plan.annualMonthly}</p>
-                        <p className="text-xs text-muted-foreground">{plan.annualLabel}</p>
-                        <p className="text-xs font-semibold text-primary mt-1">Economize R$ 30 por ano!</p>
-                      </>
                     ) : (
-                      <p className="text-2xl md:text-3xl font-bold text-foreground">{plan.monthlyLabel}</p>
+                      <>
+                        <p className="text-xs text-muted-foreground line-through">{(plan as any).riscado}</p>
+                        <p className="text-2xl md:text-3xl font-bold text-foreground">{plan.annualMonthly}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {plan.annualLabel} · cobrança única
+                        </p>
+                        <p className="text-xs font-semibold text-primary mt-1">
+                          {(plan as any).annualSavings}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          menos de {plan.dailyCost} por dia
+                        </p>
+                      </>
                     )}
                   </div>
                   <CardDescription>{plan.limit}</CardDescription>
@@ -263,7 +248,7 @@ export default function PricingPage() {
                       className="w-full"
                       variant={plan.highlight ? "default" : "outline"}
                       disabled={isLoading}
-                      onClick={() => handleCheckout(annual && (plan as any).yearlyPriceId ? (plan as any).yearlyPriceId : plan.priceId, plan.planKey)}
+                      onClick={() => handleCheckout((plan as any).yearlyPriceId, plan.planKey)}
                     >
                       {isLoading ? (
                         <>
@@ -315,15 +300,12 @@ export default function PricingPage() {
                     </div>
                     <CardTitle className="text-base md:text-lg">{plan.name}</CardTitle>
                     <div>
-                      {annual ? (
-                        <>
-                          <p className="text-2xl md:text-3xl font-bold text-foreground">{plan.annualMonthly}</p>
-                          <p className="text-xs text-muted-foreground">{plan.annualLabel}</p>
-                          <p className="text-xs font-semibold text-primary mt-1">{plan.annualSavings}</p>
-                        </>
-                      ) : (
-                        <p className="text-2xl md:text-3xl font-bold text-foreground">{plan.monthlyLabel}</p>
-                      )}
+                      <p className="text-xs text-muted-foreground line-through">{(plan as any).riscado}</p>
+                      <p className="text-2xl md:text-3xl font-bold text-foreground">{plan.annualMonthly}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {plan.annualLabel} · cobrança única
+                      </p>
+                      <p className="text-xs font-semibold text-primary mt-1">{plan.annualSavings}</p>
                     </div>
                     <CardDescription>{plan.members} pessoas</CardDescription>
                     <div className="inline-block text-[10px] font-semibold uppercase tracking-wider text-primary bg-primary/10 rounded-full px-2 py-0.5">
@@ -349,7 +331,7 @@ export default function PricingPage() {
                       className="w-full"
                       variant={plan.highlight ? "default" : "outline"}
                       disabled={isLoading}
-                      onClick={() => handleCheckout(annual ? plan.yearlyPriceId : plan.priceId, plan.planKey)}
+                      onClick={() => handleCheckout(plan.yearlyPriceId, plan.planKey)}
                     >
                       {isLoading ? (
                         <>

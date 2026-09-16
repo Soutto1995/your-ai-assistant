@@ -2,40 +2,16 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import {
-  Check,
-  Zap,
-  Crown,
-  DollarSign,
-  CheckSquare,
-  Calendar,
-  MessageCircle,
-  Send,
-  Menu,
-  X,
-  Star,
-  ChevronRight,
-  Coffee,
-  TrendingUp,
-  Lock,
-  ShieldCheck,
-  Users,
-  Award,
-  ArrowRight,
-  Coins,
-} from "lucide-react";
+import { ArrowRight, Award, Calendar, Check, CheckSquare, ChevronRight, Coffee, Coins, Crown, DollarSign, EyeOff, FileSpreadsheet, Lock, Menu, MessageCircle, Send, ShieldAlert, ShieldCheck, Star, TrendingUp, Users, X, Zap } from "lucide-react";
 
 /* ── Plan data ── */
-const STRIPE_LINK_STARTER_MONTHLY = 'https://buy.stripe.com/7sYdRbaYRcWtedc9ZsefC00';
 const STRIPE_LINK_STARTER_YEARLY = 'https://buy.stripe.com/eVqeVfff7e0x9WWb3wefC01';
-const STRIPE_LINK_PRO_MONTHLY = 'https://buy.stripe.com/fZudRbaYRbSpedcb3wefC02';
 const STRIPE_LINK_PRO_YEARLY = 'https://buy.stripe.com/dRm4gB5Exf4B9WW7RkefC03';
 
 const plans = [
@@ -55,7 +31,6 @@ const plans = [
     cta: "Começar agora",
     highlight: false,
     monthly: 0,
-    stripeMonthly: "",
     stripeYearly: "",
   },
   {
@@ -64,7 +39,8 @@ const plans = [
     monthlyLabel: "R$ 19,90/mês",
     annualLabel: "R$ 199,90/ano",
     annualMonthly: "R$ 16,65/mês",
-    dailyCost: "R$ 0,66",
+    annualSavings: "Economize R$ 39 por ano",
+    dailyCost: "R$ 0,55",
     limit: "200 mensagens/mês",
     features: [
       "200 mensagens por mês",
@@ -75,7 +51,6 @@ const plans = [
     cta: "Quero o Plano Starter",
     highlight: false,
     monthly: 19.9,
-    stripeMonthly: STRIPE_LINK_STARTER_MONTHLY,
     stripeYearly: STRIPE_LINK_STARTER_YEARLY,
   },
   {
@@ -84,7 +59,8 @@ const plans = [
     monthlyLabel: "R$ 24,90/mês",
     annualLabel: "R$ 239,90/ano",
     annualMonthly: "R$ 19,99/mês",
-    dailyCost: "R$ 0,83",
+    annualSavings: "Economize R$ 59 por ano",
+    dailyCost: "R$ 0,67",
     limit: "Mensagens ilimitadas",
     features: [
       "Mensagens ilimitadas",
@@ -97,7 +73,6 @@ const plans = [
     cta: "Quero o Plano PRO",
     highlight: true,
     monthly: 24.9,
-    stripeMonthly: STRIPE_LINK_PRO_MONTHLY,
     stripeYearly: STRIPE_LINK_PRO_YEARLY,
   },
 ];
@@ -171,20 +146,17 @@ const faqs = [
 /* ── Pain point icons ── */
 const painPoints = [
   {
-    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/BUokifsxwuIrJSJa.png",
-    iconAlt: "Ícone de planilhas e caos financeiro",
+    Icon: FileSpreadsheet,
     title: "Planilhas Complicadas",
     desc: "Você abre sua planilha de gastos e sente um calafrio? Horas perdidas para um controle que nunca fica em dia.",
   },
   {
-    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/OBYYiBqXNJNOeorl.png",
-    iconAlt: "Ícone de tempo e dinheiro perdidos",
+    Icon: EyeOff,
     title: "Falta de Visibilidade",
     desc: 'O salário cai, as contas chegam, e no fim do mês você se pergunta: "para onde foi meu dinheiro?"',
   },
   {
-    icon: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/RsinrKUQwRRhLCui.png",
-    iconAlt: "Ícone de privacidade e segurança",
+    Icon: ShieldAlert,
     title: "Segurança Questionável",
     desc: "Cansado de aplicativos que pedem a senha do seu banco? A segurança dos seus dados não deveria ser uma preocupação.",
   },
@@ -193,7 +165,6 @@ const painPoints = [
 /* ── Main Page ── */
 export default function HomePage() {
   const [mobileNav, setMobileNav] = useState(false);
-  const [annual, setAnnual] = useState(false);
   const [remainingSpots, setRemainingSpots] = useState<number | null>(null);
 
   useEffect(() => {
@@ -282,14 +253,48 @@ export default function HomePage() {
                 className="relative w-[260px] md:w-[300px] h-auto rounded-[44px] border-8 border-black overflow-hidden shadow-2xl animate-fade-in"
                 style={{ aspectRatio: "390 / 844" }}
               >
-                <video
-                  src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/IJyuzrScDPYuDUgP.mp4"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="w-full h-full object-cover"
-                />
+                {/* Simulação da conversa no WhatsApp.
+                    Antes havia um vídeo hospedado em CDN de terceiro que saiu do
+                    ar (403) — a primeira coisa que o visitante via era um
+                    quadrado quebrado. Feito em HTML/CSS, não depende de nada
+                    externo e mostra o produto funcionando. */}
+                <div className="w-full h-full bg-[#0b141a] flex flex-col">
+                  <div className="flex items-center gap-2 px-3 py-2.5 bg-[#1f2c34] shrink-0">
+                    <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center text-primary-foreground font-bold text-sm">
+                      T
+                    </div>
+                    <div className="leading-tight">
+                      <p className="text-white text-xs font-semibold">Tuddo</p>
+                      <p className="text-[10px] text-emerald-400">online</p>
+                    </div>
+                  </div>
+                  <div className="flex-1 p-2.5 space-y-2 overflow-hidden">
+                    {[
+                      { de: "user", txt: "gastei 50 no mercado" },
+                      { de: "bot", txt: "Registrado! Gasto de R$ 50,00 em Mercado 💸" },
+                      { de: "user", txt: "lembrar de pagar o IPTU dia 20" },
+                      { de: "bot", txt: "Anotado! Vou te lembrar no dia 20 ✅" },
+                      { de: "user", txt: "quanto gastei esse mês?" },
+                      { de: "bot", txt: "R$ 1.847,30 📊\nMaior categoria: Mercado" },
+                    ].map((m, i) => (
+                      <div
+                        key={i}
+                        className={`flex ${m.de === "user" ? "justify-end" : "justify-start"} animate-fade-in`}
+                        style={{ animationDelay: `${i * 0.4}s`, animationFillMode: "backwards" }}
+                      >
+                        <div
+                          className={`max-w-[80%] px-2.5 py-1.5 rounded-lg text-[11px] leading-snug whitespace-pre-line ${
+                            m.de === "user"
+                              ? "bg-[#005c4b] text-white rounded-br-none"
+                              : "bg-[#1f2c34] text-gray-100 rounded-bl-none"
+                          }`}
+                        >
+                          {m.txt}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -362,55 +367,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ─── TRANSFORMAÇÃO VISUAL ─── */}
-      <section className="py-16 md:py-24 bg-card/50 px-4">
-        <div className="max-w-5xl mx-auto space-y-10">
-          <h2 className="text-2xl md:text-3xl font-display font-bold text-center">
-            De caos a controle. <span className="gold-text">Em um instante.</span>
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-6 items-center">
-            {/* ANTES */}
-            <div className="bg-card border border-destructive/20 rounded-xl overflow-hidden">
-              <img
-                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/YoVTATftbXlXNpFJ.jpg"
-                alt="Antes: planilhas e caos financeiro"
-                className="w-full h-48 md:h-56 object-cover"
-                loading="lazy"
-              />
-              <div className="p-5 text-center space-y-2">
-                <span className="inline-block bg-destructive/10 text-destructive text-xs font-semibold px-3 py-1 rounded-full">
-                  ANTES
-                </span>
-                <p className="text-sm text-muted-foreground">Caos, desorganização, estresse</p>
-              </div>
-            </div>
-
-            {/* Seta */}
-            <div className="flex items-center justify-center">
-              <div className="w-14 h-14 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
-                <ArrowRight className="w-6 h-6 text-primary" />
-              </div>
-            </div>
-
-            {/* DEPOIS */}
-            <div className="bg-card border border-primary/20 rounded-xl overflow-hidden">
-              <img
-                src="https://files.manuscdn.com/user_upload_by_module/session_file/310519663357834422/XnBwLDCcNjyHsyyA.jpg"
-                alt="Depois: dashboard Tuddo organizado"
-                className="w-full h-48 md:h-56 object-cover"
-                loading="lazy"
-              />
-              <div className="p-5 text-center space-y-2">
-                <span className="inline-block bg-primary/10 text-primary text-xs font-semibold px-3 py-1 rounded-full">
-                  DEPOIS
-                </span>
-                <p className="text-sm text-muted-foreground">Clareza, controle, paz</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ─── AGITAÇÃO DA DOR ─── */}
       <section className="py-16 md:py-24 px-4">
         <div className="max-w-5xl mx-auto space-y-10">
@@ -423,13 +379,9 @@ export default function HomePage() {
                 key={pain.title}
                 className="bg-card border border-border rounded-xl p-6 space-y-4 hover:border-destructive/30 transition-colors text-center"
               >
-                <img
-                  src={pain.icon}
-                  alt={pain.iconAlt}
-                  className="w-[72px] h-[72px] mx-auto object-contain mb-4"
-                  style={{ background: "transparent" }}
-                  loading="lazy"
-                />
+                <div className="w-[72px] h-[72px] mx-auto mb-4 rounded-2xl bg-destructive/10 flex items-center justify-center">
+                  <pain.Icon className="w-9 h-9 text-destructive" />
+                </div>
                 <h3 className="font-display font-semibold text-lg text-foreground">{pain.title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">{pain.desc}</p>
               </div>
@@ -587,14 +539,9 @@ export default function HomePage() {
             <h2 className="text-2xl md:text-3xl font-display font-bold">
               Escolha o plano perfeito para <span className="gold-text">você</span>
             </h2>
-            <div className="flex items-center justify-center gap-3 pt-2">
-              <span className={`text-sm font-medium ${!annual ? "text-foreground" : "text-muted-foreground"}`}>
-                Mensal
-              </span>
-              <Switch checked={annual} onCheckedChange={setAnnual} />
-              <span className={`text-sm font-medium ${annual ? "text-foreground" : "text-muted-foreground"}`}>
-                Anual <span className="text-xs text-primary">(20% off)</span>
-              </span>
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-semibold">
+              <TrendingUp className="w-3.5 h-3.5" />
+              PLANO ANUAL — DESCONTO JÁ APLICADO
             </div>
           </div>
 
@@ -633,29 +580,15 @@ export default function HomePage() {
                   <h3 className="font-display font-semibold text-lg">{plan.name}</h3>
                   {plan.monthly === 0 ? (
                     <p className="text-3xl font-bold text-foreground">Grátis</p>
-                  ) : plan.name === "PRO" ? (
-                    <>
-                      <p className="text-lg md:text-xl font-bold text-primary">
-                        apenas {annual ? "R$ 0,67" : (plan as any).dailyCost} por dia
-                      </p>
-                      {annual ? (
-                        <>
-                          <p className="text-sm text-muted-foreground mt-1">{plan.annualMonthly}</p>
-                          <p className="text-xs text-muted-foreground">{plan.annualLabel}</p>
-                          <p className="text-xs font-semibold text-primary mt-1">Economize R$ 59 por ano!</p>
-                        </>
-                      ) : (
-                        <p className="text-sm text-muted-foreground mt-1">{plan.monthlyLabel}</p>
-                      )}
-                    </>
-                  ) : annual ? (
-                    <>
-                      <p className="text-3xl font-bold text-foreground">{plan.annualMonthly}</p>
-                      <p className="text-xs text-muted-foreground">{plan.annualLabel}</p>
-                      <p className="text-xs font-semibold text-primary mt-1">Economize R$ 30 por ano!</p>
-                    </>
                   ) : (
-                    <p className="text-3xl font-bold text-foreground">{plan.monthlyLabel}</p>
+                    <>
+                      <p className="text-xs text-muted-foreground line-through">{plan.monthlyLabel}</p>
+                      <p className="text-3xl font-bold text-foreground">{plan.annualMonthly}</p>
+                      <p className="text-xs text-muted-foreground">{plan.annualLabel} · cobrança única</p>
+                      <p className="text-xs font-semibold text-primary mt-1">
+                        {(plan as any).annualSavings}
+                      </p>
+                    </>
                   )}
                   <p className="text-sm text-muted-foreground">{plan.limit}</p>
                 </div>
@@ -675,7 +608,7 @@ export default function HomePage() {
                   </Link>
                 ) : (
                   <a
-                    href={annual ? plan.stripeYearly : plan.stripeMonthly}
+                    href={plan.stripeYearly}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => {
@@ -720,7 +653,6 @@ export default function HomePage() {
                   annualMonthly: "R$ 29,90/mês",
                   annualLabel: "R$ 358,80/ano",
                   savings: "Economize ~R$ 60/mês vs. 2 planos PRO",
-                  linkMonthly: "https://buy.stripe.com/6oU00k9bi6BP7T7ajefEk06",
                   linkYearly: "https://buy.stripe.com/7sY5kEcnu6BP4GV8b6fEk07",
                   highlight: false,
                 },
@@ -731,7 +663,6 @@ export default function HomePage() {
                   annualMonthly: "R$ 37,90/mês",
                   annualLabel: "R$ 454,80/ano",
                   savings: "Economize ~R$ 100/mês vs. 3 planos PRO",
-                  linkMonthly: "https://buy.stripe.com/5kQ4gA87e2lzddrgHCfEk08",
                   linkYearly: "https://buy.stripe.com/9B628s87e7FTa1f0IEfEk09",
                   highlight: true,
                 },
@@ -742,7 +673,6 @@ export default function HomePage() {
                   annualMonthly: "R$ 44,90/mês",
                   annualLabel: "R$ 538,80/ano",
                   savings: "Economize ~R$ 144/mês vs. 4 planos PRO",
-                  linkMonthly: "https://buy.stripe.com/aFa3cwbjq4tH0qFgHCfEk0a",
                   linkYearly: "https://buy.stripe.com/28E4gA5Z6gcp6P3bnifEk0b",
                   highlight: false,
                 },
@@ -763,14 +693,9 @@ export default function HomePage() {
                       <Users className="w-6 h-6" />
                     </div>
                     <h3 className="font-display font-semibold text-lg">{plan.name}</h3>
-                    {annual ? (
-                      <>
-                        <p className="text-3xl font-bold text-foreground">{plan.annualMonthly}</p>
-                        <p className="text-xs text-muted-foreground">{plan.annualLabel}</p>
-                      </>
-                    ) : (
-                      <p className="text-3xl font-bold text-foreground">{plan.monthlyLabel}</p>
-                    )}
+                    <p className="text-xs text-muted-foreground line-through">{plan.monthlyLabel}</p>
+                    <p className="text-3xl font-bold text-foreground">{plan.annualMonthly}</p>
+                    <p className="text-xs text-muted-foreground">{plan.annualLabel} · cobrança única</p>
                     <p className="text-sm text-muted-foreground">{plan.members} pessoas · WhatsApp individual</p>
                     <div className="inline-block text-[10px] font-semibold uppercase tracking-wider text-primary bg-primary/10 rounded-full px-2 py-1">
                       {plan.savings}
@@ -791,7 +716,7 @@ export default function HomePage() {
                     ))}
                   </ul>
                   <a
-                    href={annual ? plan.linkYearly : plan.linkMonthly}
+                    href={plan.linkYearly}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={() => {

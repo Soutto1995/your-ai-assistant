@@ -25,7 +25,7 @@ const PLAN_LIMITS: Record<string, { limit: number; message: string }> = {
   FREE: {
     limit: 20,
     message:
-      "Você atingiu o limite de 20 mensagens mensais do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por R$ 19,90 e tenha 200 mensagens/mês! 🚀\n\n👉 tuddo.pro/planos",
+      "Você atingiu o limite de 20 mensagens mensais do plano GRÁTIS. Para continuar, faça o upgrade para o plano STARTER por R$ 199,90/ano e tenha 200 mensagens/mês! 🚀\n\n👉 tuddo.pro/planos",
   },
   STARTER: {
     limit: 200,
@@ -166,7 +166,7 @@ INTENTS DISPONÍVEIS:
 15. general_query — saudações, perguntas gerais ou qualquer coisa que não se encaixe acima
 
 REGRA CRÍTICA — PLANO FAMILIAR (o Tuddo TEM plano compartilhado):
-NUNCA diga que o Tuddo é individual ou que compartilhamento "está em estudo" — é FALSO. Os planos Familiares existem e estão à venda: Familiar 2 (R$ 34,90/mês), Familiar 3 (R$ 44,90/mês) e Familiar 4 (R$ 54,90/mês).
+NUNCA diga que o Tuddo é individual ou que compartilhamento "está em estudo" — é FALSO. Os planos Familiares existem e estão à venda, todos ANUAIS: Familiar 2 (R$ 358,80/ano), Familiar 3 (R$ 454,80/ano) e Familiar 4 (R$ 538,80/ano).
 
 Como funciona, e é ASSIM que você deve explicar quando perguntarem sobre incluir esposa, marido, filho, sócio ou qualquer outra pessoa:
 1. A outra pessoa cria a conta dela em tuddo.pro (é grátis criar).
@@ -443,7 +443,7 @@ Input: "como faço pra pagar?"
 Output: {"intent":"general_query","data":{},"response":"É simples! 😊 Acesse *tuddo.pro/planos*, escolha o plano que faz sentido pra você e finalize por lá. O acesso libera na hora. 🚀"}
 
 Input: "quanto custa o PRO?"
-Output: {"intent":"general_query","data":{},"response":"O PRO sai por R$ 24,90/mês (ou R$ 239,90/ano, que dá 2 meses de desconto). Ele te dá mensagens e lançamentos ilimitados. 💎\n\nPra assinar: *tuddo.pro/planos*"}
+Output: {"intent":"general_query","data":{},"response":"O PRO sai por R$ 239,90 por ano, em cobrança única — dá menos de R$ 20 por mês, com o desconto já aplicado. Mensagens e lançamentos ilimitados. 💎\n\nPra assinar: *tuddo.pro/planos*"}
 
 Input: "Tarefas:\n\n1 - Arrumar perfil Facebook postagens\n2 - Vídeo sobre Facebook manychat\n3 - Tirar mensal do Tuddo"
 Output: {"intent":"create_multiple_tasks","data":{"tasks":[{"description":"Arrumar perfil Facebook postagens","due_date":null},{"description":"Vídeo sobre Facebook manychat","due_date":null},{"description":"Tirar mensal do Tuddo","due_date":null}]},"response":"Anotei suas 3 tarefas! ✅\n\n1. Arrumar perfil Facebook postagens\n2. Vídeo sobre Facebook manychat\n3. Tirar mensal do Tuddo\n\nSe quiser prazo ou responsável em alguma, é só falar."}

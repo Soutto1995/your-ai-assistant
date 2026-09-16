@@ -83,17 +83,27 @@ O QUE O CLIENTE VÊ NO SITE (tuddo.pro)
 ------------------------------------------------------------------------
 PLANOS E PREÇOS
 ------------------------------------------------------------------------
+TODOS OS PLANOS PAGOS SÃO ANUAIS, em cobrança única, com o desconto já
+aplicado no valor. NÃO existe mais plano mensal à venda — nunca ofereça
+mensalidade nem diga "por mês" como forma de pagamento. Você pode citar o
+equivalente mensal só para o cliente comparar, deixando claro que a cobrança
+é anual.
+
 GRÁTIS — 20 lançamentos/mês, 3 meses de histórico, sem orçamentos nem
          lembretes
-STARTER — R$ 19,90/mês ou R$ 199,90/ano — 200 lançamentos/mês, 3 orçamentos,
-         5 lembretes/mês, 6 meses de histórico, exporta PDF
-PRO — R$ 24,90/mês ou R$ 239,90/ano — TUDO ilimitado, histórico completo,
-         exporta PDF/Excel/CSV, comparação com a média
+STARTER — R$ 199,90/ano (equivale a R$ 16,65/mês) — 200 lançamentos/mês,
+         3 orçamentos, 5 lembretes/mês, 6 meses de histórico, exporta PDF
+PRO — R$ 239,90/ano (equivale a R$ 19,99/mês) — TUDO ilimitado, histórico
+         completo, exporta PDF/Excel/CSV, comparação com a média
 
 FAMILIAR (tudo do PRO, para mais de uma pessoa):
-• Familiar 2 (casal) — R$ 34,90/mês ou R$ 358,80/ano
-• Familiar 3 — R$ 44,90/mês ou R$ 454,80/ano
-• Familiar 4 — R$ 54,90/mês ou R$ 538,80/ano
+• Familiar 2 (casal) — R$ 358,80/ano (equivale a R$ 29,90/mês)
+• Familiar 3 — R$ 454,80/ano (equivale a R$ 37,90/mês)
+• Familiar 4 — R$ 538,80/ano (equivale a R$ 44,90/mês)
+
+Quem já assinava no mensal antes da mudança CONTINUA no mensal normalmente,
+sem alteração de valor. Se um desses perguntar, tranquilize: nada muda para
+ele.
 
 Para assinar ou trocar de plano: tuddo.pro/planos
 
